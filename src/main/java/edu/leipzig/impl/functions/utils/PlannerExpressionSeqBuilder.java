@@ -1,17 +1,17 @@
 package edu.leipzig.impl.functions.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.planner.expressions.PlannerExpression;
 import scala.collection.Seq;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Builder for a scala sequence of expressions, i.e. {@link Seq < Expression >} for use with Flink's
- * Table-API. Builder is built upon {@link ExpressionBuilder}.
+ * Builder for a scala sequence of expressions, i.e. {@link Seq < PlannerExpression >} for use with Flink's
+ * Table-API. Builder is built upon {@link PlannerExpressionBuilder}.
  * In contrast to the builder for single expressions, each completely built expression is added
  * to a list of expressions.
  * <p>
@@ -35,16 +35,16 @@ import java.util.List;
  * <p>
  * references to: org.gradoop.flink.model.impl.layouts.table.util;
  */
-public class ExpressionSeqBuilder extends ExpressionBuilder {
+public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
     /**
      * Internal list of expressions
      */
-    private List<Expression> expressions;
+    private List<PlannerExpression> expressions;
 
     /**
      * Constructor
      */
-    public ExpressionSeqBuilder() {
+    public PlannerExpressionSeqBuilder() {
         this.expressions = new ArrayList<>();
     }
 
@@ -53,17 +53,28 @@ public class ExpressionSeqBuilder extends ExpressionBuilder {
      *
      * @return scala sequence of expressions
      */
-    public Seq<Expression> buildSeq() {
+    public Seq<PlannerExpression> buildSeq() {
         appendIfNewExpression();
-        return ExpressionUtils.convertToSeq(expressions);
+        return (Seq<PlannerExpression>) expressions;
     }
+
+    /**
+     * Returns scala sequence of expressions built with this builder
+     *
+     * @return scala sequence of expressions
+     */
+    public PlannerExpression[] buildArray() {
+        appendIfNewExpression();
+        return ExpressionUtils.convertListToArray(expressions);
+    }
+
 
     /**
      * Returns java list of expressions built with this builder
      *
      * @return java list of expressions
      */
-    public List<Expression> buildList() {
+    public List<PlannerExpression> buildList() {
         appendIfNewExpression();
         return this.expressions;
     }
@@ -84,56 +95,56 @@ public class ExpressionSeqBuilder extends ExpressionBuilder {
     //----------------------------------------------------------------------------
 
     @Override
-    public ExpressionSeqBuilder allFields() {
+    public PlannerExpressionSeqBuilder allFields() {
         appendIfNewExpression();
         super.allFields();
         return this;
     }
 
     @Override
-    public ExpressionSeqBuilder expression(Expression e) {
+    public PlannerExpressionSeqBuilder expression(PlannerExpression e) {
         appendIfNewExpression();
         super.expression(e);
         return this;
     }
 
     @Override
-    public ExpressionSeqBuilder field(String fieldName) {
+    public PlannerExpressionSeqBuilder field(String fieldName) {
         appendIfNewExpression();
         super.field(fieldName);
         return this;
     }
 
     @Override
-    public ExpressionSeqBuilder resolvedField(String fieldName, TypeInformation<?> resultType, int fieldIndex) {
+    public PlannerExpressionSeqBuilder resolvedField(String fieldName, TypeInformation<?> resultType) {
         appendIfNewExpression();
-        super.resolvedField(fieldName, resultType, fieldIndex);
+        super.resolvedField(fieldName, resultType);
         return this;
     }
 
     @Override
-    public ExpressionSeqBuilder scalarFunctionCall(ScalarFunction function, Expression[] parameters) {
-        appendIfNewExpression();
-        super.scalarFunctionCall(function, parameters);
-        return this;
-    }
-
-    @Override
-    public ExpressionSeqBuilder scalarFunctionCall(ScalarFunction function, String... parameters) {
+    public PlannerExpressionSeqBuilder scalarFunctionCall(ScalarFunction function, PlannerExpression[] parameters) {
         appendIfNewExpression();
         super.scalarFunctionCall(function, parameters);
         return this;
     }
 
     @Override
-    public ExpressionSeqBuilder aggFunctionCall(AggregateFunction function, Expression[] parameters) {
+    public PlannerExpressionSeqBuilder scalarFunctionCall(ScalarFunction function, String... parameters) {
+        appendIfNewExpression();
+        super.scalarFunctionCall(function, parameters);
+        return this;
+    }
+
+    @Override
+    public PlannerExpressionSeqBuilder aggFunctionCall(AggregateFunction function, PlannerExpression[] parameters) {
         appendIfNewExpression();
         super.aggFunctionCall(function, parameters);
         return this;
     }
 
     @Override
-    public ExpressionSeqBuilder aggFunctionCall(AggregateFunction function, String... parameters) {
+    public PlannerExpressionSeqBuilder aggFunctionCall(AggregateFunction function, String... parameters) {
         appendIfNewExpression();
         super.aggFunctionCall(function, parameters);
         return this;
@@ -145,37 +156,37 @@ public class ExpressionSeqBuilder extends ExpressionBuilder {
     //----------------------------------------------------------------------------
 
     @Override
-    public ExpressionSeqBuilder as(String name, Seq<String> extraNames) {
+    public PlannerExpressionSeqBuilder as(String name, Seq<String> extraNames) {
         super.as(name, extraNames);
         return this;
     }
 
     @Override
-    public ExpressionSeqBuilder as(String name) {
+    public PlannerExpressionSeqBuilder as(String name) {
         super.as(name);
         return this;
     }
 
     @Override
-    public ExpressionSeqBuilder and(Expression expression) {
+    public PlannerExpressionSeqBuilder and(PlannerExpression expression) {
         super.and(expression);
         return this;
     }
 
     @Override
-    public ExpressionSeqBuilder equalTo(Expression expression) {
+    public PlannerExpressionSeqBuilder equalTo(PlannerExpression expression) {
         super.equalTo(expression);
         return this;
     }
 
     @Override
-    public ExpressionSeqBuilder equalTo(String fieldName) {
+    public PlannerExpressionSeqBuilder equalTo(String fieldName) {
         super.equalTo(fieldName);
         return this;
     }
 
     /**
-     * Appends the current expression of {@link ExpressionBuilder} to the sequence if it wasn't
+     * Appends the current expression of {@link PlannerExpressionBuilder} to the sequence if it wasn't
      * added already before
      */
     private void appendIfNewExpression() {

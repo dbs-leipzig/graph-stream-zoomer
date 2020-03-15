@@ -2,10 +2,11 @@ package edu.leipzig.model.table;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.planner.expressions.PlannerExpression;
 import org.gradoop.common.model.impl.properties.Properties;
 import scala.collection.Seq;
 
@@ -99,30 +100,30 @@ public class TableSet extends HashMap<String, Table> {
     private static final TableSetSchema SCHEMA = new TableSetSchema(
             ImmutableMap.<String, TableSchema>builder()
                     .put(TABLE_VERTICES, new TableSchema.Builder()
-                            .field(FIELD_VERTEX_ID, Types.STRING())
-                            .field(FIELD_VERTEX_LABEL, Types.STRING())
+                            .field(FIELD_VERTEX_ID, Types.STRING)
+                            .field(FIELD_VERTEX_LABEL, Types.STRING)
                             .field(FIELD_VERTEX_PROPERTIES, TypeInformation.of(Properties.class))
                             .build()
                     )
                     .put(TABLE_EDGES, new TableSchema.Builder()
-                            .field(FIELD_EDGE_ID, Types.STRING())
-                            .field(FIELD_TAIL_ID, Types.STRING())
-                            .field(FIELD_HEAD_ID, Types.STRING())
-                            .field(FIELD_EDGE_LABEL, Types.STRING())
+                            .field(FIELD_EDGE_ID, Types.STRING)
+                            .field(FIELD_TAIL_ID, Types.STRING)
+                            .field(FIELD_HEAD_ID, Types.STRING)
+                            .field(FIELD_EDGE_LABEL, Types.STRING)
                             .field(FIELD_EDGE_PROPERTIES, TypeInformation.of(Properties.class))
                             .build()
                     )
                     .put(TABLE_GRAPH, new TableSchema.Builder()
-                            .field(FIELD_EDGE_ID, Types.STRING())
-                            .field(FIELD_EDGE_LABEL, Types.STRING())
+                            .field(FIELD_EDGE_ID, Types.STRING)
+                            .field(FIELD_EDGE_LABEL, Types.STRING)
                             .field(FIELD_EDGE_PROPERTIES, TypeInformation.of(Properties.class))
 
-                            .field(FIELD_TAIL_ID, Types.STRING())
-                            .field(FIELD_VERTEX_SOURCE_LABEL, Types.STRING())
+                            .field(FIELD_TAIL_ID, Types.STRING)
+                            .field(FIELD_VERTEX_SOURCE_LABEL, Types.STRING)
                             .field(FIELD_VERTEX_SOURCE_PROPERTIES, TypeInformation.of(Properties.class))
 
-                            .field(FIELD_HEAD_ID, Types.STRING())
-                            .field(FIELD_VERTEX_TARGET_LABEL, Types.STRING())
+                            .field(FIELD_HEAD_ID, Types.STRING)
+                            .field(FIELD_VERTEX_TARGET_LABEL, Types.STRING)
                             .field(FIELD_VERTEX_TARGET_PROPERTIES, TypeInformation.of(Properties.class))
                             .build()
                     )
@@ -178,7 +179,7 @@ public class TableSet extends HashMap<String, Table> {
      *
      * @return scala sequence of expressions
      */
-    private Seq<Expression> buildGraphProjectExpressions() {
+    private Seq<PlannerExpression> buildGraphProjectExpressions() {
         return SCHEMA.buildProjectExpressions(TABLE_GRAPH);
     }
 }

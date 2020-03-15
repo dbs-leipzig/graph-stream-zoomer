@@ -19,6 +19,7 @@ public interface CustomizedAggregationFunction {
      *
      * @return property key
      */
+
     default String getPropertyKey() {
         return null;
     }

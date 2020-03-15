@@ -1,6 +1,6 @@
 package edu.leipzig.model.table;
 
-import edu.leipzig.impl.functions.utils.ExpressionSeqBuilder;
+import edu.leipzig.impl.functions.utils.PlannerExpressionSeqBuilder;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.expressions.Expression;
 
@@ -57,7 +57,7 @@ public class TableSetFactory {
      * @return new graph table
      */
     private Table computeNewGraph(Table graph) {
-        return graph.select((Expression) new ExpressionSeqBuilder()
+        return graph.select((Expression) new PlannerExpressionSeqBuilder()
                 .field(TableSet.FIELD_EDGE_ID)
                 .field(TableSet.FIELD_EDGE_LABEL)
                 .field(TableSet.FIELD_EDGE_PROPERTIES)

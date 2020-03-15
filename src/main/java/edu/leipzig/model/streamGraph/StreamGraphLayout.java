@@ -2,12 +2,11 @@ package edu.leipzig.model.streamGraph;
 
 import edu.leipzig.impl.algorithm.GraphSummarizer;
 import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
-import edu.leipzig.impl.functions.utils.ExpressionBuilder;
-import edu.leipzig.impl.functions.utils.ExpressionSeqBuilder;
+import edu.leipzig.impl.functions.utils.PlannerExpressionBuilder;
+import edu.leipzig.impl.functions.utils.PlannerExpressionSeqBuilder;
 import edu.leipzig.model.table.TableSet;
 import edu.leipzig.model.table.TableSetFactory;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.expressions.Expression;
 
 import java.util.List;
 import java.util.Objects;
@@ -138,26 +137,28 @@ public class StreamGraphLayout {
                                       Table vertices) {
         String newId1 = config.createUniqueAttributeName();
         String newId2 = config.createUniqueAttributeName();
-        ExpressionBuilder builder = new ExpressionBuilder();
+        PlannerExpressionBuilder builder = new PlannerExpressionBuilder();
 
         return tableSet.projectToGraph(
                 edges
                         .join(vertices
-                                .select((Expression[])  new ExpressionSeqBuilder()
+                                .select( new PlannerExpressionSeqBuilder()
                                         .field(TableSet.FIELD_VERTEX_ID).as(newId1)
                                         .field(TableSet.FIELD_VERTEX_LABEL).as(TableSet.FIELD_VERTEX_SOURCE_LABEL)
                                         .field(TableSet.FIELD_VERTEX_PROPERTIES).as(TableSet.FIELD_VERTEX_SOURCE_PROPERTIES)
-                                        .buildList().toArray()
+                                        // .buildList().toArray()
+                                        .buildArray()
                                 ), builder
                                 .field(TableSet.FIELD_TAIL_ID)
                                 .equalTo(newId1)
                                 .toExpression()
                         ).join(vertices
-                        .select((Expression[])  new ExpressionSeqBuilder()
+                        .select( new PlannerExpressionSeqBuilder()
                                 .field(TableSet.FIELD_VERTEX_ID).as(newId2)
                                 .field(TableSet.FIELD_VERTEX_LABEL).as(TableSet.FIELD_VERTEX_TARGET_LABEL)
                                 .field(TableSet.FIELD_VERTEX_PROPERTIES).as(TableSet.FIELD_VERTEX_TARGET_PROPERTIES)
-                                .buildList().toArray()
+                                // .buildList().toArray()
+                                .buildArray()
                         ), builder
                         .field(TableSet.FIELD_HEAD_ID)
                         .equalTo(newId2)

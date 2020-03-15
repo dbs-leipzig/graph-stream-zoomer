@@ -1,9 +1,9 @@
 package edu.leipzig.impl.functions.utils;
 
-import org.apache.flink.table.api.Types;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.Literal;
-import org.apache.flink.table.expressions.UnresolvedFieldReference;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.planner.expressions.Literal;
+import org.apache.flink.table.planner.expressions.PlannerExpression;
+import org.apache.flink.table.planner.expressions.UnresolvedFieldReference;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
@@ -35,8 +35,8 @@ public class ExpressionUtils {
      * @param array array of expressions
      * @return scala sequence of expressions
      */
-    public static Seq<Expression> convertToSeq(Expression[] array) {
-        return convertToSeq(new ArrayList<Expression>(Arrays.asList(array)));
+    public static Seq<PlannerExpression> convertToSeq(PlannerExpression[] array) {
+        return convertToSeq(new ArrayList<PlannerExpression>(Arrays.asList(array)));
     }
 
     /**
@@ -45,7 +45,7 @@ public class ExpressionUtils {
      * @param collection collection of expressions
      * @return scala sequence of expressions
      */
-    public static Seq<Expression> convertToSeq(Collection<Expression> collection) {
+    public static Seq<PlannerExpression> convertToSeq(Collection<PlannerExpression> collection) {
         return JavaConverters.asScalaIteratorConverter(collection.iterator()).asScala().toSeq();
     }
 
@@ -55,9 +55,9 @@ public class ExpressionUtils {
      * @param array array of field name strings
      * @return array of field reference expressions
      */
-    public static Expression[] convertStringArrayToFieldReferenceArray(String... array) {
+    public static PlannerExpression[] convertStringArrayToFieldReferenceArray(String... array) {
         return Arrays.stream(array).map(fieldName -> new UnresolvedFieldReference(fieldName))
-                .toArray(Expression[]::new);
+                .toArray(PlannerExpression[]::new);
     }
 
 
@@ -67,8 +67,12 @@ public class ExpressionUtils {
      * @param array array of string literals
      * @return array of literal expressions
      */
-    public static Expression[] convertStringArrayToLiteralArray(String... array) {
+    public static PlannerExpression[] convertStringArrayToLiteralArray(String... array) {
         return Arrays.stream(array)
-                .map(str -> new Literal(str, Types.STRING())).toArray(Expression[]::new);
+                .map(str -> new Literal(str, Types.STRING)).toArray(PlannerExpression[]::new);
+    }
+
+    public static PlannerExpression[] convertListToArray(List<PlannerExpression> expressions) {
+        return expressions.toArray(PlannerExpression[]::new);
     }
 }

@@ -1,8 +1,8 @@
 package edu.leipzig.model.table;
 
-import edu.leipzig.impl.functions.utils.ExpressionSeqBuilder;
+import edu.leipzig.impl.functions.utils.PlannerExpressionSeqBuilder;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.planner.expressions.PlannerExpression;
 import scala.collection.Seq;
 
 import java.util.HashMap;
@@ -76,8 +76,8 @@ class TableSetSchema {
      * @param tableName name of table to get project expressions for
      * @return scala sequence of expressions
      */
-    Seq<Expression> buildProjectExpressions(String tableName) {
-        ExpressionSeqBuilder builder = new ExpressionSeqBuilder();
+    Seq<PlannerExpression> buildProjectExpressions(String tableName) {
+        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder();
         for (String fieldName : getFieldNamesForTable(tableName)) {
             builder.field(fieldName);
         }
