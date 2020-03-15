@@ -73,6 +73,6 @@ public class ExpressionUtils {
     }
 
     public static PlannerExpression[] convertListToArray(List<PlannerExpression> expressions) {
-        return expressions.toArray(PlannerExpression[]::new);
+        return expressions.toArray(new PlannerExpression[0]);
     }
 }
