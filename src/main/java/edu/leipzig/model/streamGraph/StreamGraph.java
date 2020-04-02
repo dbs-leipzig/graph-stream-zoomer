@@ -125,7 +125,10 @@ public class StreamGraph {
      */
     public void writeGraphTo() {
         TableSet tableSet = config.getTableSetFactory().fromTable(
-                layout.computeSummarizedGraphTable(layout.getTableSet().getEdges(), layout.getTableSet().getVertices()));
+          layout.computeSummarizedGraphTable(
+            layout.getTableSet().getEdges(),
+            layout.getTableSet().getVertices()),
+          config.getTableEnvironment());
         config.getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).print();
     }
 
@@ -135,7 +138,7 @@ public class StreamGraph {
     public void writeGraphAsCsv(String path) {
         TableSet tableSet = config.getTableSetFactory().fromTable(
                 layout.computeSummarizedGraphTable(layout.getTableSet().getEdges(),
-                        layout.getTableSet().getVertices()));
+                        layout.getTableSet().getVertices()), config.getTableEnvironment());
         config.getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class)
                 .writeAsCsv(path+ "_G", FileSystem.WriteMode.OVERWRITE);
     }

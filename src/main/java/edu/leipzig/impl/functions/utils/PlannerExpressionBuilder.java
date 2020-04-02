@@ -1,11 +1,18 @@
 package edu.leipzig.impl.functions.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.expressions.CallExpression;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.expressions.*;
 import scala.collection.Seq;
+
+import java.util.Arrays;
 
 
 /**
@@ -45,7 +52,6 @@ import scala.collection.Seq;
  * This implementation reuses much of the code of Much of Grable.
  * the code is copied directly or has only small changes.
  *
- * @link ExpressionBuilder
  * <p>
  * references to: org.gradoop.flink.model.impl.layouts.table.util;
  */
@@ -53,16 +59,15 @@ public class PlannerExpressionBuilder {
     /**
      * Current expression object
      */
-    protected PlannerExpression currentExpression;
+    protected String currentExpression;
 
-    // protected ResolvedFieldReference resolvedFieldReference;
+    protected StreamTableEnvironment tableEnv;
 
-    /**
-     * Returns built expression object
-     *
-     * @return flink expression object
-     */
-    public PlannerExpression toExpression() {
+    public PlannerExpressionBuilder(StreamTableEnvironment tableEnv) {
+        this.tableEnv = tableEnv;
+    }
+
+    public String getExpression() {
         return currentExpression;
     }
 
@@ -72,7 +77,7 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder allFields() {
-        currentExpression = new UnresolvedFieldReference("*");
+        currentExpression = "*";
         return this;
     }
 
@@ -82,8 +87,13 @@ public class PlannerExpressionBuilder {
      * @param e expression
      * @return a reference to this object
      */
-    public PlannerExpressionBuilder expression(PlannerExpression e) {
+    public PlannerExpressionBuilder expression(String e) {
         currentExpression = e;
+        return this;
+    }
+
+    public PlannerExpressionBuilder literal(String e) {
+        currentExpression = "'" + e + "'";
         return this;
     }
 
@@ -94,31 +104,7 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder field(String fieldName) {
-        currentExpression = new UnresolvedFieldReference(fieldName);
-        return this;
-    }
-
-    /**
-     * Sets current expression to a field reference to field with given field name with given type
-     *
-     * @param fieldName  field name
-     * @param resultType field type
-     * @return a reference to this object
-     */
-    public PlannerExpressionBuilder resolvedField(String fieldName, TypeInformation<?> resultType) {
-        this.currentExpression =  new PlannerResolvedFieldReference(fieldName, resultType);
-        return this;
-    }
-
-    /**
-     * Sets current expression to a call of given scalar function with given parameters
-     *
-     * @param function   table scalar function
-     * @param parameters array of expressions as {@link PlannerExpression}
-     * @return a reference to this object
-     */
-    public PlannerExpressionBuilder scalarFunctionCall(ScalarFunction function, PlannerExpression[] parameters) {
-        currentExpression = new PlannerScalarFunctionCall(function, ExpressionUtils.convertToSeq(parameters));
+        currentExpression = fieldName;
         return this;
     }
 
@@ -130,22 +116,15 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder scalarFunctionCall(ScalarFunction function, String... parameters) {
-        return scalarFunctionCall(function,
-                ExpressionUtils.convertStringArrayToFieldReferenceArray(parameters));
-    }
-
-    /**
-     * Sets current expression to a call of given aggregation function with given parameters
-     *
-     * @param function   table aggregation function
-     * @param parameters array of expressions as {@link PlannerExpression}
-     * @return a reference to this object
-     */
-    public PlannerExpressionBuilder aggFunctionCall(AggregateFunction function, PlannerExpression[] parameters) {
-        currentExpression = new AggFunctionCall(function, function.getResultType(),
-                function.getAccumulatorType(), ExpressionUtils.convertToSeq(parameters));
+        String functionName = function.toString();
+        if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
+            tableEnv.registerFunction(functionName, function);
+        }
+        currentExpression = functionName + "(" + String.join(",", parameters) + ")";
         return this;
     }
+
+
 
     /**
      * Sets current expression to a call of given aggregation function with given field names as
@@ -156,19 +135,11 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder aggFunctionCall(AggregateFunction function, String... parameters) {
-        return aggFunctionCall(function,
-                ExpressionUtils.convertStringArrayToFieldReferenceArray(parameters));
-    }
-
-    /**
-     * Appends an alias to current expression
-     *
-     * @param name       alias name
-     * @param extraNames extra names
-     * @return a reference to this object
-     */
-    public PlannerExpressionBuilder as(String name, Seq<String> extraNames) {
-        currentExpression = new Alias(currentExpression, name, extraNames);
+        String functionName = function.toString();
+        if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
+            tableEnv.registerFunction(functionName, function);
+        }
+        currentExpression = functionName + "(" + String.join(",", parameters) + ")";
         return this;
     }
 
@@ -179,18 +150,7 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder as(String name) {
-        return as(name, ExpressionUtils.EMPTY_STRING_SEQ);
-    }
-
-    /**
-     * Appends a call of SQL "IN(expressions...)" with given expressions to current expression
-     * Builds a boolean expression!
-     *
-     * @param elements array of expressions
-     * @return a reference to this object
-     */
-    public PlannerExpressionBuilder in(PlannerExpression... elements) {
-        currentExpression = new In( currentExpression, ExpressionUtils.convertToSeq(elements));
+        currentExpression = currentExpression + " as " + name;
         return this;
     }
 
@@ -202,7 +162,8 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder in(String... elements) {
-        return in(ExpressionUtils.convertStringArrayToLiteralArray(elements));
+        currentExpression = "IN(" + String.join(", ", elements);
+        return this;
     }
 
 
@@ -214,24 +175,17 @@ public class PlannerExpressionBuilder {
      * @param expression expression
      * @return a reference to this object
      */
-    public PlannerExpressionBuilder and(PlannerExpression expression) {
+    public PlannerExpressionBuilder and(String expression) {
         if (null == currentExpression) {
             currentExpression = expression;
         } else {
-            currentExpression = new And(currentExpression, expression);
+            currentExpression = currentExpression + " AND " + expression;
         }
         return this;
     }
 
-    /**
-     * Appends a call of boolean "=" operator with given expression to current expression
-     * Builds a boolean expression!
-     *
-     * @param expression expression
-     * @return a reference to this object
-     */
-    public PlannerExpressionBuilder equalTo(PlannerExpression expression) {
-        currentExpression = new EqualTo(currentExpression, expression);
+    public PlannerExpressionBuilder row(String... elements) {
+        currentExpression = "row(" + String.join(", ", elements) + ")";
         return this;
     }
 
@@ -243,6 +197,7 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder equalTo(String fieldName) {
-        return equalTo(new UnresolvedFieldReference(fieldName));
+        currentExpression = currentExpression + " = " + fieldName;
+        return this;
     }
 }

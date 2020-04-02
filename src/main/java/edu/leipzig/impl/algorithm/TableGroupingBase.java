@@ -205,8 +205,8 @@ abstract class TableGroupingBase {
      *
      * @return scala sequence of expressions
      */
-    Expression[] buildVertexGroupExpressions() {
-        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder();
+    String buildVertexGroupExpressions() {
+        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(tableEnv);
 
         // tmp_a1, ... , tmp_an
         for (String vertexPropertyKey : vertexGroupingPropertyKeys) {
@@ -221,7 +221,8 @@ abstract class TableGroupingBase {
             builder.field(TableSet.FIELD_VERTEX_ID);
         }
         // return (Expression[]) builder.buildList().toArray();
-        return builder.buildArray();
+        String expression = builder.buildString();
+        return expression;
     }
 
     /**
@@ -234,8 +235,8 @@ abstract class TableGroupingBase {
      *
      * @return scala sequence of expressions
      */
-    Expression[] buildVertexProjectExpressions() {
-        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder();
+    String buildVertexProjectExpressions() {
+        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(tableEnv);
         String[] fields;
         // computes super_vertex_id as the hash value of vertex grouping fields values
         if (useVertexLabels && vertexGroupingPropertyKeys.size() > 0) {
@@ -278,7 +279,7 @@ abstract class TableGroupingBase {
 
         // AGG(tmp_b1) AS tmp_d1, ... , AGG(tmp_bm) AS tmp_dm
         for (CustomizedAggregationFunction vertexAggregationFunction : vertexAggregateFunctions) {
-            PlannerExpressionBuilder expressionToAggregateBuilder = new PlannerExpressionBuilder();
+            PlannerExpressionBuilder expressionToAggregateBuilder = new PlannerExpressionBuilder(tableEnv);
 
             if (null != vertexAggregationFunction.getPropertyKey()) {
                 // Property aggregation function, e.g. MAX, MIN, SUM
@@ -292,14 +293,14 @@ abstract class TableGroupingBase {
             String fieldNameAfterAggregation = config.createUniqueAttributeName();
             builder
                     .aggFunctionCall(vertexAggregationFunction.getTableAggFunction(),
-                            new PlannerExpression[]{expressionToAggregateBuilder.toExpression()})
+                            expressionToAggregateBuilder.getExpression())
                     .as(fieldNameAfterAggregation);
 
             vertexAfterAggregationPropertyFieldNames
                     .put(vertexAggregationFunction.getAggregatePropertyKey(), fieldNameAfterAggregation);
         }
         // return (Expression[]) builder.buildList().toArray();
-        return builder.buildArray();
+        return builder.buildString();
     }
 
     /**
@@ -319,11 +320,11 @@ abstract class TableGroupingBase {
      * @return vertex - super vertex mapping table
      */
     Table joinVerticesWithGroupedVertices(Table preparedVertices, Table groupedVertices) {
-        PlannerExpressionBuilder joinPredicateBuilder = new PlannerExpressionBuilder();
+        PlannerExpressionBuilder joinPredicateBuilder = new PlannerExpressionBuilder(tableEnv);
 
-        PlannerExpressionSeqBuilder preparedVerticesProjectExpressionsBuilder = new PlannerExpressionSeqBuilder()
+        PlannerExpressionSeqBuilder preparedVerticesProjectExpressionsBuilder = new PlannerExpressionSeqBuilder(tableEnv)
                 .field(TableSet.FIELD_VERTEX_ID);
-        PlannerExpressionSeqBuilder groupedVerticesProjectExpressionsBuilder = new PlannerExpressionSeqBuilder()
+        PlannerExpressionSeqBuilder groupedVerticesProjectExpressionsBuilder = new PlannerExpressionSeqBuilder(tableEnv)
                 .field(FIELD_SUPER_VERTEX_ID);
 
         for (String vertexPropertyKey : vertexGroupingPropertyKeys) {
@@ -336,10 +337,10 @@ abstract class TableGroupingBase {
             groupedVerticesProjectExpressionsBuilder.field(fieldNameAfterGrouping);
 
             joinPredicateBuilder.and(
-                    new PlannerExpressionBuilder()
+                    new PlannerExpressionBuilder(tableEnv)
                             .field(fieldNameBeforeGrouping)
                             .equalTo(fieldNameAfterGrouping)
-                            .toExpression()
+                            .getExpression()
             );
 
         }
@@ -349,21 +350,21 @@ abstract class TableGroupingBase {
             groupedVerticesProjectExpressionsBuilder.field(FIELD_SUPER_VERTEX_LABEL);
 
             joinPredicateBuilder.and(
-                    new PlannerExpressionBuilder()
+                    new PlannerExpressionBuilder(tableEnv)
                             .field(TableSet.FIELD_VERTEX_LABEL)
                             .equalTo(FIELD_SUPER_VERTEX_LABEL)
-                            .toExpression()
+                            .getExpression()
             );
         }
 
         return preparedVertices.
-                select(preparedVerticesProjectExpressionsBuilder.buildArray())
-                .join(groupedVertices.select(groupedVerticesProjectExpressionsBuilder.buildArray()),
-                        joinPredicateBuilder.toExpression())
-                .select(new PlannerExpressionSeqBuilder()
+                select(preparedVerticesProjectExpressionsBuilder.buildString())
+                .join(groupedVertices.select(groupedVerticesProjectExpressionsBuilder.buildString()),
+                        joinPredicateBuilder.getExpression())
+                .select(new PlannerExpressionSeqBuilder(tableEnv)
                         .field(TableSet.FIELD_VERTEX_ID)
                         .field(FIELD_SUPER_VERTEX_ID)
-                        .buildArray()
+                        .buildString()
                 );
     }
 
@@ -382,14 +383,14 @@ abstract class TableGroupingBase {
      * @return enriched edges table
      */
     Table enrichEdges(Table edges, Table expandedVertices,
-                      PlannerExpression... additionalProjectExpressions) {
+                      String... additionalProjectExpressions) {
 
         String vertexIdHead = config.createUniqueAttributeName();
         String superVertexIdHead = config.createUniqueAttributeName();
         String vertexIdTail = config.createUniqueAttributeName();
         String superVertexIdTail = config.createUniqueAttributeName();
 
-        PlannerExpressionSeqBuilder projectExpressionsBuilder = new PlannerExpressionSeqBuilder()
+        PlannerExpressionSeqBuilder projectExpressionsBuilder = new PlannerExpressionSeqBuilder(tableEnv)
                 .field(TableSet.FIELD_EDGE_ID)
                 .field(superVertexIdTail).as(TableSet.FIELD_TAIL_ID)
                 .field(superVertexIdHead).as(TableSet.FIELD_HEAD_ID);
@@ -399,31 +400,30 @@ abstract class TableGroupingBase {
             projectExpressionsBuilder.field(TableSet.FIELD_EDGE_LABEL);
         }
 
-        for (PlannerExpression expression : additionalProjectExpressions) {
+        for (String expression : additionalProjectExpressions) {
             projectExpressionsBuilder.expression(expression);
         }
 
         return tableSet.getEdges()
                 .join(expandedVertices
-                        .select(new PlannerExpressionSeqBuilder()
+                        .select(new PlannerExpressionSeqBuilder(tableEnv)
                                 .field(TableSet.FIELD_VERTEX_ID).as(vertexIdHead)
                                 .field(FIELD_SUPER_VERTEX_ID).as(superVertexIdHead)
                                 // .buildList().toArray()
-                                .buildArray()
-                        ), new PlannerExpressionBuilder()
-                        .field(TableSet.FIELD_HEAD_ID).equalTo(vertexIdHead).toExpression()
+                                .buildString()
+                        ), new PlannerExpressionBuilder(tableEnv)
+                        .field(TableSet.FIELD_HEAD_ID).equalTo(vertexIdHead).getExpression()
                 )
                 .join(expandedVertices
-                        .select(new PlannerExpressionSeqBuilder()
+                        .select(new PlannerExpressionSeqBuilder(tableEnv)
                                 .field(TableSet.FIELD_VERTEX_ID).as(vertexIdTail)
                                 .field(FIELD_SUPER_VERTEX_ID).as(superVertexIdTail)
                                 // .buildList().toArray()
-                                .buildArray()
-                        ), new PlannerExpressionBuilder()
-                        .field(TableSet.FIELD_TAIL_ID).equalTo(vertexIdTail).toExpression()
+                                .buildString()
+                        ), new PlannerExpressionBuilder(tableEnv)
+                        .field(TableSet.FIELD_TAIL_ID).equalTo(vertexIdTail).getExpression()
                 )
-                .select(projectExpressionsBuilder.buildArray()
-                );
+                .select(projectExpressionsBuilder.buildString());
     }
 
     /**
@@ -433,8 +433,8 @@ abstract class TableGroupingBase {
      *
      * @return scala sequence of expressions
      */
-    Expression[] buildEdgeGroupExpressions() {
-        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder();
+    String buildEdgeGroupExpressions() {
+        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(tableEnv);
 
         // tail_id, head_id
         builder.field(TableSet.FIELD_TAIL_ID);
@@ -454,7 +454,7 @@ abstract class TableGroupingBase {
         }
 
         // return (Expression[]) builder.buildList().toArray();
-        return builder.buildArray();
+        return builder.buildString();
     }
 
     /**
@@ -469,8 +469,8 @@ abstract class TableGroupingBase {
      *
      * @return scala sequence of expressions
      */
-    Expression[] buildEdgeProjectExpressions() {
-        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder();
+    String buildEdgeProjectExpressions() {
+        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(tableEnv);
         String[] fields;
         // computes super_edge_id as the hash value of edge grouping fields values
         if (useEdgeLabels && edgeGroupingPropertyKeys.size() > 0) {
@@ -522,7 +522,7 @@ abstract class TableGroupingBase {
 
         // AGG(tmp_f1) AS tmp_h1, ... , AGG(tmp_fl) AS tmp_hl
         for (CustomizedAggregationFunction edgeAggregateFunction : edgeAggregateFunctions) {
-            PlannerExpressionBuilder expressionToAggregateBuilder = new PlannerExpressionBuilder();
+            PlannerExpressionBuilder expressionToAggregateBuilder = new PlannerExpressionBuilder(tableEnv);
             if (null != edgeAggregateFunction.getPropertyKey()) {
                 // Property aggregation function, e.g. MAX, MIN, SUM
                 expressionToAggregateBuilder
@@ -536,7 +536,7 @@ abstract class TableGroupingBase {
             String fieldNameAfterAggregation = config.createUniqueAttributeName();
             builder
                     .aggFunctionCall(edgeAggregateFunction.getTableAggFunction(),
-                            new PlannerExpression[]{expressionToAggregateBuilder.toExpression()})
+                            expressionToAggregateBuilder.getExpression())
                     .as(fieldNameAfterAggregation);
 
             edgeAfterAggregationPropertyFieldNames.put(edgeAggregateFunction.getAggregatePropertyKey(),
@@ -544,7 +544,7 @@ abstract class TableGroupingBase {
         }
 
         // return (Expression[]) builder.buildList().toArray();
-        return builder.buildArray();
+        return builder.buildString();
     }
 
     /**

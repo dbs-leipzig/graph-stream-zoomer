@@ -54,12 +54,12 @@ public class TableAvgProperty extends AggregateFunction<PropertyValue, AvgAcc> {
     }
 
     @Override
-    public TypeInformation getResultType() {
+    public TypeInformation<PropertyValue> getResultType() {
         return TypeInformation.of(PropertyValue.class);
     }
 
     @Override
-    public TypeInformation getAccumulatorType() {
+    public TypeInformation<AvgAcc> getAccumulatorType() {
         return TypeInformation.of(AvgAcc.class);
     }
 }

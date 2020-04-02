@@ -137,32 +137,31 @@ public class StreamGraphLayout {
                                       Table vertices) {
         String newId1 = config.createUniqueAttributeName();
         String newId2 = config.createUniqueAttributeName();
-        PlannerExpressionBuilder builder = new PlannerExpressionBuilder();
+        PlannerExpressionBuilder builder = new PlannerExpressionBuilder(config.getTableEnvironment());
 
         return tableSet.projectToGraph(
                 edges
                         .join(vertices
-                                .select( new PlannerExpressionSeqBuilder()
+                                .select( new PlannerExpressionSeqBuilder(config.getTableEnvironment())
                                         .field(TableSet.FIELD_VERTEX_ID).as(newId1)
                                         .field(TableSet.FIELD_VERTEX_LABEL).as(TableSet.FIELD_VERTEX_SOURCE_LABEL)
                                         .field(TableSet.FIELD_VERTEX_PROPERTIES).as(TableSet.FIELD_VERTEX_SOURCE_PROPERTIES)
-                                        // .buildList().toArray()
-                                        .buildArray()
+                                        .buildString()
                                 ), builder
                                 .field(TableSet.FIELD_TAIL_ID)
                                 .equalTo(newId1)
-                                .toExpression()
+                                .getExpression()
                         ).join(vertices
-                        .select( new PlannerExpressionSeqBuilder()
+                        .select( new PlannerExpressionSeqBuilder(config.getTableEnvironment())
                                 .field(TableSet.FIELD_VERTEX_ID).as(newId2)
                                 .field(TableSet.FIELD_VERTEX_LABEL).as(TableSet.FIELD_VERTEX_TARGET_LABEL)
                                 .field(TableSet.FIELD_VERTEX_PROPERTIES).as(TableSet.FIELD_VERTEX_TARGET_PROPERTIES)
                                 // .buildList().toArray()
-                                .buildArray()
+                                .buildString()
                         ), builder
                         .field(TableSet.FIELD_HEAD_ID)
                         .equalTo(newId2)
-                        .toExpression()
+                        .getExpression()
                 )
         );
 

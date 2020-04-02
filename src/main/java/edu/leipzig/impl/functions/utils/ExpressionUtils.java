@@ -1,8 +1,10 @@
 package edu.leipzig.impl.functions.utils;
 
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.planner.expressions.Literal;
 import org.apache.flink.table.planner.expressions.PlannerExpression;
+import org.apache.flink.table.planner.expressions.PlannerScalarFunctionCall;
 import org.apache.flink.table.planner.expressions.UnresolvedFieldReference;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
@@ -74,5 +76,18 @@ public class ExpressionUtils {
 
     public static PlannerExpression[] convertListToArray(List<PlannerExpression> expressions) {
         return expressions.toArray(new PlannerExpression[0]);
+    }
+
+    public static String convertListToString(List<PlannerExpression> expressions) {
+        StringBuilder stringBuilder = new StringBuilder();
+        for (PlannerExpression expression : expressions) {
+            if (expression instanceof PlannerScalarFunctionCall) {
+                String identifier = ((PlannerScalarFunctionCall) expression).scalarFunction().functionIdentifier();
+            }
+            stringBuilder.append(expression);
+            stringBuilder.append(", ");
+        }
+        int len = stringBuilder.toString().length();
+        return stringBuilder.toString().substring(0, len - 2).replace("'","");
     }
 }

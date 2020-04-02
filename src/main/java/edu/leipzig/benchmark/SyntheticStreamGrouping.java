@@ -14,6 +14,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.java.StreamTableEnvironment;
 
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
@@ -55,23 +57,19 @@ public class SyntheticStreamGrouping {
      *
      * @param args program arguments
      */
-    public static void main(String[] args) {
-        try {
-            GROUPING_CONFIG = Integer.parseInt(args[0]);
-            USE_GRAPH_LAYOUT = Boolean.parseBoolean(args[1]);
-            MIN_RETENTION_TIME = Long.parseLong(args[2]);
-            MAX_RETENTION_TIME = Long.parseLong(args[3]);
-            DATA_SET_FILE = args[4];
-            OUTPUT_FILE = args[5];
-            System.out.println(String.format("Running using params:\n grouping config: %d, graph layout: %b," +
-                            " min query retention interval: %d hours, max query retention interval: %d hours",
-                    GROUPING_CONFIG, USE_GRAPH_LAYOUT, MIN_RETENTION_TIME, MAX_RETENTION_TIME));
-            Summarize();
-        } catch (Exception e) {
-            System.out.println(Arrays.toString(e.getStackTrace()));
-            System.out.println("DATA INPUT PROBLEM! or NO INPUT!");
-            System.out.println(e);
-        }
+    public static void main(String[] args) throws Exception {
+
+        GROUPING_CONFIG = Integer.parseInt(args[0]);
+        USE_GRAPH_LAYOUT = Boolean.parseBoolean(args[1]);
+        MIN_RETENTION_TIME = Long.parseLong(args[2]);
+        MAX_RETENTION_TIME = Long.parseLong(args[3]);
+        DATA_SET_FILE = args[4];
+        OUTPUT_FILE = args[5];
+        System.out.println(String.format("Running using params:\n grouping config: %d, graph layout: %b," +
+                        " min query retention interval: %d hours, max query retention interval: %d hours",
+                GROUPING_CONFIG, USE_GRAPH_LAYOUT, MIN_RETENTION_TIME, MAX_RETENTION_TIME));
+
+        Summarize();
     }
 
     /**
@@ -144,16 +142,26 @@ public class SyntheticStreamGrouping {
             streamGraph.groupBy(vertexGroupingKeys, vertexAggregationFunctions,
                     edgeGroupingKeys, edgeAggregationFunctions).writeTo();//.writeAsCsv(DATA_SET_FILE);
         }
+
         // execute program
         final JobExecutionResult jobResult = env.execute("Stream Grouping");
+
+
+
         long runtimeInMs = jobResult.getNetRuntime();
         int parallelism = env.getParallelism();
         String logMessage = String.format("%s, %s, %s",
                 runtimeInMs, parallelism, DATA_SET_FILE);
-        FileOutputStream csvInfo = new FileOutputStream(OUTPUT_FILE, true);
-        DataOutputStream csvOutStream = new DataOutputStream(new BufferedOutputStream(csvInfo));
-        csvOutStream.writeUTF(logMessage + "\n");
-        csvOutStream.close();
+
+        try {
+            FileOutputStream csvInfo = new FileOutputStream(OUTPUT_FILE, true);
+            DataOutputStream csvOutStream = new DataOutputStream(new BufferedOutputStream(csvInfo));
+            csvOutStream.writeUTF(logMessage + "\n");
+            csvOutStream.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         System.out.println(String.format("runtimeInMs: %d, parallelism: %d, data set file: %s",
                 runtimeInMs, parallelism, DATA_SET_FILE));
     }
