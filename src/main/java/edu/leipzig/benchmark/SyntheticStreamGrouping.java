@@ -130,11 +130,11 @@ public class SyntheticStreamGrouping {
         if (USE_GRAPH_LAYOUT) {
             // execute graph grouping
             streamGraph.groupBy(vertexGroupingKeys, vertexAggregationFunctions,
-                    edgeGroupingKeys, edgeAggregationFunctions).writeGraphTo(); //.writeGraphAsCsv(DATA_SET_FILE);
+                    edgeGroupingKeys, edgeAggregationFunctions).writeGraphAsCsv(DATA_SET_FILE);
         } else {
             // execute grouping of vertices and edges
             streamGraph.groupBy(vertexGroupingKeys, vertexAggregationFunctions,
-                    edgeGroupingKeys, edgeAggregationFunctions).writeTo(); //.writeAsCsv(DATA_SET_FILE);
+                    edgeGroupingKeys, edgeAggregationFunctions).writeAsCsv(DATA_SET_FILE);
         }
 
         // execute program

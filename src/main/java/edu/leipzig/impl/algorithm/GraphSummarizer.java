@@ -237,7 +237,6 @@ public class GraphSummarizer extends TableGroupingBase {
         }
         builder.as(TableSet.FIELD_EDGE_PROPERTIES);
 
-        // return (Expression[]) builder.buildList().toArray();
         return builder.buildString();
     }
 

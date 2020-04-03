@@ -58,7 +58,6 @@ public class StreamGraphConfig {
         configuration.setString("table.exec.mini-batch.allow-latency", "5s"); // use 5 seconds to buffer input records
         // the maximum number of records can be buffered by each aggregate operator task
         configuration.setString("table.exec.mini-batch.size", "5000");
-        configuration.setString("table.optimizer.distinct-agg.split.enabled", "true");  // enable distinct agg split
         /*
          * obtain query configuration from TableEnvironment
          * and providing a query configuration with valid retention interval to prevent excessive state size
