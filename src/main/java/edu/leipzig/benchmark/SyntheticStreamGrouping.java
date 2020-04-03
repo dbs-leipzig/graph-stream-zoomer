@@ -2,10 +2,7 @@ package edu.leipzig.benchmark;
 
 import edu.leipzig.example.StreamingJob;
 import edu.leipzig.example.functions.JSONToStreamObjectMapper;
-import edu.leipzig.impl.functions.aggregation.AvgFreqStreamEdge;
-import edu.leipzig.impl.functions.aggregation.AvgProperty;
-import edu.leipzig.impl.functions.aggregation.Count;
-import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
+import edu.leipzig.impl.functions.aggregation.*;
 import edu.leipzig.model.streamGraph.StreamGraph;
 import edu.leipzig.model.streamGraph.StreamGraphConfig;
 import edu.leipzig.model.streamGraph.StreamGraphSource;
@@ -14,14 +11,11 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
 
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class SyntheticStreamGrouping {
@@ -117,7 +111,7 @@ public class SyntheticStreamGrouping {
                 // grouping on edge property
                 vertexGroupingKeys.add(":label");
                 vertexAggregationFunctions.add(new Count());
-                edgeGroupingKeys.add("timestamp_min");
+                edgeGroupingKeys.add("timestamp");
                 edgeAggregationFunctions.add(new Count());
                 break;
             case 4:
@@ -134,13 +128,13 @@ public class SyntheticStreamGrouping {
         StreamGraph streamGraph = new StreamGraphSource(socketStream).getStreamGraph(streamGraphConfig);
 
         if (USE_GRAPH_LAYOUT) {
-            // execute grouping
+            // execute graph grouping
             streamGraph.groupBy(vertexGroupingKeys, vertexAggregationFunctions,
-                    edgeGroupingKeys, edgeAggregationFunctions).writeTo();//.writeGraphAsCsv(DATA_SET_FILE);
+                    edgeGroupingKeys, edgeAggregationFunctions).writeGraphTo(); //.writeGraphAsCsv(DATA_SET_FILE);
         } else {
-            // execute grouping
+            // execute grouping of vertices and edges
             streamGraph.groupBy(vertexGroupingKeys, vertexAggregationFunctions,
-                    edgeGroupingKeys, edgeAggregationFunctions).writeTo();//.writeAsCsv(DATA_SET_FILE);
+                    edgeGroupingKeys, edgeAggregationFunctions).writeTo(); //.writeAsCsv(DATA_SET_FILE);
         }
 
         // execute program

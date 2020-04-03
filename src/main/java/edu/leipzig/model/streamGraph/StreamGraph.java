@@ -149,7 +149,7 @@ public class StreamGraph {
     public void writeTo() {
         config.getTableEnvironment().toRetractStream(this.layout.getTableSet().getVertices(),
                 Row.class).print();
-        config.getTableEnvironment().toRetractStream(this.layout.getTableSet().getEdges(),
+       config.getTableEnvironment().toRetractStream(this.layout.getTableSet().getEdges(),
                 Row.class).print();
     }
 

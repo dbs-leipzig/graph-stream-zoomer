@@ -299,7 +299,6 @@ abstract class TableGroupingBase {
             vertexAfterAggregationPropertyFieldNames
                     .put(vertexAggregationFunction.getAggregatePropertyKey(), fieldNameAfterAggregation);
         }
-        // return (Expression[]) builder.buildList().toArray();
         return builder.buildString();
     }
 
@@ -543,7 +542,6 @@ abstract class TableGroupingBase {
                     fieldNameAfterAggregation);
         }
 
-        // return (Expression[]) builder.buildList().toArray();
         return builder.buildString();
     }
 

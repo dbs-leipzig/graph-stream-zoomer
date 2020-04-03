@@ -84,7 +84,6 @@ public class GraphSummarizer extends TableGroupingBase {
         Table groupedVertices = preparedVertices
                 .groupBy(buildVertexGroupExpressions())
                 .select(buildVertexProjectExpressions());
-                //.select("NewGroupingKey(vertex_label) as super_vertex_id, vertex_label as super_vertex_label, TableCount(EmptyPropertyValue()) as TMP_0");
 
         // 3. Derive new super vertices
         Table newVertices = groupedVertices
@@ -144,8 +143,6 @@ public class GraphSummarizer extends TableGroupingBase {
             }
         }
 
-        // return tableEnv.from(TABLE_VERTICES).select(builder.buildArray());
-
         return tableSet.getVertices().select(builder.buildString());
     }
 
@@ -168,7 +165,7 @@ public class GraphSummarizer extends TableGroupingBase {
             builder.field(FIELD_SUPER_VERTEX_LABEL).as(TableSet.FIELD_VERTEX_LABEL);
         } else {
             builder
-                    .expression(GradoopConstants.DEFAULT_VERTEX_LABEL)
+                    .literal(GradoopConstants.DEFAULT_VERTEX_LABEL)
                     .as(TableSet.FIELD_VERTEX_LABEL);
         }
 
@@ -192,7 +189,6 @@ public class GraphSummarizer extends TableGroupingBase {
 
         builder.as(TableSet.FIELD_VERTEX_PROPERTIES);
 
-        // return (Expression[]) builder.buildList().toArray();
         return builder.buildString();
     }
 
@@ -218,7 +214,7 @@ public class GraphSummarizer extends TableGroupingBase {
             builder.field(TableSet.FIELD_EDGE_LABEL);
         } else {
             builder
-                    .expression(GradoopConstants.DEFAULT_EDGE_LABEL)
+                    .literal(GradoopConstants.DEFAULT_EDGE_LABEL)
                     .as(TableSet.FIELD_EDGE_LABEL);
         }
 

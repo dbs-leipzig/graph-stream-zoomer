@@ -54,15 +54,16 @@ public class StreamGraphConfig {
         // access flink configuration
         Configuration configuration = this.tableEnvironment.getConfig().getConfiguration();
         // set low-level key-value options
-        configuration.setString("table.exec.mini-batch.enabled", "true");
-        configuration.setString("table.exec.mini-batch.allow-latency", "5 s");
+        configuration.setString("table.exec.mini-batch.enabled", "true");  // enable mini-batch optimization
+        configuration.setString("table.exec.mini-batch.allow-latency", "5s"); // use 5 seconds to buffer input records
+        // the maximum number of records can be buffered by each aggregate operator task
         configuration.setString("table.exec.mini-batch.size", "5000");
+        configuration.setString("table.optimizer.distinct-agg.split.enabled", "true");  // enable distinct agg split
         /*
          * obtain query configuration from TableEnvironment
          * and providing a query configuration with valid retention interval to prevent excessive state size
          * */
         this.tableEnvironment.getConfig().setIdleStateRetentionTime(Time.hours(minRetentionTime), Time.hours(maxRetentionTime));
-        // this.qConfig.withIdleStateRetentionTime(Time.hours(minRetentionTime), Time.hours(maxRetentionTime));
         this.tableSetFactory = new TableSetFactory();
     }
 

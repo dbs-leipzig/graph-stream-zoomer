@@ -22,20 +22,20 @@ public class TableAvgFreqStreamEdge extends AggregateFunction<PropertyValue, Avg
         } else {
             long now = new Timestamp(System.currentTimeMillis()).getTime();
             double diffInSec = (now - accumulator.start) / 1000D;
-            if(diffInSec == 0L){
+            if (diffInSec == 0L) {
                 return PropertyValue.create(0L);
-            }else{
+            } else {
                 return PropertyValue.create(accumulator.count / diffInSec);
             }
         }
     }
 
     public void accumulate(AvgFreqAcc acc, PropertyValue iValue) {
-            acc.count += 1L;
+        acc.count += 1L;
     }
 
     public void retract(AvgFreqAcc acc, PropertyValue iValue) {
-            acc.count -= 1L;
+        acc.count -= 1L;
     }
 
     @Override

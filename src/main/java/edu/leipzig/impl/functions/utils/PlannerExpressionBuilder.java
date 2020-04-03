@@ -1,18 +1,12 @@
 package edu.leipzig.impl.functions.utils;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.expressions.CallExpression;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.expressions.*;
-import scala.collection.Seq;
 
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
@@ -56,10 +50,14 @@ import java.util.Arrays;
  * references to: org.gradoop.flink.model.impl.layouts.table.util;
  */
 public class PlannerExpressionBuilder {
+
+    private static final String EXTRACT_PROPERTY_VALUE = "ExtractPropertyValue";
     /**
      * Current expression object
      */
     protected String currentExpression;
+    // a counter for unique attribute names
+    AtomicInteger attrNameCtr = new AtomicInteger(0);
 
     protected StreamTableEnvironment tableEnv;
 
@@ -117,6 +115,9 @@ public class PlannerExpressionBuilder {
      */
     public PlannerExpressionBuilder scalarFunctionCall(ScalarFunction function, String... parameters) {
         String functionName = function.toString();
+        if(functionName.equals(EXTRACT_PROPERTY_VALUE)) {
+            functionName = functionName + attrNameCtr.getAndIncrement();
+        }
         if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
             tableEnv.registerFunction(functionName, function);
         }
@@ -179,7 +180,7 @@ public class PlannerExpressionBuilder {
         if (null == currentExpression) {
             currentExpression = expression;
         } else {
-            currentExpression = currentExpression + " AND " + expression;
+            currentExpression = currentExpression + " && " + expression;
         }
         return this;
     }
