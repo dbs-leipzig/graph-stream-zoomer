@@ -15,7 +15,6 @@ import org.gradoop.common.model.impl.properties.PropertyValue;
  */
 public class EmptyPropertyValueIfNull extends ScalarFunction {
 
-
     /**
      * Returns
      * - {@link PropertyValue#NULL_VALUE}, if passed object is null
@@ -29,5 +28,9 @@ public class EmptyPropertyValueIfNull extends ScalarFunction {
             return PropertyValue.NULL_VALUE;
         }
         return pv;
+    }
+
+    public PropertyValue eval() {
+        return PropertyValue.NULL_VALUE;
     }
 }

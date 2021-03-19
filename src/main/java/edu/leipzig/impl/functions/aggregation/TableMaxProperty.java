@@ -32,26 +32,26 @@ public class TableMaxProperty extends BaseTablePropertyValueAggregateFunction {
         }
     }
 
-    @Override
+
     public void accumulate(PropertyValue acc, PropertyValue val) {
         if (null != val) {
             acc.setObject(PropertyValueUtils.Numeric.max(acc, val).getObject());
         }
     }
 
-    @Override
+
     public void retract(PropertyValue acc, PropertyValue val) {
 
     }
 
-    @Override
+
     public void merge(PropertyValue acc, Iterable<PropertyValue> it) {
         for (PropertyValue val : it) {
             acc.setObject(PropertyValueUtils.Numeric.max(acc, val).getObject());
         }
     }
 
-    @Override
+
     public void resetAccumulator(PropertyValue acc) {
         acc.setDouble(Double.MIN_VALUE);
     }

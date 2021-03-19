@@ -1,6 +1,5 @@
 package edu.leipzig.impl.functions.aggregation;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.gradoop.common.model.impl.properties.PropertyValue;
 
@@ -27,14 +26,22 @@ public class TableAvgProperty extends AggregateFunction<PropertyValue, AvgAcc> {
 
     public void accumulate(AvgAcc acc, PropertyValue iValue) {
         if (null != iValue) {
-            acc.sum += iValue.getDouble();
+            if (iValue.isDouble()) {
+                acc.sum += iValue.getDouble();
+            } else if (iValue.isInt()) {
+                acc.sum += iValue.getInt();
+            }
             acc.count += 1L;
         }
     }
 
     public void retract(AvgAcc acc, PropertyValue iValue) {
         if (null != iValue) {
-            acc.sum -= iValue.getDouble();
+            if (iValue.isDouble()) {
+                acc.sum -= iValue.getDouble();
+            } else if (iValue.isInt()) {
+                acc.sum -= iValue.getInt();
+            }
             acc.count -= 1L;
         }
     }
@@ -51,15 +58,5 @@ public class TableAvgProperty extends AggregateFunction<PropertyValue, AvgAcc> {
     public void resetAccumulator(AvgAcc acc) {
         acc.count = 0L;
         acc.sum = 0;
-    }
-
-    @Override
-    public TypeInformation getResultType() {
-        return TypeInformation.of(PropertyValue.class);
-    }
-
-    @Override
-    public TypeInformation getAccumulatorType() {
-        return TypeInformation.of(AvgAcc.class);
     }
 }

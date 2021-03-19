@@ -27,24 +27,24 @@ public class TableCount extends BaseTablePropertyValueAggregateFunction {
         return propertyValue;
     }
 
-    @Override
+
     public void accumulate(PropertyValue acc, PropertyValue val) {
         acc.setObject(PropertyValueUtils.Numeric.add(acc, PropertyValue.create(1L)).getObject());
     }
 
-    @Override
+
     public void retract(PropertyValue acc, PropertyValue val) {
         acc.setObject(PropertyValueUtils.Numeric.add(acc, PropertyValue.create(-1L)).getObject());
     }
 
-    @Override
+
     public void merge(PropertyValue acc, Iterable<PropertyValue> it) {
         for (PropertyValue val : it) {
             acc.setObject(PropertyValueUtils.Numeric.add(acc, val).getObject());
         }
     }
 
-    @Override
+
     public void resetAccumulator(PropertyValue acc) {
         acc.setLong(0L);
     }

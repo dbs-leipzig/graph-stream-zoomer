@@ -17,8 +17,8 @@ public class ExtractPropertyValue extends ScalarFunction {
     /**
      * Key of property to extract from properties object
      */
-    private String propertyKey;
-    private String unit;
+    private final String propertyKey;
+    private String unit = "";
 
     /**
      * Constructor
@@ -30,8 +30,9 @@ public class ExtractPropertyValue extends ScalarFunction {
             String[] args = propertyKey.split("_");
             this.unit = (args.length > 1) ? args[1] : "";
             this.propertyKey = TIMESTAMP;
-        } else
+        } else {
             this.propertyKey = propertyKey;
+        }
     }
 
     /**

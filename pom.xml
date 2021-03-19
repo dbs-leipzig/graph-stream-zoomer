@@ -21,16 +21,28 @@ under the License.
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>edu.leipzig</groupId>
-	<artifactId>StreamGraph</artifactId>
-	<version>1.0-SNAPSHOT</version>
+	<artifactId>GraphStreamGrouping</artifactId>
+	<version>0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
-	<name>Flink Quickstart Job</name>
-	<url>http://www.myorganization.org</url>
+	<name>Graph Stream Grouping Operator</name>
+
+	<developers>
+		<developer>
+			<name>Rana Noureddin</name>
+		</developer>
+		<developer>
+			<name>Christopher Rost</name>
+			<id>ChrizZz110</id>
+		</developer>
+		<developer>
+			<name>Elias Saalmann</name>
+		</developer>
+	</developers>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<flink.version>1.10.0</flink.version>
+		<flink.version>1.12.0</flink.version>
 		<java.version>1.8</java.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
@@ -63,7 +75,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
 			<!--<scope>provided</scope>-->
 		</dependency>
@@ -100,7 +112,34 @@ under the License.
 		<dependency>
 			<groupId>org.gradoop</groupId>
 			<artifactId>gradoop-flink</artifactId>
-			<version>0.5.0</version>
+			<version>0.6.0-SNAPSHOT</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>flink-streaming-scala_2.11</artifactId>
+					<groupId>org.apache.flink</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>flink-scala_2.11</artifactId>
+					<groupId>org.apache.flink</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>flink-table_2.11</artifactId>
+					<groupId>org.apache.flink</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.code.gson</groupId>
+			<artifactId>gson</artifactId>
+			<version>2.8.5</version>
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/org.twitter4j/twitter4j-stream -->
+		<dependency>
+			<groupId>org.twitter4j</groupId>
+			<artifactId>twitter4j-stream</artifactId>
+			<version>4.0.7</version>
 		</dependency>
 
 		<!-- Add connector dependencies here. They must be in the default scope (compile). -->
@@ -154,8 +193,8 @@ under the License.
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.1</version>
 				<configuration>
-					<source>11</source>
-					<target>11</target>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
 				</configuration>
 			</plugin>
 

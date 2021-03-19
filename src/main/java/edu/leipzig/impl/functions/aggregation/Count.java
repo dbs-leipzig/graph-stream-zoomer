@@ -4,8 +4,6 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.gradoop.common.model.api.entities.Element;
 import org.gradoop.common.model.impl.properties.PropertyValue;
 import org.gradoop.flink.model.api.functions.AggregateDefaultValue;
-
-
 import org.gradoop.flink.model.impl.operators.aggregation.functions.BaseAggregateFunction;
 import org.gradoop.flink.model.impl.operators.aggregation.functions.sum.Sum;
 

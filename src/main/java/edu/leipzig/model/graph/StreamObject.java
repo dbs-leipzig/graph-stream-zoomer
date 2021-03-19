@@ -1,4 +1,4 @@
-package edu.leipzig.model.streamGraph;
+package edu.leipzig.model.graph;
 
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.gradoop.common.model.impl.properties.Properties;
@@ -68,14 +68,6 @@ public class StreamObject extends Tuple6<String, Long, String, Properties, Strea
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("E:");
-        sb.append(f0).append(",");
-        sb.append(f1).append(",");
-        sb.append(f2).append(",");
-        sb.append(f3);
-        sb.append(";V:").append(f4);
-        sb.append(";V:").append(f5);
-        return sb.toString();
+        return "E:" + f0 + "," + f1 + "," + f2 + "," + f3 + ";V:" + f4 + ";V:" + f5;
     }
 }

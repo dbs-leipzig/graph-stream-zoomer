@@ -1,5 +1,6 @@
 package edu.leipzig.impl.functions.aggregation;
 
+import org.apache.flink.table.functions.AggregateFunction;
 import org.gradoop.flink.model.impl.operators.aggregation.Aggregation;
 
 /**
@@ -29,7 +30,7 @@ public interface CustomizedAggregationFunction {
      *
      * @return name of aggregation function
      */
-    default org.apache.flink.table.functions.AggregateFunction getTableAggFunction() {
+    default AggregateFunction getTableAggFunction() {
         throw new RuntimeException("AggregateFunction " + getClass().getName() + " is not prepared " +
                 "for use within Flink's Table API");
     }

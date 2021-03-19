@@ -1,6 +1,5 @@
 package edu.leipzig.impl.functions.aggregation;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.gradoop.common.model.impl.properties.PropertyValue;
 
@@ -22,29 +21,19 @@ public class TableAvgFreqStreamEdge extends AggregateFunction<PropertyValue, Avg
         } else {
             long now = new Timestamp(System.currentTimeMillis()).getTime();
             double diffInSec = (now - accumulator.start) / 1000D;
-            if(diffInSec == 0L){
+            if (diffInSec == 0L) {
                 return PropertyValue.create(0L);
-            }else{
+            } else {
                 return PropertyValue.create(accumulator.count / diffInSec);
             }
         }
     }
 
     public void accumulate(AvgFreqAcc acc, PropertyValue iValue) {
-            acc.count += 1L;
+        acc.count += 1L;
     }
 
     public void retract(AvgFreqAcc acc, PropertyValue iValue) {
-            acc.count -= 1L;
-    }
-
-    @Override
-    public TypeInformation getResultType() {
-        return TypeInformation.of(PropertyValue.class);
-    }
-
-    @Override
-    public TypeInformation getAccumulatorType() {
-        return TypeInformation.of(AvgFreqAcc.class);
+        acc.count -= 1L;
     }
 }

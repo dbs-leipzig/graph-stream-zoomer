@@ -1,4 +1,4 @@
-package edu.leipzig.model.streamGraph;
+package edu.leipzig.model.graph;
 
 import org.gradoop.common.model.impl.properties.Properties;
 

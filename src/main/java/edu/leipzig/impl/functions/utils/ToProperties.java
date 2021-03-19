@@ -1,6 +1,5 @@
 package edu.leipzig.impl.functions.utils;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
 import org.gradoop.common.model.impl.properties.Properties;
@@ -70,10 +69,5 @@ public class ToProperties extends ScalarFunction {
         Properties properties = Properties.create();
         properties = processPropertiesRow(properties, row);
         return properties;
-    }
-
-    @Override
-    public TypeInformation<?> getResultType(Class<?>[] signature) {
-        return TypeInformation.of(Properties.class);
     }
 }

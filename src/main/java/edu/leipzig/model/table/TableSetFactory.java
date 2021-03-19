@@ -2,7 +2,8 @@ package edu.leipzig.model.table;
 
 import edu.leipzig.impl.functions.utils.PlannerExpressionSeqBuilder;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+
 
 /**
  * Responsible for creating instances of {@link TableSetFactory}
@@ -21,9 +22,9 @@ public class TableSetFactory {
      * @param graph graph table
      * @return new table set
      */
-    public TableSet fromTable(Table graph) {
+    public TableSet fromTable(Table graph, StreamTableEnvironment tableEnvironment) {
         TableSet tableSet = new TableSet();
-        tableSet.put(TableSet.TABLE_GRAPH, computeNewGraph(graph));
+        tableSet.put(TableSet.TABLE_GRAPH, computeNewGraph(graph, tableEnvironment));
         return tableSet;
     }
 
@@ -56,8 +57,8 @@ public class TableSetFactory {
      * @param graph graph table
      * @return new graph table
      */
-    private Table computeNewGraph(Table graph) {
-        return graph.select((Expression) new PlannerExpressionSeqBuilder()
+    private Table computeNewGraph(Table graph, StreamTableEnvironment tableEnvironment) {
+        return graph.select(new PlannerExpressionSeqBuilder(tableEnvironment)
                 .field(TableSet.FIELD_EDGE_ID)
                 .field(TableSet.FIELD_EDGE_LABEL)
                 .field(TableSet.FIELD_EDGE_PROPERTIES)
@@ -69,7 +70,7 @@ public class TableSetFactory {
                 .field(TableSet.FIELD_HEAD_ID)
                 .field(TableSet.FIELD_VERTEX_TARGET_LABEL)
                 .field(TableSet.FIELD_VERTEX_TARGET_PROPERTIES)
-                .buildSeq()
+                .buildString()
         );
     }
 }
