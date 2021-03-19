@@ -6,10 +6,13 @@ import edu.leipzig.impl.functions.utils.ExtractPropertyValue;
 import edu.leipzig.impl.functions.utils.PlannerExpressionBuilder;
 import edu.leipzig.impl.functions.utils.PlannerExpressionSeqBuilder;
 import edu.leipzig.impl.functions.utils.ToProperties;
-import edu.leipzig.model.streamGraph.StreamGraphLayout;
+import edu.leipzig.model.graph.GraphStreamToGraphStreamOperator;
+import edu.leipzig.model.graph.StreamGraph;
+import edu.leipzig.model.graph.StreamGraphLayout;
 import edu.leipzig.model.table.TableSet;
 import edu.leipzig.model.table.TableSetFactory;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.expressions.Expression;
 import org.gradoop.common.util.GradoopConstants;
 
 import java.util.List;
@@ -30,7 +33,7 @@ import static edu.leipzig.model.table.TableSet.TABLE_VERTICES;
  * references to: org.gradoop.flink.model.impl.layouts.table.gve.operators;
  */
 
-public class GraphSummarizer extends TableGroupingBase {
+public class GraphStreamGrouping extends TableGroupingBase implements GraphStreamToGraphStreamOperator {
 
     /**
      * Creates grouping operator instance.
@@ -42,27 +45,33 @@ public class GraphSummarizer extends TableGroupingBase {
      * @param edgeGroupingPropertyKeys   list of property keys to group edges by
      * @param edgeAggregateFunctions     aggregate functions to execute on grouped edges
      */
-    private GraphSummarizer(boolean useVertexLabels, boolean useEdgeLabels,
-                            List<String> vertexGroupingPropertyKeys, List<CustomizedAggregationFunction> vertexAggregateFunctions,
-                            List<String> edgeGroupingPropertyKeys, List<CustomizedAggregationFunction> edgeAggregateFunctions) {
+    GraphStreamGrouping(
+      boolean useVertexLabels,
+      boolean useEdgeLabels,
+      List<String> vertexGroupingPropertyKeys,
+      List<CustomizedAggregationFunction> vertexAggregateFunctions,
+      List<String> edgeGroupingPropertyKeys,
+      List<CustomizedAggregationFunction> edgeAggregateFunctions
+    ) {
         super(useVertexLabels, useEdgeLabels, vertexGroupingPropertyKeys, vertexAggregateFunctions,
-                edgeGroupingPropertyKeys, edgeAggregateFunctions);
+          edgeGroupingPropertyKeys, edgeAggregateFunctions);
     }
 
     /**
      * The actual computation.
      *
-     * @param streamGraphLayout layout of the stream graph
+     * @param streamGraph layout of the stream graph
      * @return summarized, aggregated graph table set (super vertices, super edges)
      */
-    public TableSet execute(StreamGraphLayout streamGraphLayout) {
-        tableSetFactory = streamGraphLayout.getTableSetFactory();
-        config = streamGraphLayout.getConfig();
-        tableEnv = config.getTableEnvironment();
-        builder = new PlannerExpressionBuilder(tableEnv);
-        this.tableSet = streamGraphLayout.getTableSet();
+    @Override
+    public StreamGraph execute(StreamGraphLayout streamGraph) {
+        this.tableSetFactory = streamGraph.getTableSetFactory();
+        this.config = streamGraph.getConfig();
+        this.tableSet = streamGraph.getTableSet();
 
-        return performGrouping();
+        TableSet groupedTableSet = performGrouping();
+
+        return new StreamGraph(groupedTableSet, getConfig());
     }
 
 
@@ -74,20 +83,22 @@ public class GraphSummarizer extends TableGroupingBase {
     protected TableSet performGrouping() {
         tableSetFactory = new TableSetFactory();
 
-        tableEnv.createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
-        tableEnv.createTemporaryView(TABLE_EDGES, tableSet.getEdges());
+        getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
+        getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
 
         // 1. Prepare distinct vertices
-        Table preparedVertices = extractVertexPropertyValuesAsColumns().distinct();
+        Table preparedVertices = tableSet.getVertices()
+          .select(buildVertexGroupProjectExpressions())
+          .distinct();
 
         // 2. Group vertices by label and/or property values
         Table groupedVertices = preparedVertices
-                .groupBy(buildVertexGroupExpressions())
-                .select(buildVertexProjectExpressions());
+          .groupBy(buildVertexGroupExpressions())
+          .select(buildVertexProjectExpressions());
 
         // 3. Derive new super vertices
         Table newVertices = groupedVertices
-                .select(buildSuperVertexProjectExpressions());
+          .select(buildSuperVertexProjectExpressions());
 
         // 4. Expand a (vertex -> super vertex) mapping
         Table expandedVertices = joinVerticesWithGroupedVertices(preparedVertices, groupedVertices);
@@ -97,11 +108,12 @@ public class GraphSummarizer extends TableGroupingBase {
 
         // 6. Group edges by label and/or property values
         Table groupedEdges = edgesWithSuperVertices
-                .groupBy(buildEdgeGroupExpressions())
-                .select(buildEdgeProjectExpressions());
+          .groupBy(buildEdgeGroupExpressions())
+          .select(buildEdgeProjectExpressions());
 
         // 7. Derive new super edges from grouped edges
-        Table newEdges = groupedEdges.select(buildSuperEdgeProjectExpressions());
+        Table newEdges = groupedEdges
+          .select(buildSuperEdgeProjectExpressions());
 
         return tableSetFactory.fromTables(newVertices, newEdges);
     }
@@ -111,8 +123,8 @@ public class GraphSummarizer extends TableGroupingBase {
      *
      * @return prepared vertices table
      */
-    private Table extractVertexPropertyValuesAsColumns() {
-        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(tableEnv);
+    private Expression[] buildVertexGroupProjectExpressions() {
+        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
 
         // vertex_id
         builder.field(TableSet.FIELD_VERTEX_ID);
@@ -124,26 +136,28 @@ public class GraphSummarizer extends TableGroupingBase {
 
         // grouping_property_1 AS tmp_a1, ... , grouping_property_n AS tmp_an
         for (String propertyKey : vertexGroupingPropertyKeys) {
-            String propertyFieldName = config.createUniqueAttributeName();
+            String propertyFieldAlias = getConfig().createUniqueAttributeName();
             builder
-                    .scalarFunctionCall(new ExtractPropertyValue(propertyKey),
-                            TableSet.FIELD_VERTEX_PROPERTIES)
-                    .as(propertyFieldName);
-            vertexGroupingPropertyFieldNames.put(propertyKey, propertyFieldName);
+              .scalarFunctionCall(new ExtractPropertyValue(propertyKey), TableSet.FIELD_VERTEX_PROPERTIES)
+              .as(propertyFieldAlias);
+            vertexGroupingPropertyFieldNames.put(propertyKey, propertyFieldAlias);
         }
 
         // property_to_aggregate_1 AS tmp_b1, ... , property_to_aggregate_m AS tmp_bm
         for (CustomizedAggregationFunction aggregateFunction : vertexAggregateFunctions) {
             if (null != aggregateFunction.getPropertyKey()) {
-                String propertyFieldName = config.createUniqueAttributeName();
-                builder.scalarFunctionCall(new ExtractPropertyValue(aggregateFunction.getPropertyKey()),
-                        TableSet.FIELD_VERTEX_PROPERTIES).as(propertyFieldName);
+                String propertyFieldAlias = getConfig().createUniqueAttributeName();
+                builder
+                  .scalarFunctionCall(
+                    new ExtractPropertyValue(aggregateFunction.getPropertyKey()),
+                    TableSet.FIELD_VERTEX_PROPERTIES)
+                  .as(propertyFieldAlias);
                 vertexAggregationPropertyFieldNames
-                        .put(aggregateFunction.getAggregatePropertyKey(), propertyFieldName);
+                  .put(aggregateFunction.getAggregatePropertyKey(), propertyFieldAlias);
             }
         }
 
-        return tableSet.getVertices().select(builder.buildString());
+        return builder.build();
     }
 
     /**
@@ -154,8 +168,8 @@ public class GraphSummarizer extends TableGroupingBase {
      *
      * @return scala sequence of expressions
      */
-    private String buildSuperVertexProjectExpressions() {
-        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(tableEnv);
+    private Expression[] buildSuperVertexProjectExpressions() {
+        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
 
         // vertex_id
         builder.field(FIELD_SUPER_VERTEX_ID).as(TableSet.FIELD_VERTEX_ID);
@@ -170,26 +184,25 @@ public class GraphSummarizer extends TableGroupingBase {
         }
 
         // grouped_properties + aggregated_properties -> vertex_properties
-        PlannerExpressionSeqBuilder propertyKeysAndFieldsBuilder = new PlannerExpressionSeqBuilder(tableEnv);
+        PlannerExpressionSeqBuilder propertyKeysAndFieldsBuilder = new PlannerExpressionSeqBuilder(getTableEnv());
         addPropertyKeyValueExpressions(
                 propertyKeysAndFieldsBuilder,
-                vertexGroupingPropertyKeys, vertexAfterGroupingPropertyFieldNames
-        );
+                vertexGroupingPropertyKeys, vertexAfterGroupingPropertyFieldNames);
+
         addPropertyKeyValueExpressions(
                 propertyKeysAndFieldsBuilder,
-                getVertexAggregatedPropertyKeys(), vertexAfterAggregationPropertyFieldNames
-        );
+                getVertexAggregatedPropertyKeys(), vertexAfterAggregationPropertyFieldNames);
 
         if (propertyKeysAndFieldsBuilder.isEmpty()) {
             builder.scalarFunctionCall(new EmptyProperties());
         } else {
             builder.scalarFunctionCall(new ToProperties(),
-              (new PlannerExpressionBuilder(tableEnv)).row(propertyKeysAndFieldsBuilder.buildString()).getExpression());
+              (new PlannerExpressionBuilder(getTableEnv())).row(propertyKeysAndFieldsBuilder.build()).getExpression());
         }
 
         builder.as(TableSet.FIELD_VERTEX_PROPERTIES);
 
-        return builder.buildString();
+        return builder.build();
     }
 
     /**
@@ -200,8 +213,8 @@ public class GraphSummarizer extends TableGroupingBase {
      *
      * @return scala sequence of expressions
      */
-    private String buildSuperEdgeProjectExpressions() {
-        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(tableEnv);
+    private Expression[] buildSuperEdgeProjectExpressions() {
+        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
 
         // edge_id, tail_id, head_id
         builder
@@ -219,7 +232,7 @@ public class GraphSummarizer extends TableGroupingBase {
         }
 
         // grouped_properties + aggregated_properties -> edge_properties
-        PlannerExpressionSeqBuilder propertyKeysAndFieldsBuilder = new PlannerExpressionSeqBuilder(tableEnv);
+        PlannerExpressionSeqBuilder propertyKeysAndFieldsBuilder = new PlannerExpressionSeqBuilder(getTableEnv());
         addPropertyKeyValueExpressions(
                 propertyKeysAndFieldsBuilder,
                 edgeGroupingPropertyKeys, edgeAfterGroupingPropertyFieldNames
@@ -233,22 +246,20 @@ public class GraphSummarizer extends TableGroupingBase {
             builder.scalarFunctionCall(new EmptyProperties());
         } else {
             builder.scalarFunctionCall(new ToProperties(),
-              (new PlannerExpressionBuilder(tableEnv)).row(propertyKeysAndFieldsBuilder.buildString()).getExpression());
+              (new PlannerExpressionBuilder(getTableEnv())).row(propertyKeysAndFieldsBuilder.build()).getExpression());
         }
         builder.as(TableSet.FIELD_EDGE_PROPERTIES);
 
-        return builder.buildString();
+        return builder.build();
     }
 
-    @Override
-    protected Table enrichEdges(Table edges, Table expandedVertices,
-                                String... additionalProjectExpressions) {
+    protected Table enrichEdges(Table edges, Table expandedVertices) {
 
-        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(tableEnv);
+        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
 
         // grouping_property_1 AS tmp_e1, ... , grouping_property_k AS tmp_ek
         for (String propertyKey : edgeGroupingPropertyKeys) {
-            String propertyColumnName = config.createUniqueAttributeName();
+            String propertyColumnName = getConfig().createUniqueAttributeName();
             builder
                     .scalarFunctionCall(new ExtractPropertyValue(propertyKey),
                             TableSet.FIELD_EDGE_PROPERTIES)
@@ -259,7 +270,7 @@ public class GraphSummarizer extends TableGroupingBase {
         // property_to_aggregate_1 AS tmp_f1, ... , property_to_aggregate_l AS tmp_fl
         for (CustomizedAggregationFunction aggregateFunction : edgeAggregateFunctions) {
             if (null != aggregateFunction.getPropertyKey()) {
-                String propertyColumnName = config.createUniqueAttributeName();
+                String propertyColumnName = getConfig().createUniqueAttributeName();
                 builder.scalarFunctionCall(new ExtractPropertyValue(aggregateFunction.getPropertyKey()),
                         TableSet.FIELD_EDGE_PROPERTIES)
                         .as(propertyColumnName);
@@ -268,7 +279,7 @@ public class GraphSummarizer extends TableGroupingBase {
             }
         }
 
-        return super.enrichEdges(edges, expandedVertices, builder.buildString());
+        return super.enrichEdges(edges, expandedVertices, builder.build());
     }
 
     /**
@@ -290,20 +301,5 @@ public class GraphSummarizer extends TableGroupingBase {
         }
     }
 
-    /**
-     * Responsible for building instances of {@link GraphSummarizer}
-     */
-    public static class GroupingBuilder extends TableGroupingBuilderBase {
 
-        public GraphSummarizer build() {
-            return new GraphSummarizer(
-                    useVertexLabel,
-                    useEdgeLabel,
-                    vertexPropertyKeys,
-                    vertexAggregateFunctions,
-                    edgePropertyKeys,
-                    edgeAggregateFunctions
-            );
-        }
-    }
 }

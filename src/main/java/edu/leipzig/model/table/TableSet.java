@@ -5,10 +5,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.planner.expressions.PlannerExpression;
 import org.gradoop.common.model.impl.properties.Properties;
-import scala.collection.Seq;
 
 import java.util.HashMap;
 
@@ -98,36 +95,36 @@ public class TableSet extends HashMap<String, Table> {
      */
 
     private static final TableSetSchema SCHEMA = new TableSetSchema(
-            ImmutableMap.<String, TableSchema>builder()
-                    .put(TABLE_VERTICES, new TableSchema.Builder()
-                            .field(FIELD_VERTEX_ID, DataTypes.STRING())
-                            .field(FIELD_VERTEX_LABEL, DataTypes.STRING())
-                            .field(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
-                            .build()
-                    )
-                    .put(TABLE_EDGES, new TableSchema.Builder()
-                            .field(FIELD_EDGE_ID, DataTypes.STRING())
-                            .field(FIELD_TAIL_ID, DataTypes.STRING())
-                            .field(FIELD_HEAD_ID, DataTypes.STRING())
-                            .field(FIELD_EDGE_LABEL, DataTypes.STRING())
-                            .field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
-                            .build()
-                    )
-                    .put(TABLE_GRAPH, new TableSchema.Builder()
-                            .field(FIELD_EDGE_ID, DataTypes.STRING())
-                            .field(FIELD_EDGE_LABEL, DataTypes.STRING())
-                            .field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+      ImmutableMap.<String, TableSchema>builder()
+        .put(TABLE_VERTICES, new TableSchema.Builder()
+          .field(FIELD_VERTEX_ID, DataTypes.STRING())
+          .field(FIELD_VERTEX_LABEL, DataTypes.STRING())
+          .field(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .build()
+        )
+        .put(TABLE_EDGES, new TableSchema.Builder()
+          .field(FIELD_EDGE_ID, DataTypes.STRING())
+          .field(FIELD_TAIL_ID, DataTypes.STRING())
+          .field(FIELD_HEAD_ID, DataTypes.STRING())
+          .field(FIELD_EDGE_LABEL, DataTypes.STRING())
+          .field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .build()
+        )
+        .put(TABLE_GRAPH, new TableSchema.Builder()
+          .field(FIELD_EDGE_ID, DataTypes.STRING())
+          .field(FIELD_EDGE_LABEL, DataTypes.STRING())
+          .field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
 
-                            .field(FIELD_TAIL_ID, DataTypes.STRING())
-                            .field(FIELD_VERTEX_SOURCE_LABEL, DataTypes.STRING())
-                            .field(FIELD_VERTEX_SOURCE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .field(FIELD_TAIL_ID, DataTypes.STRING())
+          .field(FIELD_VERTEX_SOURCE_LABEL, DataTypes.STRING())
+          .field(FIELD_VERTEX_SOURCE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
 
-                            .field(FIELD_HEAD_ID, DataTypes.STRING())
-                            .field(FIELD_VERTEX_TARGET_LABEL, DataTypes.STRING())
-                            .field(FIELD_VERTEX_TARGET_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
-                            .build()
-                    )
-                    .build());
+          .field(FIELD_HEAD_ID, DataTypes.STRING())
+          .field(FIELD_VERTEX_TARGET_LABEL, DataTypes.STRING())
+          .field(FIELD_VERTEX_TARGET_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .build()
+        )
+        .build());
 
     /**
      * Constructor

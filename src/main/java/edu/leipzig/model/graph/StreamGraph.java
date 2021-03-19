@@ -1,10 +1,14 @@
-package edu.leipzig.model.streamGraph;
+package edu.leipzig.model.graph;
 
-import edu.leipzig.impl.algorithm.GraphSummarizer;
 import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
+import edu.leipzig.impl.functions.utils.Extractor;
 import edu.leipzig.model.table.TableSet;
-import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.types.Row;
 
 import java.util.List;
@@ -22,26 +26,7 @@ import java.util.Objects;
  * represented in Apache Flink Table API.
  */
 
-public class StreamGraph {
-
-    private final StreamGraphLayout layout;
-    /**
-     * Stream graph configuration
-     */
-    private final StreamGraphConfig config;
-
-    /**
-     * Creates a new stream graph based on the given parameters.
-     *
-     * @param layout representation of the stream graph
-     * @param config the stream graph configuration
-     */
-    public StreamGraph(StreamGraphLayout layout, StreamGraphConfig config) {
-        Objects.requireNonNull(layout);
-        Objects.requireNonNull(config);
-        this.layout = layout;
-        this.config = config;
-    }
+public class StreamGraph extends StreamGraphLayout {
 
     /**
      * Creates a new stream graph based on the given parameters.
@@ -49,15 +34,12 @@ public class StreamGraph {
      * @param edges  representation of the stream graph
      * @param config the the stream graph configuration
      */
-    StreamGraph(DataStream vertices, DataStream edges, StreamGraphConfig config) {
-        Objects.requireNonNull(vertices);
-        Objects.requireNonNull(edges);
-        Objects.requireNonNull(config);
-        TableSet tableSet = new TableSet();
-        tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices));
-        tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges));
-        this.config = config;
-        this.layout = new StreamGraphLayout(tableSet, config);
+    public StreamGraph(DataStream<StreamVertex> vertices, DataStream<StreamEdge> edges, StreamGraphConfig config) {
+        super(Objects.requireNonNull(vertices), Objects.requireNonNull(edges), config);
+    }
+
+    public StreamGraph(TableSet tableSet, StreamGraphConfig config) {
+        super(tableSet, config);
     }
 
     /**
@@ -69,10 +51,9 @@ public class StreamGraph {
      *
      * @param vertexGroupingKeys property keys to group vertices
      * @return summary graph
-     * @see GraphSummarizer
      */
     public StreamGraph groupBy(List<String> vertexGroupingKeys) {
-        return new StreamGraph(this.layout.groupBy(vertexGroupingKeys), config);
+        return (StreamGraph) super.groupBy(vertexGroupingKeys);
     }
 
     /**
@@ -88,10 +69,9 @@ public class StreamGraph {
      * @param vertexGroupingKeys property keys to group vertices
      * @param edgeGroupingKeys   property keys to group edges
      * @return summary graph
-     * @see GraphSummarizer
      */
     public StreamGraph groupBy(List<String> vertexGroupingKeys, List<String> edgeGroupingKeys) {
-        return new StreamGraph(this.layout.groupBy(vertexGroupingKeys, edgeGroupingKeys), config);
+        return (StreamGraph) super.groupBy(vertexGroupingKeys, edgeGroupingKeys);
     }
 
     /**
@@ -111,56 +91,77 @@ public class StreamGraph {
      * @param edgeGroupingKeys         property keys to group edges
      * @param edgeAggregateFunctions   aggregate functions to apply on super edges
      * @return summary graph
-     * @see GraphSummarizer
      */
     public StreamGraph groupBy(List<String> vertexGroupingKeys,
                                List<CustomizedAggregationFunction> vertexAggregateFunctions,
                                List<String> edgeGroupingKeys, List<CustomizedAggregationFunction> edgeAggregateFunctions) {
-        return new StreamGraph(this.layout.groupBy(vertexGroupingKeys, vertexAggregateFunctions, edgeGroupingKeys,
-                edgeAggregateFunctions), config);
+        return (StreamGraph) super.groupBy(vertexGroupingKeys, vertexAggregateFunctions, edgeGroupingKeys, edgeAggregateFunctions);
+    }
+
+    public StreamGraph apply(GraphStreamToGraphStreamOperator operator) {
+        return operator.execute(this);
     }
 
     /**
      * prints the resulting summary graph from its super edges and vertices.
      */
-    public void writeGraphTo() {
-        TableSet tableSet = config.getTableSetFactory().fromTable(
-          layout.computeSummarizedGraphTable(
-            layout.getTableSet().getEdges(),
-            layout.getTableSet().getVertices()),
-          config.getTableEnvironment());
-        config.getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).print();
-    }
-
-    /**
-     * writes the resulting summary graph from its super edges and vertices.
-     */
-    public void writeGraphAsCsv(String path) {
-        TableSet tableSet = config.getTableSetFactory().fromTable(
-                layout.computeSummarizedGraphTable(layout.getTableSet().getEdges(),
-                        layout.getTableSet().getVertices()), config.getTableEnvironment());
-        config.getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class)
-                .writeAsCsv(path+ "_G", FileSystem.WriteMode.OVERWRITE);
+    public void printRichEdges() {
+        TableSet tableSet = getConfig().getTableSetFactory().fromTable(
+          computeSummarizedGraphTable(
+            getTableSet().getEdges(),
+            getTableSet().getVertices()),
+          getConfig().getTableEnvironment());
+        getConfig().getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).print();
     }
 
     /**
      * prints the resulting super edges and vertices.
      */
-    public void writeTo() {
-        config.getTableEnvironment().toRetractStream(this.layout.getTableSet().getVertices(),
-                Row.class).print();
-       config.getTableEnvironment().toRetractStream(this.layout.getTableSet().getEdges(),
-                Row.class).print();
+    public void print() {
+        getConfig().getTableEnvironment().toRetractStream(getTableSet().getVertices(), Row.class)
+          .print();
+        getConfig().getTableEnvironment().toRetractStream(getTableSet().getEdges(), Row.class)
+          .print();
     }
 
     /**
      * writes the resulting super edges and vertices.
      */
     public void writeAsCsv(String path) {
-        config.getTableEnvironment().toRetractStream(this.layout.getTableSet().getVertices(),
-                Row.class).writeAsCsv(path + "_V", FileSystem.WriteMode.OVERWRITE);
-        config.getTableEnvironment().toRetractStream(this.layout.getTableSet().getEdges(),
-                Row.class).writeAsCsv(path + "_E", FileSystem.WriteMode.OVERWRITE);
+
+        final StreamingFileSink<Tuple2<Boolean, Row>> vertexSink =
+          StreamingFileSink.forRowFormat(new Path(path + "_V"), new SimpleStringEncoder<Tuple2<Boolean, Row>>("UTF-8"))
+            .build();
+
+        final StreamingFileSink<Tuple2<Boolean, Row>> edgeSink =
+          StreamingFileSink.forRowFormat(new Path(path + "_E"), new SimpleStringEncoder<Tuple2<Boolean, Row>>("UTF-8"))
+            .build();
+
+        getConfig().getTableEnvironment().toRetractStream(getTableSet().getVertices(), Row.class)
+          .addSink(vertexSink);
+        getConfig().getTableEnvironment().toRetractStream(getTableSet().getEdges(), Row.class)
+          .addSink(edgeSink);
+    }
+
+    /**
+     * writes the resulting summary graph from its super edges and vertices.
+     */
+    public void writeGraphAsCsv(String path) {
+        final StreamingFileSink<Tuple2<Boolean, Row>> graphSink =
+          StreamingFileSink.forRowFormat(new Path(path), new SimpleStringEncoder<Tuple2<Boolean, Row>>("UTF-8"))
+            .build();
+
+        TableSet tableSet = getConfig().getTableSetFactory().fromTable(
+          computeSummarizedGraphTable(getTableSet().getEdges(), getTableSet().getVertices()),
+          getConfig().getTableEnvironment());
+
+        getConfig().getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).addSink(graphSink);
+    }
+
+    public static StreamGraph fromFlinkStream(DataStream<StreamObject> stream, StreamGraphConfig config) {
+        SingleOutputStreamOperator<StreamEdge> edges = stream.process(new Extractor());
+        DataStream<StreamVertex> vertices = edges.getSideOutput(Extractor.VERTEX_OUTPUT_TAG);
+        return new StreamGraph(vertices, edges, config);
     }
 
 }

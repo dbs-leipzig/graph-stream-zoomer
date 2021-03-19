@@ -2,8 +2,8 @@ package edu.leipzig.model.table;
 
 import edu.leipzig.impl.functions.utils.PlannerExpressionSeqBuilder;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+
 
 /**
  * Responsible for creating instances of {@link TableSetFactory}

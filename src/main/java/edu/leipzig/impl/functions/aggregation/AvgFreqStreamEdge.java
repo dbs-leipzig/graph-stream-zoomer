@@ -8,7 +8,7 @@ public class AvgFreqStreamEdge implements CustomizedAggregationFunction {
     /**
      * Key of the aggregate property.
      */
-    private String aggregatePropertyKey;
+    private final String aggregatePropertyKey;
 
     /**
      * Creates a new instance of a AvgFreqStreamEdge aggregate function.

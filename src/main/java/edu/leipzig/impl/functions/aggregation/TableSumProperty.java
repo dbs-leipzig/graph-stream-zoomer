@@ -31,28 +31,28 @@ public class TableSumProperty extends BaseTablePropertyValueAggregateFunction {
         }
     }
 
-    @Override
+
     public void accumulate(PropertyValue acc, PropertyValue val) {
         if (null != val) {
             acc.setObject(PropertyValueUtils.Numeric.add(acc, val).getObject());
         }
     }
 
-    @Override
+
     public void retract(PropertyValue acc, PropertyValue val) {
         if (null != val) {
             acc.setObject(PropertyValueUtils.Numeric.add(acc, PropertyValue.create(val.getDouble() * -1L)).getObject());
         }
     }
 
-    @Override
+
     public void merge(PropertyValue acc, Iterable<PropertyValue> it) {
         for (PropertyValue val : it) {
             acc.setObject(PropertyValueUtils.Numeric.add(acc, val).getObject());
         }
     }
 
-    @Override
+
     public void resetAccumulator(PropertyValue acc) {
         acc.setInt(0);
     }

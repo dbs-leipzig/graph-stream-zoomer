@@ -1,9 +1,8 @@
 package edu.leipzig.model.table;
 
-import edu.leipzig.impl.functions.utils.PlannerExpressionSeqBuilder;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.planner.expressions.PlannerExpression;
-import scala.collection.Seq;
+import org.apache.flink.table.expressions.Expression;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -60,24 +59,14 @@ class TableSetSchema {
     }
 
     /**
-     * Returns a string array of field names of table with given table name
-     *
-     * @param tableName name of table to get field names for
-     * @return string array of field names
-     */
-    private String[] getFieldNamesForTable(String tableName) {
-        return getTable(tableName).getFieldNames();
-    }
-
-
-    /**
      * Builds a scala sequence of expressions which can be used to project a table with a super set
      * of the fields (of the table for the given table name) to those fields only
      *
      * @param tableName name of table to get project expressions for
      * @return scala sequence of expressions
      */
-    String buildProjectExpressions(String tableName) {
-        return String.join(",", Arrays.asList(getFieldNamesForTable(tableName)));
+    Expression[] buildProjectExpressions(String tableName) {
+        return Arrays.stream(getTable(tableName).getFieldNames()).map(Expressions::$)
+          .toArray(Expression[]::new);
     }
 }

@@ -16,7 +16,7 @@ public class AvgProperty implements Average, CustomizedAggregationFunction {
     /**
      * Key of the aggregate property.
      */
-    private String aggregatePropertyKey;
+    private final String aggregatePropertyKey;
 
     /**
      * Creates a new instance of a AvgProperty aggregate function.
@@ -34,10 +34,8 @@ public class AvgProperty implements Average, CustomizedAggregationFunction {
      * @param aggregatePropertyKey aggregate property key
      */
     public AvgProperty(String propertyKey, String aggregatePropertyKey) {
-        Objects.requireNonNull(aggregatePropertyKey);
-        this.aggregatePropertyKey = aggregatePropertyKey;
-        Objects.requireNonNull(propertyKey);
-        this.propertyKey = propertyKey;
+        this.aggregatePropertyKey = Objects.requireNonNull(aggregatePropertyKey);
+        this.propertyKey = Objects.requireNonNull(propertyKey);
     }
 
     @Override

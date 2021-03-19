@@ -1,9 +1,14 @@
 package edu.leipzig.impl.functions.utils;
 
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.ApiExpression;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import scala.collection.Seq;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Builder for a scala sequence of expressions, i.e. {@link Seq < PlannerExpression >} for use with Flink's
@@ -35,7 +40,9 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
     /**
      * Internal list of expressions
      */
-    private String expressions = "";
+    private String expressionsString = "";
+
+    List<Expression> expressions = new ArrayList<>();
 
     /**
      * Constructor
@@ -47,7 +54,12 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
 
     public String buildString() {
         appendIfNewExpression();
-        return expressions;
+        return expressionsString;
+    }
+
+    public Expression[] build() {
+        appendIfNewExpression();
+        return expressions.toArray(new Expression[0]);
     }
 
     /**
@@ -57,7 +69,7 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
      */
     public boolean isEmpty() {
         appendIfNewExpression();
-        return expressions.isEmpty();
+        return expressionsString.isEmpty() || expressions.isEmpty();
     }
 
     //----------------------------------------------------------------------------
@@ -74,6 +86,13 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
 
     @Override
     public PlannerExpressionSeqBuilder expression(String e) {
+        appendIfNewExpression();
+        super.expression(e);
+        return this;
+    }
+
+    @Override
+    public PlannerExpressionSeqBuilder expression(ApiExpression e) {
         appendIfNewExpression();
         super.expression(e);
         return this;
@@ -101,7 +120,29 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
     }
 
     @Override
+    public PlannerExpressionSeqBuilder scalarFunctionCall(ScalarFunction function) {
+        appendIfNewExpression();
+        super.scalarFunctionCall(function);
+        return this;
+    }
+
+    @Override
+    public PlannerExpressionSeqBuilder scalarFunctionCall(ScalarFunction function, Expression... parameters) {
+        appendIfNewExpression();
+        super.scalarFunctionCall(function, parameters);
+        return this;
+
+    }
+
+    @Override
     public PlannerExpressionSeqBuilder aggFunctionCall(AggregateFunction function, String... parameters) {
+        appendIfNewExpression();
+        super.aggFunctionCall(function, parameters);
+        return this;
+    }
+
+    @Override
+    public PlannerExpressionSeqBuilder aggFunctionCall(AggregateFunction function, Expression... parameters) {
         appendIfNewExpression();
         super.aggFunctionCall(function, parameters);
         return this;
@@ -119,12 +160,6 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
     }
 
     @Override
-    public PlannerExpressionSeqBuilder and(String expression) {
-        super.and(expression);
-        return this;
-    }
-
-    @Override
     public PlannerExpressionSeqBuilder equalTo(String fieldName) {
         super.equalTo(fieldName);
         return this;
@@ -136,10 +171,17 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
      */
     private void appendIfNewExpression() {
         if (null != this.currentExpression && expressions.isEmpty()) {
-            expressions = this.currentExpression;
+            expressions.add(this.currentExpression);
+        } else if (null != this.currentExpression && !expressions.contains(this.currentExpression)) {
+            expressions.add(this.currentExpression);
+        }
+
+        if (null != this.currentExpressionString && expressionsString.isEmpty()) {
+            expressionsString = this.currentExpressionString;
         //} else if (null != this.currentExpression && !expressions.contains(this.currentExpression)) {
-        } else if (null != this.currentExpression && !this.currentExpression.isEmpty() && !expressions.endsWith(this.currentExpression)) {
-            expressions += "," + this.currentExpression;
+        } else if (null != this.currentExpressionString && !this.currentExpressionString
+          .isEmpty() && !expressionsString.endsWith(this.currentExpressionString)) {
+            expressionsString += "," + this.currentExpressionString;
         }
     }
 }

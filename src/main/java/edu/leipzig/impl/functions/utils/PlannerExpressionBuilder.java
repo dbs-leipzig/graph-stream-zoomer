@@ -1,12 +1,18 @@
 package edu.leipzig.impl.functions.utils;
 
-import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.api.ApiExpression;
+import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.planner.expressions.*;
+import org.apache.flink.table.planner.expressions.PlannerExpression;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 
 
 /**
@@ -50,22 +56,36 @@ import java.util.concurrent.atomic.AtomicInteger;
  * references to: org.gradoop.flink.model.impl.layouts.table.util;
  */
 public class PlannerExpressionBuilder {
-
+    /**
+     * Function name of ExtractPropertyValue scalar function.
+     */
     private static final String EXTRACT_PROPERTY_VALUE = "ExtractPropertyValue";
+
+    /**
+     * Current expression string
+     */
+    protected String currentExpressionString;
+
     /**
      * Current expression object
      */
-    protected String currentExpression;
-    // a counter for unique attribute names
-    AtomicInteger attrNameCtr = new AtomicInteger(0);
+    protected ApiExpression currentExpression;
 
+    /**
+     * A counter for unique attribute names
+     */
+    private final AtomicInteger attrNameCtr = new AtomicInteger(0);
+
+    /**
+     * The table environment
+     */
     protected StreamTableEnvironment tableEnv;
 
     public PlannerExpressionBuilder(StreamTableEnvironment tableEnv) {
         this.tableEnv = tableEnv;
     }
 
-    public String getExpression() {
+    public Expression getExpression() {
         return currentExpression;
     }
 
@@ -75,7 +95,8 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder allFields() {
-        currentExpression = "*";
+        currentExpressionString = "*";
+        currentExpression = $("*");
         return this;
     }
 
@@ -86,12 +107,20 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder expression(String e) {
+        currentExpressionString = e;
+        currentExpression = $(e);
+        return this;
+    }
+
+    public PlannerExpressionBuilder expression(ApiExpression e) {
         currentExpression = e;
         return this;
     }
 
     public PlannerExpressionBuilder literal(String e) {
-        currentExpression = "'" + e + "'";
+        String literal = "\"" + e + "\"";
+        currentExpressionString = literal;
+        currentExpression = $(literal);
         return this;
     }
 
@@ -102,7 +131,8 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder field(String fieldName) {
-        currentExpression = fieldName;
+        currentExpressionString = fieldName;
+        currentExpression = $(fieldName);
         return this;
     }
 
@@ -119,9 +149,47 @@ public class PlannerExpressionBuilder {
             functionName = functionName + attrNameCtr.getAndIncrement();
         }
         if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
+            // Here we use the deprecated api since the PropertyValue type is not a pojo and thus can not be
+            // used in the new Flink type system
             tableEnv.registerFunction(functionName, function);
         }
-        currentExpression = functionName + "(" + String.join(",", parameters) + ")";
+        currentExpressionString = functionName + "(" + String.join(",", parameters) + ")";
+
+        if (parameters.length == 1 && parameters[0] == null) {
+            scalarFunctionCall(function);
+        } else {
+            Expression[] paramExpressions = Arrays.stream(parameters).map(Expressions::$).toArray(Expression[]::new);
+            currentExpression = call(functionName, paramExpressions);
+        }
+
+        return this;
+    }
+
+    public PlannerExpressionBuilder scalarFunctionCall(ScalarFunction function) {
+        String functionName = function.toString();
+        if(functionName.equals(EXTRACT_PROPERTY_VALUE)) {
+            functionName = functionName + attrNameCtr.getAndIncrement();
+        }
+        if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
+            // Here we use the deprecated api since the PropertyValue type is not a pojo and thus can not be
+            // used in the new Flink type system
+            tableEnv.registerFunction(functionName, function);
+        }
+        currentExpression = call(functionName);
+        return this;
+    }
+
+    public PlannerExpressionBuilder scalarFunctionCall(ScalarFunction function, Expression... parameters) {
+        String functionName = function.toString();
+        if(functionName.equals(EXTRACT_PROPERTY_VALUE)) {
+            functionName = functionName + attrNameCtr.getAndIncrement();
+        }
+        if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
+            // Here we use the deprecated api since the PropertyValue type is not a pojo and thus can not be
+            // used in the new Flink type system
+            tableEnv.registerFunction(functionName, function);
+        }
+        currentExpression = call(functionName, parameters);
         return this;
     }
 
@@ -138,9 +206,24 @@ public class PlannerExpressionBuilder {
     public PlannerExpressionBuilder aggFunctionCall(AggregateFunction function, String... parameters) {
         String functionName = function.toString();
         if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
+            // Here we use the deprecated api since the PropertyValue type is not a pojo and thus can not be
+            // used in the new Flink type system
             tableEnv.registerFunction(functionName, function);
         }
-        currentExpression = functionName + "(" + String.join(",", parameters) + ")";
+        currentExpressionString = functionName + "(" + String.join(",", parameters) + ")";
+        Expression[] paramExpressions = Arrays.stream(parameters).map(Expressions::$).toArray(Expression[]::new);
+        currentExpression = call(functionName, paramExpressions);
+        return this;
+    }
+
+    public PlannerExpressionBuilder aggFunctionCall(AggregateFunction function, Expression... parameters) {
+        String functionName = function.toString();
+        if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
+            // Here we use the deprecated api since the PropertyValue type is not a pojo and thus can not be
+            // used in the new Flink type system
+            tableEnv.registerFunction(functionName, function);
+        }
+        currentExpression = call(functionName, parameters);
         return this;
     }
 
@@ -151,22 +234,10 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder as(String name) {
-        currentExpression = currentExpression + " as " + name;
+        currentExpressionString = currentExpressionString + " as " + name;
+        currentExpression = currentExpression.as(name);
         return this;
     }
-
-    /**
-     * Appends a call of SQL "IN('foo', 'bar', ..)" with given string literals to current expression
-     * Builds a boolean expression!
-     *
-     * @param elements array of string literals
-     * @return a reference to this object
-     */
-    public PlannerExpressionBuilder in(String... elements) {
-        currentExpression = "IN(" + String.join(", ", elements);
-        return this;
-    }
-
 
     /**
      * Appends a call of boolean "AND(expression)" operator with given expression to current
@@ -176,17 +247,34 @@ public class PlannerExpressionBuilder {
      * @param expression expression
      * @return a reference to this object
      */
-    public PlannerExpressionBuilder and(String expression) {
+    public PlannerExpressionBuilder and(ApiExpression expression) {
         if (null == currentExpression) {
             currentExpression = expression;
         } else {
-            currentExpression = currentExpression + " && " + expression;
+            currentExpression = currentExpression.and(expression);
         }
+
         return this;
     }
 
-    public PlannerExpressionBuilder row(String... elements) {
-        currentExpression = "row(" + String.join(", ", elements) + ")";
+    /**
+     * Builds a row expression. Used only as scalar function argument at {@link ToProperties}.
+     *
+     * @param expressions the expression for the row.
+     * @return a reference to this object
+     */
+    public PlannerExpressionBuilder row(Expression... expressions) {
+        Object[] singleElements = new Object[expressions.length];
+        for (int i = 0, elementsLength = expressions.length; i < elementsLength; i++) {
+            if (i % 2 == 0) {
+                singleElements[i] = expressions[i].asSummaryString();
+            } else {
+                singleElements[i] = expressions[i];
+            }
+        }
+        Object head = singleElements[0];
+        Object[] tail = Arrays.copyOfRange(singleElements, 1, singleElements.length);
+        currentExpression = Expressions.row(head, tail);
         return this;
     }
 
@@ -198,7 +286,8 @@ public class PlannerExpressionBuilder {
      * @return a reference to this object
      */
     public PlannerExpressionBuilder equalTo(String fieldName) {
-        currentExpression = currentExpression + " = " + fieldName;
+        currentExpressionString = currentExpressionString + " = " + fieldName;
+        currentExpression = currentExpression.isEqual($(fieldName));
         return this;
     }
 }
