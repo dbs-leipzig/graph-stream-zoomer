@@ -46,8 +46,11 @@ public class ToProperties extends ScalarFunction {
                 throw new RuntimeException("Odd expression of property row must be a property key string");
             }
             Object f1 = row.getField(i + 1);
-            if (!(f1 instanceof PropertyValue)) {
-                throw new RuntimeException("Even expression of property row must be a property value");
+            if (f1 instanceof Long) {
+                f1 = PropertyValue.create(f1);
+            } else if (!(f1 instanceof PropertyValue)) {
+                throw new RuntimeException("Even expression of property row must be of type " +
+                  "[Long, PropertyValue].");
             }
 
             String key = (String) f0;

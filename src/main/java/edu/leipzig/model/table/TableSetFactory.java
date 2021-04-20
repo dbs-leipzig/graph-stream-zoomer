@@ -63,11 +63,11 @@ public class TableSetFactory {
                 .field(TableSet.FIELD_EDGE_LABEL)
                 .field(TableSet.FIELD_EDGE_PROPERTIES)
 
-                .field(TableSet.FIELD_TAIL_ID)
+                .field(TableSet.FIELD_SOURCE_ID)
                 .field(TableSet.FIELD_VERTEX_SOURCE_LABEL)
                 .field(TableSet.FIELD_VERTEX_SOURCE_PROPERTIES)
 
-                .field(TableSet.FIELD_HEAD_ID)
+                .field(TableSet.FIELD_TARGET_ID)
                 .field(TableSet.FIELD_VERTEX_TARGET_LABEL)
                 .field(TableSet.FIELD_VERTEX_TARGET_PROPERTIES)
                 .buildString()

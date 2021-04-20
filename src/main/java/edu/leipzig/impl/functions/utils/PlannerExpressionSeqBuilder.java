@@ -148,6 +148,20 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
         return this;
     }
 
+    @Override
+    public PlannerExpressionBuilder count() {
+        appendIfNewExpression();
+        super.count();
+        return this;
+    }
+
+    @Override
+    public PlannerExpressionBuilder sum(Expression e) {
+        appendIfNewExpression();
+        super.sum(e);
+        return this;
+    }
+
     //----------------------------------------------------------------------------
     // Operators which build nested single expressions based on the former
     // expression. No need to add current expression to the sequence.
@@ -164,6 +178,8 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
         super.equalTo(fieldName);
         return this;
     }
+
+
 
     /**
      * Appends the current expression of {@link PlannerExpressionBuilder} to the sequence if it wasn't

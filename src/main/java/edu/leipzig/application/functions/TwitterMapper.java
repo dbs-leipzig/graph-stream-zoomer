@@ -1,6 +1,6 @@
 package edu.leipzig.application.functions;
 
-import edu.leipzig.model.graph.StreamObject;
+import edu.leipzig.model.graph.StreamTriple;
 import edu.leipzig.model.graph.StreamVertex;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
@@ -18,12 +18,12 @@ import java.time.ZoneId;
  * produce tweet and user as vertex types
  * new tweet and retweet as edge types
  */
-public class TwitterMapper implements FlatMapFunction<String, StreamObject> {
+public class TwitterMapper implements FlatMapFunction<String, StreamTriple> {
     private static final long serialVersionUID = 1L;
     private transient ObjectMapper jsonParser;
 
     @Override
-    public void flatMap(String value, Collector<StreamObject> out) throws Exception {
+    public void flatMap(String value, Collector<StreamTriple> out) throws Exception {
         if (jsonParser == null) {
             jsonParser = new ObjectMapper();
         }
@@ -71,7 +71,7 @@ public class TwitterMapper implements FlatMapFunction<String, StreamObject> {
 
         Properties edgeProps = Properties.create();
         edgeProps.set("createdAt", status.getCreatedAt().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
-        StreamObject edge = new StreamObject(GradoopId.get().toString(), timestamp, "createdByUser", edgeProps, tweetVertex, userVertex);
+        StreamTriple edge = new StreamTriple(GradoopId.get().toString(), timestamp, "createdByUser", edgeProps, tweetVertex, userVertex);
 
         out.collect(edge);
     }

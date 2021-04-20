@@ -23,7 +23,7 @@ class TableSetSchema {
     /**
      * schema map
      */
-    private Map<String, TableSchema> schema;
+    private final Map<String, TableSchema> schema;
 
     /**
      * Constructor
@@ -59,7 +59,7 @@ class TableSetSchema {
     }
 
     /**
-     * Builds a scala sequence of expressions which can be used to project a table with a super set
+     * Builds a sequence of expressions which can be used to project a table with a super set
      * of the fields (of the table for the given table name) to those fields only
      *
      * @param tableName name of table to get project expressions for

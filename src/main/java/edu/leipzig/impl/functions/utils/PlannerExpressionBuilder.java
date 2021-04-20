@@ -11,8 +11,7 @@ import org.apache.flink.table.planner.expressions.PlannerExpression;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.*;
 
 
 /**
@@ -288,6 +287,26 @@ public class PlannerExpressionBuilder {
     public PlannerExpressionBuilder equalTo(String fieldName) {
         currentExpressionString = currentExpressionString + " = " + fieldName;
         currentExpression = currentExpression.isEqual($(fieldName));
+        return this;
+    }
+
+    /**
+     * Uses the newly introduced AI feature for count. Appends a call to "count()".
+     *
+     * @return a reference to this object
+     */
+    public PlannerExpressionBuilder count() {
+        currentExpression = lit(1).count();
+        return this;
+    }
+
+    /**
+     * Uses the newly introduced AI feature for sum. Appends a call to "sum()" on the current expression.
+     *
+     * @return a reference to this object
+     */
+    public PlannerExpressionBuilder sum(Expression e) {
+        currentExpression = ((ApiExpression) e).sum();
         return this;
     }
 }

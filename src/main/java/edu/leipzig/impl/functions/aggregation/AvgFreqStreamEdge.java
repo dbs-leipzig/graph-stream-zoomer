@@ -14,7 +14,7 @@ public class AvgFreqStreamEdge implements CustomizedAggregationFunction {
      * Creates a new instance of a AvgFreqStreamEdge aggregate function.
      */
     public AvgFreqStreamEdge() {
-        this.aggregatePropertyKey = "avgFreq/s";
+        this.aggregatePropertyKey = "elements/s";
     }
 
     @Override

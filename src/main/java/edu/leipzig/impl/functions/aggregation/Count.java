@@ -51,4 +51,3 @@ public class Count extends BaseAggregateFunction implements Sum, AggregateDefaul
         return new TableCount();
     }
 }
-

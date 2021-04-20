@@ -5,9 +5,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.expressions.Expression;
 import org.gradoop.common.model.impl.properties.Properties;
 
 import java.util.HashMap;
+
+import static org.apache.flink.table.api.Expressions.$;
 
 /**
  * Basic table set class which is just a wrapper for a map: tableName->{@link Table}
@@ -42,13 +45,13 @@ public class TableSet extends HashMap<String, Table> {
      */
     public static final String FIELD_EDGE_ID = "edge_id";
     /**
-     * Field name of tail id in edges table
+     * Field name of source id in edges table
      */
-    public static final String FIELD_TAIL_ID = "tail_id";
+    public static final String FIELD_SOURCE_ID = "source_id";
     /**
      * Field name of head id in edges table
      */
-    public static final String FIELD_HEAD_ID = "head_id";
+    public static final String FIELD_TARGET_ID = "target_id";
     /**
      * Field name of label in edges table
      */
@@ -79,6 +82,11 @@ public class TableSet extends HashMap<String, Table> {
     public static final String FIELD_VERTEX_TARGET_LABEL = "target_label";
 
     /**
+     * Field name of edge timestamp.
+     */
+    public static final String FIELD_EVENT_TIME = "event_time";
+
+    /**
      * Table key of vertices table
      */
     public static final String TABLE_VERTICES = "vertices";
@@ -104,10 +112,11 @@ public class TableSet extends HashMap<String, Table> {
         )
         .put(TABLE_EDGES, new TableSchema.Builder()
           .field(FIELD_EDGE_ID, DataTypes.STRING())
-          .field(FIELD_TAIL_ID, DataTypes.STRING())
-          .field(FIELD_HEAD_ID, DataTypes.STRING())
+          .field(FIELD_SOURCE_ID, DataTypes.STRING())
+          .field(FIELD_TARGET_ID, DataTypes.STRING())
           .field(FIELD_EDGE_LABEL, DataTypes.STRING())
           .field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .field(FIELD_EVENT_TIME, DataTypes.BIGINT(), $(FIELD_EVENT_TIME).proctime().toString())
           .build()
         )
         .put(TABLE_GRAPH, new TableSchema.Builder()
@@ -115,11 +124,11 @@ public class TableSet extends HashMap<String, Table> {
           .field(FIELD_EDGE_LABEL, DataTypes.STRING())
           .field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
 
-          .field(FIELD_TAIL_ID, DataTypes.STRING())
+          .field(FIELD_SOURCE_ID, DataTypes.STRING())
           .field(FIELD_VERTEX_SOURCE_LABEL, DataTypes.STRING())
           .field(FIELD_VERTEX_SOURCE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
 
-          .field(FIELD_HEAD_ID, DataTypes.STRING())
+          .field(FIELD_TARGET_ID, DataTypes.STRING())
           .field(FIELD_VERTEX_TARGET_LABEL, DataTypes.STRING())
           .field(FIELD_VERTEX_TARGET_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
           .build()
@@ -168,5 +177,21 @@ public class TableSet extends HashMap<String, Table> {
      */
     public Table projectToGraph(Table table) {
         return table.select(SCHEMA.buildProjectExpressions(TABLE_GRAPH));
+    }
+
+    /**
+     * Get project expressions for an edge.
+     *
+     * @return an array of project expressions
+     */
+    public static Expression[] getEdgeProjectExpressions() {
+        return new Expression[] {
+          $(FIELD_EDGE_ID),
+          $(FIELD_SOURCE_ID),
+          $(FIELD_TARGET_ID),
+          $(FIELD_EDGE_LABEL),
+          $(FIELD_EDGE_PROPERTIES),
+          $(FIELD_EVENT_TIME).rowtime()
+        };
     }
 }

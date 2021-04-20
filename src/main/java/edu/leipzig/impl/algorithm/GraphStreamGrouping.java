@@ -10,16 +10,18 @@ import edu.leipzig.model.graph.GraphStreamToGraphStreamOperator;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphLayout;
 import edu.leipzig.model.table.TableSet;
-import edu.leipzig.model.table.TableSetFactory;
+import org.apache.flink.table.api.GroupWindowedTable;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.Tumble;
 import org.apache.flink.table.expressions.Expression;
 import org.gradoop.common.util.GradoopConstants;
 
 import java.util.List;
 import java.util.Map;
 
-import static edu.leipzig.model.table.TableSet.TABLE_EDGES;
-import static edu.leipzig.model.table.TableSet.TABLE_VERTICES;
+import static edu.leipzig.model.table.TableSet.*;
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.lit;
 
 /**
  * Implementation of grouping in a graph stream layout.
@@ -65,13 +67,11 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      */
     @Override
     public StreamGraph execute(StreamGraphLayout streamGraph) {
-        this.tableSetFactory = streamGraph.getTableSetFactory();
         this.config = streamGraph.getConfig();
         this.tableSet = streamGraph.getTableSet();
 
-        TableSet groupedTableSet = performGrouping();
-
-        return new StreamGraph(groupedTableSet, getConfig());
+        // Perform the grouping and create a new graph stream
+        return new StreamGraph(performGrouping(), getConfig());
     }
 
 
@@ -81,10 +81,11 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      * @return table set of result stream graph
      */
     protected TableSet performGrouping() {
-        tableSetFactory = new TableSetFactory();
 
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
+
+        GroupWindowedTable windowedVertices = tableSet.getVertices().window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"));
 
         // 1. Prepare distinct vertices
         Table preparedVertices = tableSet.getVertices()
@@ -108,6 +109,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         // 6. Group edges by label and/or property values
         Table groupedEdges = edgesWithSuperVertices
+          //.window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"))
           .groupBy(buildEdgeGroupExpressions())
           .select(buildEdgeProjectExpressions());
 
@@ -115,7 +117,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         Table newEdges = groupedEdges
           .select(buildSuperEdgeProjectExpressions());
 
-        return tableSetFactory.fromTables(newVertices, newEdges);
+        return getConfig().getTableSetFactory().fromTables(newVertices, newEdges);
     }
 
     /**
@@ -209,7 +211,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      * Collects all expressions the grouped edge table gets projected to in order to select super
      * edges
      * <p>
-     * { edge_id, tail_id, head_id, edge_label, edge_properties }
+     * { edge_id, source_id, target_id, edge_label, edge_properties }
      *
      * @return scala sequence of expressions
      */
@@ -218,9 +220,10 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         // edge_id, tail_id, head_id
         builder
-                .field(FIELD_SUPER_EDGE_ID).as(TableSet.FIELD_EDGE_ID)
-                .field(TableSet.FIELD_TAIL_ID)
-                .field(TableSet.FIELD_HEAD_ID);
+          .field(FIELD_SUPER_EDGE_ID).as(TableSet.FIELD_EDGE_ID)
+          .field(FIELD_EVENT_TIME)
+          .field(TableSet.FIELD_SOURCE_ID)
+          .field(TableSet.FIELD_TARGET_ID);
 
         // edge_label
         if (useEdgeLabels) {
@@ -253,35 +256,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         return builder.build();
     }
 
-    protected Table enrichEdges(Table edges, Table expandedVertices) {
-
-        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
-
-        // grouping_property_1 AS tmp_e1, ... , grouping_property_k AS tmp_ek
-        for (String propertyKey : edgeGroupingPropertyKeys) {
-            String propertyColumnName = getConfig().createUniqueAttributeName();
-            builder
-                    .scalarFunctionCall(new ExtractPropertyValue(propertyKey),
-                            TableSet.FIELD_EDGE_PROPERTIES)
-                    .as(propertyColumnName);
-            edgeGroupingPropertyFieldNames.put(propertyKey, propertyColumnName);
-        }
-
-        // property_to_aggregate_1 AS tmp_f1, ... , property_to_aggregate_l AS tmp_fl
-        for (CustomizedAggregationFunction aggregateFunction : edgeAggregateFunctions) {
-            if (null != aggregateFunction.getPropertyKey()) {
-                String propertyColumnName = getConfig().createUniqueAttributeName();
-                builder.scalarFunctionCall(new ExtractPropertyValue(aggregateFunction.getPropertyKey()),
-                        TableSet.FIELD_EDGE_PROPERTIES)
-                        .as(propertyColumnName);
-                edgeAggregationPropertyFieldNames.put(aggregateFunction.getAggregatePropertyKey(),
-                        propertyColumnName);
-            }
-        }
-
-        return super.enrichEdges(edges, expandedVertices, builder.build());
-    }
-
     /**
      * Takes an expression sequence builder and adds following expressions for each of given
      * property keys to the builder:
@@ -300,6 +274,4 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             builder.field(fieldNameMap.get(propertyKey));
         }
     }
-
-
 }

@@ -7,7 +7,7 @@ import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
 import edu.leipzig.impl.functions.aggregation.MaxProperty;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
-import edu.leipzig.model.graph.StreamObject;
+import edu.leipzig.model.graph.StreamTriple;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -50,9 +50,9 @@ public class TwitterGroupingBenchmark {
 
         DataStream<String> streamSource = env.addSource(new TwitterSource(params.getProperties()));
 
-        DataStream<StreamObject> tweetStream = streamSource.flatMap(new TwitterMapper()).assignTimestampsAndWatermarks(
+        DataStream<StreamTriple> tweetStream = streamSource.flatMap(new TwitterMapper()).assignTimestampsAndWatermarks(
           WatermarkStrategy
-            .<StreamObject>forBoundedOutOfOrderness(Duration.ofSeconds(20))
+            .<StreamTriple>forBoundedOutOfOrderness(Duration.ofSeconds(20))
             .withTimestampAssigner((event, timestamp) -> event.getTimestamp()));
 
         /*

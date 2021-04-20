@@ -5,17 +5,16 @@ import org.gradoop.common.model.impl.properties.Properties;
 import java.io.Serializable;
 
 /**
- * Stream edge model
- * (timestamp, edge_id, tail_id, edge_label, edge_properties, head_id)
+ * Stream edge model (edge_id, edge_label, edge_properties, source_id, target_id, timestamp)
  */
 
 public class StreamEdge implements Serializable {
     private String edge_id;
     private String edge_label;
     private Properties edge_properties;
-    private String tail_id;
-    private String head_id;
-    private long timestamp;
+    private String source_id;
+    private String target_id;
+    private long event_time;
 
     /**
      * Default constructor is necessary to apply to POJO rules.
@@ -26,13 +25,13 @@ public class StreamEdge implements Serializable {
     /**
      * constructor with all fields
      */
-    public StreamEdge(String id, Long timestamp, String label, Properties properties, String sourceId, String targetId) {
+    public StreamEdge(String id, Long event_time, String label, Properties properties, String sourceId, String targetId) {
         this.edge_id = id;
+        this.event_time = event_time;
         this.edge_label = label;
         this.edge_properties = properties;
-        this.timestamp = timestamp;
-        this.head_id = sourceId;
-        this.tail_id = targetId;
+        this.target_id = sourceId;
+        this.source_id = targetId;
     }
 
     /**
@@ -78,52 +77,64 @@ public class StreamEdge implements Serializable {
     }
 
     /**
-     * @return current tail_id
+     * @return current source_id
      */
-    public String getTailId() {
-        return tail_id;
+    public String getSourceId() {
+        return source_id;
     }
 
     /**
-     * @param tail_id tail_id to set
+     * @param source_id source_id to set
      */
-    public void setTailId(String tail_id) {
-        this.tail_id = tail_id;
+    public void setSourceId(String source_id) {
+        this.source_id = source_id;
     }
 
     /**
      * @return current head_id
      */
-    public String getHeadId() {
-        return head_id;
+    public String getTargetId() {
+        return target_id;
     }
 
     /**
-     * @param head_id head_id to set
+     * @param target_id head_id to set
      */
-    public void setHeadId(String head_id) {
-        this.head_id = head_id;
+    public void setTargetId(String target_id) {
+        this.target_id = target_id;
     }
 
     /**
      * @return current timestamp
      */
-    public Long getTimestamp() {
-        return timestamp;
+    public long getEventTime() {
+        return event_time;
     }
 
     /**
-     * @param timestamp timestamp to set
+     * @param eventTime timestamp to set
      */
-    public void setTimestamp(long timestamp) {
-        this.timestamp = timestamp;
+    public void setEventTime(long eventTime) {
+        this.event_time = eventTime;
+    }
+
+    /**
+     * Check equality of the edge without id comparison.
+     *
+     * @param other the other edge to compare
+     * @return true, iff the edge label, properties and timestamp are equal
+     */
+    public boolean equalsWithoutId(StreamEdge other) {
+        return this.getEdgeLabel().equals(other.getEdgeLabel())
+          && this.getEdgeProperties().equals(other.getEdgeProperties())
+          && this.getEventTime() == other.getEventTime();
     }
 
     @Override
     public String toString() {
-        return String.format("%d:(%s)-[%s%s%s{%s}]->(%s)",
-                this.timestamp, this.head_id, this.edge_id,
+        return String.format("(%s)-[t:%d %s%s%s{%s}]->(%s)",
+                this.target_id, this.event_time, this.edge_id,
                 this.edge_label != null && !this.edge_label.equals("") ? ":" : "",
-                this.edge_label, this.edge_properties == null ? "" : this.edge_properties, this.tail_id);
+                this.edge_label, this.edge_properties == null ? "" : this.edge_properties, this.source_id);
     }
 }

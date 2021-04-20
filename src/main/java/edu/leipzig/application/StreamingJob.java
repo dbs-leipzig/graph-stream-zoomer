@@ -23,7 +23,7 @@ import edu.leipzig.impl.functions.aggregation.Count;
 import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
-import edu.leipzig.model.graph.StreamObject;
+import edu.leipzig.model.graph.StreamTriple;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -50,12 +50,12 @@ public class StreamingJob {
     // set up the streaming execution environment
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     // connects to a socket source stream
-    DataStream<StreamObject> socketStream =
+    DataStream<StreamTriple> socketStream =
       env.socketTextStream("localhost", 6666).map(new JSONToStreamObjectMapper())
         // extracts the event timestamp from each record in order to create watermarks to signal event time
         // progress.
         .assignTimestampsAndWatermarks(
-          WatermarkStrategy.<StreamObject>forBoundedOutOfOrderness(Duration.ofSeconds(20))
+          WatermarkStrategy.<StreamTriple>forBoundedOutOfOrderness(Duration.ofSeconds(20))
             .withTimestampAssigner((event, timestamp) -> event.getTimestamp()));
 
     StreamGraphConfig streamGraphConfig = new StreamGraphConfig(env, 1);

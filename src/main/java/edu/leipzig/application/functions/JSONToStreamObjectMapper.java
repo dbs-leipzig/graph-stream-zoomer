@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
-import edu.leipzig.model.graph.StreamObject;
+import edu.leipzig.model.graph.StreamTriple;
 import edu.leipzig.model.graph.StreamVertex;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.gradoop.common.model.impl.properties.Properties;
@@ -16,7 +16,7 @@ import java.util.HashMap;
  * Parses the JSON incoming from the generator,
  * map it to the corresponding Stream Object instance.
  */
-public class JSONToStreamObjectMapper implements MapFunction<String, StreamObject> {
+public class JSONToStreamObjectMapper implements MapFunction<String, StreamTriple> {
 
   /**
    * Field name of id
@@ -55,7 +55,7 @@ public class JSONToStreamObjectMapper implements MapFunction<String, StreamObjec
    * target : StreamVertex>
    */
 
-  public StreamObject map(String jsonObjectAsString) {
+  public StreamTriple map(String jsonObjectAsString) {
     JsonElement root = new JsonParser().parse(jsonObjectAsString);
     Gson g = new Gson();
     StreamVertex source;
@@ -76,7 +76,7 @@ public class JSONToStreamObjectMapper implements MapFunction<String, StreamObjec
         }.getType())));
     Timestamp timestamp = new Timestamp(System.currentTimeMillis());
     // new instance of StreamObject as edge stream object
-    return new StreamObject(root.getAsJsonObject().get(ID).getAsString(),
+    return new StreamTriple(root.getAsJsonObject().get(ID).getAsString(),
       // root.getAsJsonObject().get(TIMESTAMP).getAsLong(),
       timestamp.getTime(), root.getAsJsonObject().get(LABEL).getAsString(), Properties.createFromMap(
       g.fromJson(root.getAsJsonObject().get(PROPERTIES), new TypeToken<HashMap<String, Object>>() {

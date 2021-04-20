@@ -1,15 +1,12 @@
 package edu.leipzig.model.graph;
 
-
 import org.gradoop.common.model.impl.properties.Properties;
 
 import java.io.Serializable;
 
 /**
- * Stream vertex model
- * stream edge (vertex_id, vertex_label, vertex_properties)
+ * Stream vertex model (vertex_id, vertex_label, vertex_properties)
  */
-
 public class StreamVertex implements Serializable {
     private String vertex_id;
     private String vertex_label;
@@ -72,7 +69,18 @@ public class StreamVertex implements Serializable {
         this.vertex_properties = vertex_properties;
     }
 
+    /**
+     * Check equality of the vertex without id comparison.
+     *
+     * @param other the other vertex to compare
+     * @return true, iff the vertex label and properties are equal
+     */
+    public boolean equalsWithoutId(StreamVertex other) {
+        return this.getVertexLabel().equals(other.getVertexLabel())
+          && this.getVertexProperties().equals(other.getVertexProperties());
+    }
+
     public String toString() {
-        return String.format("%s%s%s{%s}", this.vertex_id, this.vertex_label != null && !this.vertex_label.equals("") ? ":" : "", this.vertex_label, this.vertex_properties == null ? "" : this.vertex_properties);
+        return String.format("(%s%s%s{%s})", this.vertex_id, this.vertex_label != null && !this.vertex_label.equals("") ? ":" : "", this.vertex_label, this.vertex_properties == null ? "" : this.vertex_properties);
     }
 }

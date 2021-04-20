@@ -41,7 +41,14 @@ public class TableSumProperty extends BaseTablePropertyValueAggregateFunction {
 
     public void retract(PropertyValue acc, PropertyValue val) {
         if (null != val) {
-            acc.setObject(PropertyValueUtils.Numeric.add(acc, PropertyValue.create(val.getDouble() * -1L)).getObject());
+            if (val.isInt()) {
+                acc.setObject(
+                  PropertyValueUtils.Numeric.add(acc, PropertyValue.create(val.getInt() * -1L)).getObject());
+            } else if (val.isDouble()) {
+                acc.setObject(
+                  PropertyValueUtils.Numeric.add(acc, PropertyValue.create(val.getDouble() * -1L)).getObject());
+            }
+
         }
     }
 

@@ -12,6 +12,8 @@ import org.apache.flink.table.api.Table;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /**
  * layout of the stream graph
  * A stream graph layout is wrapping a {@link TableSet} which defines, how the layout is
@@ -38,6 +40,8 @@ public class StreamGraphLayout {
     StreamGraphConfig config) {
     TableSet tableSet = new TableSet();
     tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices));
+    // we will need the below if a rowtime has to be specified
+    //tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges, TableSet.getEdgeProjectExpressions()));
     tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges));
     this.tableSet = tableSet;
     this.config = Objects.requireNonNull(config);
@@ -85,40 +89,6 @@ public class StreamGraphLayout {
   }
 
   /**
-   * Creates a condensed version of the stream graph by grouping vertices based on the specified
-   * property keys.
-   * <p>
-   * Vertices are grouped by the given property keys. Edges are implicitly grouped along with their
-   * incident vertices.
-   *
-   * @param vertexGroupingKeys property keys to group vertices
-   * @return summary graph
-   * @see GraphStreamGrouping
-   */
-  StreamGraphLayout groupBy(List<String> vertexGroupingKeys) {
-    return groupBy(vertexGroupingKeys, null);
-  }
-
-  /**
-   * Creates a condensed version of the stream graph by grouping vertices and edges based on given
-   * property keys.
-   * <p>
-   * Vertices are grouped by the given property keys. Edges are implicitly grouped along with their
-   * incident vertices and explicitly by the specified edge grouping keys.
-   * <p>
-   * One needs to at least specify a list of vertex grouping keys. Any other argument may be
-   * {@code null}.
-   *
-   * @param vertexGroupingKeys property keys to group vertices
-   * @param edgeGroupingKeys   property keys to group edges
-   * @return summary graph
-   * @see GraphStreamGrouping
-   */
-  StreamGraphLayout groupBy(List<String> vertexGroupingKeys, List<String> edgeGroupingKeys) {
-    return groupBy(vertexGroupingKeys, null, edgeGroupingKeys, null);
-  }
-
-  /**
    * Creates a condensed version of the stream graph by grouping vertices and edges based on given
    * property keys.
    * <p>
@@ -137,11 +107,10 @@ public class StreamGraphLayout {
    * @return summary graph
    * @see GraphStreamGrouping
    */
-  StreamGraphLayout groupBy(
-    List<String> vertexGroupingKeys,
-    List<CustomizedAggregationFunction> vertexAggregateFunctions,
-    List<String> edgeGroupingKeys,
-    List<CustomizedAggregationFunction> edgeAggregateFunctions
+  StreamGraphLayout groupBy(List<String> vertexGroupingKeys,
+                            List<CustomizedAggregationFunction> vertexAggregateFunctions,
+                            List<String> edgeGroupingKeys,
+                            List<CustomizedAggregationFunction> edgeAggregateFunctions
   ) {
     Objects.requireNonNull(vertexGroupingKeys, "missing vertex grouping key(s)");
 
@@ -179,8 +148,8 @@ public class StreamGraphLayout {
    * @return table
    */
   Table computeSummarizedGraphTable(Table edges, Table vertices) {
-    String newId1 = config.createUniqueAttributeName();
-    String newId2 = config.createUniqueAttributeName();
+    String newSourceIdAttributeName = config.createUniqueAttributeName();
+    String newTargetIdAttributeName = config.createUniqueAttributeName();
     PlannerExpressionBuilder builder = new PlannerExpressionBuilder(config.getTableEnvironment());
 
     return tableSet.projectToGraph(
@@ -188,21 +157,21 @@ public class StreamGraphLayout {
         .join(
           vertices.select(new PlannerExpressionSeqBuilder(config.getTableEnvironment())
             .field(TableSet.FIELD_VERTEX_ID)
-            .as(newId1)
+            .as(newSourceIdAttributeName)
             .field(TableSet.FIELD_VERTEX_LABEL)
             .as(TableSet.FIELD_VERTEX_SOURCE_LABEL)
             .field(TableSet.FIELD_VERTEX_PROPERTIES)
             .as(TableSet.FIELD_VERTEX_SOURCE_PROPERTIES).build()),
-          builder.field(TableSet.FIELD_TAIL_ID)
-            .equalTo(newId1).getExpression())
+          builder.field(TableSet.FIELD_SOURCE_ID)
+            .equalTo(newSourceIdAttributeName).getExpression())
         .join(vertices.select(new PlannerExpressionSeqBuilder(config.getTableEnvironment())
             .field(TableSet.FIELD_VERTEX_ID)
-            .as(newId2)
+            .as(newTargetIdAttributeName)
             .field(TableSet.FIELD_VERTEX_LABEL)
             .as(TableSet.FIELD_VERTEX_TARGET_LABEL)
             .field(TableSet.FIELD_VERTEX_PROPERTIES)
             .as(TableSet.FIELD_VERTEX_TARGET_PROPERTIES).build()),
-          builder.field(TableSet.FIELD_HEAD_ID)
-            .equalTo(newId2).getExpression()));
+          builder.field(TableSet.FIELD_TARGET_ID)
+            .equalTo(newTargetIdAttributeName).getExpression()));
   }
 }
