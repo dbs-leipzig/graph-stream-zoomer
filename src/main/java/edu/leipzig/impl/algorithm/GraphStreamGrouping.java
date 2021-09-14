@@ -1,6 +1,7 @@
 package edu.leipzig.impl.algorithm;
 
 import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
+import edu.leipzig.impl.functions.utils.CreateSuperElementId;
 import edu.leipzig.impl.functions.utils.EmptyProperties;
 import edu.leipzig.impl.functions.utils.ExtractPropertyValue;
 import edu.leipzig.impl.functions.utils.PlannerExpressionBuilder;
@@ -10,18 +11,18 @@ import edu.leipzig.model.graph.GraphStreamToGraphStreamOperator;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphLayout;
 import edu.leipzig.model.table.TableSet;
-import org.apache.flink.table.api.GroupWindowedTable;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.Tumble;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.gradoop.common.util.GradoopConstants;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import static edu.leipzig.model.table.TableSet.*;
-import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.*;
 
 /**
  * Implementation of grouping in a graph stream layout.
@@ -34,7 +35,6 @@ import static org.apache.flink.table.api.Expressions.lit;
  * <p>
  * references to: org.gradoop.flink.model.impl.layouts.table.gve.operators;
  */
-
 public class GraphStreamGrouping extends TableGroupingBase implements GraphStreamToGraphStreamOperator {
 
     /**
@@ -72,6 +72,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         // Perform the grouping and create a new graph stream
         return new StreamGraph(performGrouping(), getConfig());
+        // Todo: use this first for testing issues
+        // return new StreamGraph(testPerformGrouping(), getConfig());
     }
 
 
@@ -84,8 +86,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
-
-        GroupWindowedTable windowedVertices = tableSet.getVertices().window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"));
 
         // 1. Prepare distinct vertices
         Table preparedVertices = tableSet.getVertices()
@@ -109,13 +109,135 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         // 6. Group edges by label and/or property values
         Table groupedEdges = edgesWithSuperVertices
-          //.window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"))
+        //  .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"))
           .groupBy(buildEdgeGroupExpressions())
           .select(buildEdgeProjectExpressions());
 
         // 7. Derive new super edges from grouped edges
         Table newEdges = groupedEdges
           .select(buildSuperEdgeProjectExpressions());
+
+        return getConfig().getTableSetFactory().fromTables(newVertices, newEdges);
+    }
+
+    /**
+     * Here we must test the windowed type of our grouping before we put it in a generalized way in our algo
+     * @return
+     */
+    protected TableSet testPerformGrouping() {
+
+        getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
+        getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
+
+        List<ScalarFunction> scalarFunctionsToRegister = Arrays.asList(
+          new CreateSuperElementId(),
+          new ToProperties()
+        );
+
+        for (ScalarFunction f : scalarFunctionsToRegister) {
+            if (!Arrays.asList(getTableEnv().listUserDefinedFunctions()).contains(f.toString())) {
+                // Here we use the deprecated api since the PropertyValue type is not a pojo and thus can not be
+                // used in the new Flink type system
+                getTableEnv().registerFunction(f.toString(), f);
+            }
+        }
+
+
+        // 1. Prepare distinct vertices
+        Table preparedVertices = tableSet.getVertices()
+          .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"))
+          .groupBy($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL), $("eventWindow"))
+          .select($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL),
+            $("eventWindow").rowtime().as(FIELD_VERTEX_EVENT_TIME));
+            //$(FIELD_EVENT_TIME));
+
+        // group by id, label, window ; select id label window
+          //.distinct();
+
+        // 2. Group vertices by label and/or property values
+        Table groupedVertices = preparedVertices
+          .window(Tumble.over(lit(10).seconds()).on($(FIELD_VERTEX_EVENT_TIME)).as("eventWindow"))
+          .groupBy($(FIELD_VERTEX_LABEL), $("eventWindow"))
+          //.groupBy($(FIELD_VERTEX_LABEL), $(FIELD_EVENT_TIME)) // here, EVENT_TIME ist the window identifier timestamp
+          .select(
+            call("CreateSuperElementId", $(FIELD_VERTEX_LABEL)).as(FIELD_SUPER_VERTEX_ID),
+            $(FIELD_VERTEX_LABEL).as(FIELD_SUPER_VERTEX_LABEL),
+            lit(1).count().as("TMP12"),
+            $("eventWindow").rowtime().as("vertexWindowTime")
+           // $(FIELD_EVENT_TIME).as("vertexWindowTime")
+            );
+
+        //todo: check that there are no duplicates aggregated
+
+        // 3. Derive new super vertices
+        Table newVertices = groupedVertices
+          .select(
+            $(FIELD_SUPER_VERTEX_ID).as(FIELD_VERTEX_ID),
+            $(FIELD_SUPER_VERTEX_LABEL).as(FIELD_VERTEX_LABEL),
+            call("ToProperties", row(lit("count"), $("TMP12"))).as(FIELD_VERTEX_PROPERTIES),
+            $("vertexWindowTime").as(FIELD_EVENT_TIME)
+          );
+
+        // 4. Expand a (vertex -> super vertex) mapping
+        Table expandedVertices = preparedVertices
+          .select($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL), $(FIELD_VERTEX_EVENT_TIME).as("preparedVerticesTime"))
+          .join(
+            groupedVertices.select($(FIELD_SUPER_VERTEX_ID), $(FIELD_SUPER_VERTEX_LABEL), $("vertexWindowTime").as("groupedVerticesTime")),
+            $(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL))
+              //.and($("preparedVerticesTime").isLessOrEqual($("groupedVerticesTime")))
+              .and($("preparedVerticesTime").isEqual($("groupedVerticesTime")))
+          )
+              //.and($("preparedVerticesTime").isGreaterOrEqual($("groupedVerticesTime").minus(lit(10).seconds()))))
+          .select($(FIELD_VERTEX_ID), $(FIELD_SUPER_VERTEX_ID), $("preparedVerticesTime").as(FIELD_EVENT_TIME));
+// todo: joining preparedvertices #m with groupedVertices #n results in #m * #n pairs, maybe is solved with distinct
+
+        expandedVertices.execute().print();
+
+        // 5. Assign super vertices to edges
+        Table edgesWithSuperVertices = tableSet.getEdges()
+          .join(
+            expandedVertices.select(
+              $(FIELD_VERTEX_ID).as("vTargetId"),
+              $(FIELD_SUPER_VERTEX_ID).as("supVTargetId"),
+              $(FIELD_EVENT_TIME).as("vTargetEventTime")),
+            $(FIELD_TARGET_ID).isEqual($("vTargetId"))
+            .and($(FIELD_EVENT_TIME).isEqual($("vTargetEventTime"))))
+          .join(
+            expandedVertices.select(
+              $(FIELD_VERTEX_ID).as("vSourceId"),
+              $(FIELD_SUPER_VERTEX_ID).as("supVSourceId"),
+              $(FIELD_EVENT_TIME).as("vSourceEventTime")),
+            $(FIELD_SOURCE_ID).isEqual($("vSourceId"))
+            .and($(FIELD_EVENT_TIME).isEqual($("vSourceEventTime"))))
+          .select(
+            $(FIELD_EDGE_ID),
+            $(FIELD_EVENT_TIME),
+            $("supVSourceId").as(FIELD_SOURCE_ID),
+            $("supVTargetId").as(FIELD_TARGET_ID),
+            $(FIELD_EDGE_LABEL));
+
+        // 6. Group edges by label and/or property values
+        Table groupedEdges = edgesWithSuperVertices
+          .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"))
+          .groupBy($(FIELD_SOURCE_ID), $(FIELD_TARGET_ID), $(FIELD_EDGE_LABEL), $("eventWindow"))
+          .select(
+            call("CreateSuperElementId", $(FIELD_EDGE_LABEL)).as(FIELD_SUPER_EDGE_ID),
+            $(FIELD_SOURCE_ID),
+            $(FIELD_TARGET_ID),
+            $(FIELD_EDGE_LABEL),
+            lit(1).count().as("TMP13"),
+            $("eventWindow").rowtime().as("rowtime"));
+
+        // 7. Derive new super edges from grouped edges
+        Table newEdges = groupedEdges
+          .select(
+            $(FIELD_SUPER_EDGE_ID).as(FIELD_EDGE_ID),
+            $(FIELD_SOURCE_ID),
+            $(FIELD_TARGET_ID),
+            $(FIELD_EDGE_LABEL),
+            call("ToProperties", row(lit("count"), $("TMP13"))).as(FIELD_EDGE_PROPERTIES),
+            $("rowtime").as(FIELD_EVENT_TIME)
+          );
 
         return getConfig().getTableSetFactory().fromTables(newVertices, newEdges);
     }
@@ -201,7 +323,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             builder.scalarFunctionCall(new ToProperties(),
               (new PlannerExpressionBuilder(getTableEnv())).row(propertyKeysAndFieldsBuilder.build()).getExpression());
         }
-
         builder.as(TableSet.FIELD_VERTEX_PROPERTIES);
 
         return builder.build();
@@ -221,7 +342,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // edge_id, tail_id, head_id
         builder
           .field(FIELD_SUPER_EDGE_ID).as(TableSet.FIELD_EDGE_ID)
-          .field(FIELD_EVENT_TIME)
+          //.field(FIELD_EVENT_TIME)
+          //.field("start")
           .field(TableSet.FIELD_SOURCE_ID)
           .field(TableSet.FIELD_TARGET_ID);
 

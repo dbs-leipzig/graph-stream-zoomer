@@ -3,6 +3,7 @@ package edu.leipzig.model.graph;
 import org.gradoop.common.model.impl.properties.Properties;
 
 import java.io.Serializable;
+import java.sql.Timestamp;
 
 /**
  * Stream edge model (edge_id, edge_label, edge_properties, source_id, target_id, timestamp)
@@ -14,7 +15,7 @@ public class StreamEdge implements Serializable {
     private Properties edge_properties;
     private String source_id;
     private String target_id;
-    private long event_time;
+    private Timestamp event_time;
 
     /**
      * Default constructor is necessary to apply to POJO rules.
@@ -25,7 +26,7 @@ public class StreamEdge implements Serializable {
     /**
      * constructor with all fields
      */
-    public StreamEdge(String id, Long event_time, String label, Properties properties, String sourceId, String targetId) {
+    public StreamEdge(String id, Timestamp event_time, String label, Properties properties, String sourceId, String targetId) {
         this.edge_id = id;
         this.event_time = event_time;
         this.edge_label = label;
@@ -107,14 +108,14 @@ public class StreamEdge implements Serializable {
     /**
      * @return current timestamp
      */
-    public long getEventTime() {
+    public Timestamp getEventTime() {
         return event_time;
     }
 
     /**
      * @param eventTime timestamp to set
      */
-    public void setEventTime(long eventTime) {
+    public void setEventTime(Timestamp eventTime) {
         this.event_time = eventTime;
     }
 
@@ -132,7 +133,7 @@ public class StreamEdge implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("(%s)-[t:%d %s%s%s{%s}]->(%s)",
+        return String.format("(%s)-[t:%s %s%s%s{%s}]->(%s)",
                 this.target_id, this.event_time, this.edge_id,
                 this.edge_label != null && !this.edge_label.equals("") ? ":" : "",
                 this.edge_label, this.edge_properties == null ? "" : this.edge_properties, this.source_id);

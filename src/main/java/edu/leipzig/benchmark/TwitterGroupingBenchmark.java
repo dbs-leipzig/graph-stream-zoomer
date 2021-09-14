@@ -50,16 +50,9 @@ public class TwitterGroupingBenchmark {
 
         DataStream<String> streamSource = env.addSource(new TwitterSource(params.getProperties()));
 
-        DataStream<StreamTriple> tweetStream = streamSource.flatMap(new TwitterMapper()).assignTimestampsAndWatermarks(
-          WatermarkStrategy
-            .<StreamTriple>forBoundedOutOfOrderness(Duration.ofSeconds(20))
-            .withTimestampAssigner((event, timestamp) -> event.getTimestamp()));
+        DataStream<StreamTriple> tweetStream = streamSource.flatMap(new TwitterMapper());
 
-        /*
-         * create stream graph environment configuration with query retention interval to prevent excessive
-         * state size - here for example, set idle state retention time: min = 12 hours, max = 1.5 * min
-         */
-        StreamGraphConfig streamGraphConfig = new StreamGraphConfig(env, 12);
+        StreamGraphConfig streamGraphConfig = new StreamGraphConfig(env);
 
         // get the steam graph from the incoming socket stream via stream graph source
         StreamGraph streamGraph = StreamGraph.fromFlinkStream(tweetStream, streamGraphConfig);

@@ -4,12 +4,13 @@ import org.apache.flink.api.java.tuple.Tuple6;
 import org.gradoop.common.model.impl.properties.Properties;
 
 import java.io.Serializable;
+import java.sql.Timestamp;
 
 /**
  * Stream Object model
  * Tuple6<id :String, timestamp :Long,label :String,properties :Properties,source :StreamVertex,target :StreamVertex>
  */
-public class StreamTriple extends Tuple6<String, Long, String, Properties, StreamVertex, StreamVertex>
+public class StreamTriple extends Tuple6<String, Timestamp, String, Properties, StreamVertex, StreamVertex>
   implements Serializable {
 
     /**
@@ -21,7 +22,7 @@ public class StreamTriple extends Tuple6<String, Long, String, Properties, Strea
     /**
      * constructor with all fields
      */
-    public StreamTriple(String id, long timestamp, String label, Properties properties, StreamVertex source,
+    public StreamTriple(String id, Timestamp timestamp, String label, Properties properties, StreamVertex source,
       StreamVertex target) {
         this.f0 = id;
         this.f1 = timestamp;
@@ -44,11 +45,11 @@ public class StreamTriple extends Tuple6<String, Long, String, Properties, Strea
      *
      * @return timestamp
      */
-    public long getTimestamp() {
+    public Timestamp getTimestamp() {
         return this.f1;
     }
 
-    public void setTimestamp(long timestamp) {
+    public void setTimestamp(Timestamp timestamp) {
         this.f1 = timestamp;
     }
 

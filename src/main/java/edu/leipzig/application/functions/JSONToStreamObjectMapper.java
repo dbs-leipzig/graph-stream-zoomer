@@ -61,24 +61,30 @@ public class JSONToStreamObjectMapper implements MapFunction<String, StreamTripl
     StreamVertex source;
     StreamVertex target;
 
+    Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+
     // new instance of StreamVertex as source object
     source = new StreamVertex(root.getAsJsonObject().get(SOURCE).getAsJsonObject().get(ID).getAsString(),
       root.getAsJsonObject().get(SOURCE).getAsJsonObject().get(LABEL).getAsString(), Properties.createFromMap(
       g.fromJson(root.getAsJsonObject().get(SOURCE).getAsJsonObject().get(PROPERTIES),
         new TypeToken<HashMap<String, Object>>() {
-        }.getType())));
+        }.getType()))
+      ,timestamp
+    );
 
     // new instance of StreamVertex as target object
     target = new StreamVertex(root.getAsJsonObject().get(TARGET).getAsJsonObject().get(ID).getAsString(),
       root.getAsJsonObject().get(TARGET).getAsJsonObject().get(LABEL).getAsString(), Properties.createFromMap(
       g.fromJson(root.getAsJsonObject().get(TARGET).getAsJsonObject().get(PROPERTIES),
         new TypeToken<HashMap<String, Object>>() {
-        }.getType())));
-    Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        }.getType()))
+      ,timestamp
+    );
+
     // new instance of StreamObject as edge stream object
     return new StreamTriple(root.getAsJsonObject().get(ID).getAsString(),
       // root.getAsJsonObject().get(TIMESTAMP).getAsLong(),
-      timestamp.getTime(), root.getAsJsonObject().get(LABEL).getAsString(), Properties.createFromMap(
+      timestamp, root.getAsJsonObject().get(LABEL).getAsString(), Properties.createFromMap(
       g.fromJson(root.getAsJsonObject().get(PROPERTIES), new TypeToken<HashMap<String, Object>>() {
       }.getType())), source, target);
   }

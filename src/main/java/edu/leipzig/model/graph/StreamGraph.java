@@ -3,6 +3,7 @@ package edu.leipzig.model.graph;
 import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
 import edu.leipzig.impl.functions.utils.Extractor;
 import edu.leipzig.model.table.TableSet;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
@@ -165,6 +166,10 @@ public class StreamGraph extends StreamGraphLayout {
      * @return a StreamGraph instance
      */
     public static StreamGraph fromFlinkStream(DataStream<StreamTriple> stream, StreamGraphConfig config) {
+        stream.assignTimestampsAndWatermarks(
+          WatermarkStrategy
+            .<StreamTriple>forBoundedOutOfOrderness(config.getMaxOutOfOrdernessDuration())
+            .withTimestampAssigner((event, timestamp) -> event.getTimestamp().getTime()));
         SingleOutputStreamOperator<StreamEdge> edges = stream.process(new Extractor());
         DataStream<StreamVertex> vertices = edges.getSideOutput(Extractor.VERTEX_OUTPUT_TAG);
         return new StreamGraph(vertices, edges, config);

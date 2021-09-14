@@ -13,14 +13,10 @@ import edu.leipzig.impl.functions.aggregation.SumProperty;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
 import edu.leipzig.model.graph.StreamTriple;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.twitter.TwitterSource;
-
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Example application grouping a twitter graph stream.
@@ -40,7 +36,6 @@ public class TwitterExample {
 
         // set up the streaming execution environment
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(TimeUnit.SECONDS.toMillis(30));
 
         // Checking input parameters
         final ParameterTool params = ParameterTool.fromArgs(args);
@@ -57,15 +52,10 @@ public class TwitterExample {
         DataStream<String> streamSource = env.addSource(twitterSource);
 
         // create the Flink stream
-        DataStream<StreamTriple> tweetStream = streamSource
-          .flatMap(new TwitterMapper())
-          .assignTimestampsAndWatermarks(
-            WatermarkStrategy
-              .<StreamTriple>forBoundedOutOfOrderness(Duration.ofSeconds(20))
-              .withTimestampAssigner((event, timestamp) -> event.getTimestamp()));
+        DataStream<StreamTriple> tweetStream = streamSource.flatMap(new TwitterMapper());
 
         // get the steam graph from the incoming socket stream via stream graph source
-        StreamGraph streamGraph = StreamGraph.fromFlinkStream(tweetStream, new StreamGraphConfig(env, 1));
+        StreamGraph streamGraph = StreamGraph.fromFlinkStream(tweetStream, new StreamGraphConfig(env));
 
         // select grouping configuration
         GraphStreamGrouping groupingOperator = new TableGroupingBase.GroupingBuilder()
@@ -79,7 +69,6 @@ public class TwitterExample {
           .addEdgeGroupingKey(":label")
           .addEdgeAggregateFunction(new Count())
           .addEdgeAggregateFunction(new AvgFreqStreamEdge()).build();
-
 
         // execute grouping
         streamGraph = streamGraph.apply(groupingOperator);

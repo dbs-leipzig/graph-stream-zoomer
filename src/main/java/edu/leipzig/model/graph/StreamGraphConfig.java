@@ -1,7 +1,6 @@
 package edu.leipzig.model.graph;
 
 import edu.leipzig.model.table.TableSetFactory;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -11,9 +10,8 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * stream graph configuration.
+ * The stream graph configuration.
  */
-
 public class StreamGraphConfig {
 
     /**
@@ -22,21 +20,32 @@ public class StreamGraphConfig {
     private final StreamTableEnvironment tableEnvironment;
 
     /**
-     * table set factory.
+     * The table set factory.
      */
     private final TableSetFactory tableSetFactory;
 
-    // a counter for unique attribute names
+    /**
+     * The maximum out of orderness duration for wartermark configuration.
+     */
+    private Duration maxOutOfOrdernessDuration = Duration.ofSeconds(10);
+
+    /**
+     * The idle state retention time. It defines how long the state of an inactive key is at least kept
+     * before it is removed.
+     */
+    private Duration idleStateRetentionTime = Duration.ofHours(12);
+
+    /**
+     * A counter for unique attribute names.
+     */
     AtomicInteger attrNameCtr = new AtomicInteger(0);
 
     /**
      * Creates a new stream graph Configuration.
      *
-     * @param env              Flink stream execution environment
-     * @param retentionTimeInHours The idle state retention time in HOURS defines how long
-     *                         the state of an inactive key is at least kept before it is removed.
+     * @param env Flink stream execution environment
      */
-    public StreamGraphConfig(StreamExecutionEnvironment env, int retentionTimeInHours) {
+    public StreamGraphConfig(StreamExecutionEnvironment env) {
         EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
         this.tableEnvironment = StreamTableEnvironment.create(env, bsSettings);
         // access flink configuration
@@ -50,10 +59,26 @@ public class StreamGraphConfig {
          * obtain query configuration from TableEnvironment
          * and providing a query configuration with valid retention interval to prevent excessive state size
          * */
-        this.tableEnvironment.getConfig().setIdleStateRetention(Duration.ofHours(retentionTimeInHours));
+        this.tableEnvironment.getConfig().setIdleStateRetention(this.idleStateRetentionTime);
         this.tableSetFactory = new TableSetFactory();
     }
 
+    public Duration getMaxOutOfOrdernessDuration() {
+        return maxOutOfOrdernessDuration;
+    }
+
+    public void setMaxOutOfOrdernessDuration(Duration maxOutOfOrdernessDuration) {
+        this.maxOutOfOrdernessDuration = maxOutOfOrdernessDuration;
+    }
+
+    public Duration getIdleStateRetentionTime() {
+        return idleStateRetentionTime;
+    }
+
+    public void setAndApplyIdleStateRetentionTime(Duration idleStateRetentionTime) {
+        this.idleStateRetentionTime = idleStateRetentionTime;
+        this.tableEnvironment.getConfig().setIdleStateRetention(this.idleStateRetentionTime);
+    }
 
     /** Returns a unique temporary attribute name. */
     public String createUniqueAttributeName() {

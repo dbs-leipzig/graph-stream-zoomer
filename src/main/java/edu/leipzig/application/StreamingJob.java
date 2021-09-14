@@ -27,6 +27,10 @@ import edu.leipzig.model.graph.StreamTriple;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -56,11 +60,10 @@ public class StreamingJob {
         // progress.
         .assignTimestampsAndWatermarks(
           WatermarkStrategy.<StreamTriple>forBoundedOutOfOrderness(Duration.ofSeconds(20))
-            .withTimestampAssigner((event, timestamp) -> event.getTimestamp()));
+            .withTimestampAssigner((event, timestamp) -> event.getTimestamp().getTime()));
 
-    StreamGraphConfig streamGraphConfig = new StreamGraphConfig(env, 1);
     // get the stream graph from the incoming socket stream via stream graph source
-    StreamGraph streamGraph = StreamGraph.fromFlinkStream(socketStream, streamGraphConfig);
+    StreamGraph streamGraph = StreamGraph.fromFlinkStream(socketStream, new StreamGraphConfig(env));
 
     // select grouping configuration
     List<String> vertexGroupingKeys = new ArrayList<>();

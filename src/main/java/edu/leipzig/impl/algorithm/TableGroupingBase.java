@@ -22,8 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static edu.leipzig.model.table.TableSet.FIELD_EVENT_TIME;
-import static edu.leipzig.model.table.TableSet.FIELD_VERTEX_LABEL;
+import static edu.leipzig.model.table.TableSet.*;
 import static org.apache.flink.table.api.Expressions.*;
 
 /**
@@ -385,9 +384,9 @@ public abstract class TableGroupingBase {
             groupedVertices.select(groupedVerticesProjectExpressionsBuilder.build()),
             joinPredicate)
           .select(new PlannerExpressionSeqBuilder(getTableEnv())
-              .field(TableSet.FIELD_VERTEX_ID)
-              .field(FIELD_SUPER_VERTEX_ID)
-              .build());
+            .field(TableSet.FIELD_VERTEX_ID)
+            .field(FIELD_SUPER_VERTEX_ID)
+            .build());
     }
 
     /**
@@ -405,8 +404,10 @@ public abstract class TableGroupingBase {
     Table enrichEdges(Table edges, Table expandedVertices) {
         String vertexTargetId = config.createUniqueAttributeName();
         String superVertexTargetId = config.createUniqueAttributeName();
+        String vertexTargetEventTime = config.createUniqueAttributeName();
         String vertexSourceId = config.createUniqueAttributeName();
         String superVertexSourceId = config.createUniqueAttributeName();
+        String vertexSourceEventTime = config.createUniqueAttributeName();
 
         // 1. Set needed project expressions (edge_id, timestamp, source_id, target_id)
         PlannerExpressionSeqBuilder projectExpressionsBuilder = new PlannerExpressionSeqBuilder(getTableEnv())
@@ -446,20 +447,29 @@ public abstract class TableGroupingBase {
         }
 
         Table enrichedEdges = edges
+          //.select(TableSet.getEdgeProjectExpressionsWithCastedRowtime())
           .join(expandedVertices
             .select(new PlannerExpressionSeqBuilder(getTableEnv())
               .field(TableSet.FIELD_VERTEX_ID).as(vertexTargetId)
-              .field(FIELD_SUPER_VERTEX_ID).as(superVertexTargetId).build()),
+              .field(FIELD_SUPER_VERTEX_ID).as(superVertexTargetId)
+              //.field(FIELD_VERTEX_EVENT_TIME).as(vertexTargetEventTime)
+              .build()),
             // join condition
-            new PlannerExpressionBuilder(getTableEnv())
-              .field(TableSet.FIELD_TARGET_ID).equalTo(vertexTargetId).getExpression())
+            $(FIELD_TARGET_ID).isEqual($(vertexTargetId))
+              //.and($(FIELD_EVENT_TIME).between($(vertexTargetEventTime).minus(lit(4).hours()), $(vertexTargetEventTime)))
+              .and($(FIELD_EVENT_TIME).between($(FIELD_EVENT_TIME).minus(lit(4).minutes()), $(FIELD_EVENT_TIME)))
+          )
           .join(expandedVertices
             .select(new PlannerExpressionSeqBuilder(getTableEnv())
                 .field(TableSet.FIELD_VERTEX_ID).as(vertexSourceId)
-                .field(FIELD_SUPER_VERTEX_ID).as(superVertexSourceId).build()),
+                .field(FIELD_SUPER_VERTEX_ID).as(superVertexSourceId)
+              //  .field(FIELD_VERTEX_EVENT_TIME).as(vertexSourceEventTime)
+              .build()),
             // join condition
-            new PlannerExpressionBuilder(getTableEnv())
-              .field(TableSet.FIELD_SOURCE_ID).equalTo(vertexSourceId).getExpression());
+            $(FIELD_SOURCE_ID).isEqual($(vertexSourceId))
+          //    .and($(FIELD_EVENT_TIME).between($(vertexSourceEventTime).minus(lit(4).hours()), $(vertexSourceEventTime)))
+              .and($(FIELD_EVENT_TIME).between($(FIELD_EVENT_TIME).minus(lit(4).minutes()), $(FIELD_EVENT_TIME)))
+            );
 
         return enrichedEdges.select(projectExpressionsBuilder.build());
     }
@@ -490,6 +500,8 @@ public abstract class TableGroupingBase {
         else if (edgeGroupingPropertyKeys.size() == 0) {
             builder.field(TableSet.FIELD_EDGE_ID);
         }
+
+        //builder.field("eventWindow");
 
         return builder.build();
     }
@@ -579,7 +591,7 @@ public abstract class TableGroupingBase {
         }
 
         // handle timestamp
-        builder.expression($(FIELD_EVENT_TIME).max()).as(FIELD_EVENT_TIME);
+        //builder.expression($(FIELD_EVENT_TIME).max()).as(FIELD_EVENT_TIME);
 
         return builder.build();
     }

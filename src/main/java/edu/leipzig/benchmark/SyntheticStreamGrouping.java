@@ -83,9 +83,10 @@ public class SyntheticStreamGrouping {
         .assignTimestampsAndWatermarks(
           WatermarkStrategy
             .<StreamTriple>forBoundedOutOfOrderness(Duration.ofSeconds(20))
-            .withTimestampAssigner((event, timestamp) -> event.getTimestamp()));
+            .withTimestampAssigner((event, timestamp) -> event.getTimestamp().getTime()));
 
-    StreamGraphConfig streamGraphConfig = new StreamGraphConfig(env, MIN_RETENTION_TIME);
+    StreamGraphConfig streamGraphConfig = new StreamGraphConfig(env);
+    streamGraphConfig.setAndApplyIdleStateRetentionTime(Duration.ofHours(MIN_RETENTION_TIME));
     // get the stream graph from the incoming socket stream via stream graph source
     StreamGraph streamGraph = StreamGraph.fromFlinkStream(socketStream, streamGraphConfig);
 

@@ -86,6 +86,8 @@ public class TableSet extends HashMap<String, Table> {
      */
     public static final String FIELD_EVENT_TIME = "event_time";
 
+    public static final String FIELD_VERTEX_EVENT_TIME = "vertex_event_time";
+
     /**
      * Table key of vertices table
      */
@@ -191,6 +193,26 @@ public class TableSet extends HashMap<String, Table> {
           $(FIELD_TARGET_ID),
           $(FIELD_EDGE_LABEL),
           $(FIELD_EDGE_PROPERTIES),
+          $(FIELD_EVENT_TIME).rowtime()
+        };
+    }
+
+    public static Expression[] getEdgeProjectExpressionsWithCastedRowtime() {
+        return new Expression[] {
+          $(FIELD_EDGE_ID),
+          $(FIELD_SOURCE_ID),
+          $(FIELD_TARGET_ID),
+          $(FIELD_EDGE_LABEL),
+          $(FIELD_EDGE_PROPERTIES),
+          $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP()).as(FIELD_EVENT_TIME)
+        };
+    }
+
+    public static Expression[] getVertexProjectExpressions() {
+        return new Expression[] {
+          $(FIELD_VERTEX_ID),
+          $(FIELD_VERTEX_LABEL),
+          $(FIELD_VERTEX_PROPERTIES),
           $(FIELD_EVENT_TIME).rowtime()
         };
     }

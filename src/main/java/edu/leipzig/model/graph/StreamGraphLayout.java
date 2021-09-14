@@ -31,23 +31,18 @@ public class StreamGraphLayout {
    * Table set the layout is based on
    */
   private final TableSet tableSet;
-  /**
-   * Factory used to product instances of table set the layout is based on
-   */
-  private final TableSetFactory tableSetFactory;
 
   public StreamGraphLayout(DataStream<StreamVertex> vertices, DataStream<StreamEdge> edges,
     StreamGraphConfig config) {
     TableSet tableSet = new TableSet();
-    tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices));
-    // we will need the below if a rowtime has to be specified
-    //tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges, TableSet.getEdgeProjectExpressions()));
-    tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges));
+
+    tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices, TableSet.getVertexProjectExpressions()));
+    tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges, TableSet.getEdgeProjectExpressions()));
+    //tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices));
+    //tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges));
     this.tableSet = tableSet;
     this.config = Objects.requireNonNull(config);
-    this.tableSetFactory = new TableSetFactory();
   }
-
 
   /**
    * Constructor
@@ -58,7 +53,6 @@ public class StreamGraphLayout {
   public StreamGraphLayout(TableSet tableSet, StreamGraphConfig config) {
     this.tableSet = tableSet;
     this.config = config;
-    this.tableSetFactory = new TableSetFactory();
   }
 
   /**
@@ -77,15 +71,6 @@ public class StreamGraphLayout {
    */
   public TableSet getTableSet() {
     return tableSet;
-  }
-
-  /**
-   * Returns the table set factory.
-   *
-   * @return table set factory.
-   */
-  public TableSetFactory getTableSetFactory() {
-    return tableSetFactory;
   }
 
   /**

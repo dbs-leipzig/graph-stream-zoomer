@@ -12,6 +12,7 @@ import twitter4j.Status;
 import twitter4j.TwitterObjectFactory;
 import twitter4j.User;
 
+import java.sql.Timestamp;
 import java.time.ZoneId;
 
 /**
@@ -67,7 +68,7 @@ public class TwitterMapper implements FlatMapFunction<String, StreamTriple> {
         userVertex.setVertexProperties(userProperties);
 
         JsonNode jsonNode = jsonParser.readValue(value, JsonNode.class);
-        long timestamp = jsonNode.get("timestamp_ms").asLong();
+        Timestamp timestamp = new Timestamp(jsonNode.get("timestamp_ms").asLong());
 
         Properties edgeProps = Properties.create();
         edgeProps.set("createdAt", status.getCreatedAt().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
