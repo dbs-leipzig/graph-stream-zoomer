@@ -3,6 +3,7 @@ package edu.leipzig.impl.algorithm;
 import edu.leipzig.impl.functions.utils.CreateSuperElementId;
 import edu.leipzig.impl.functions.utils.ToProperties;
 import edu.leipzig.model.graph.StreamEdge;
+import edu.leipzig.model.graph.StreamEdge;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
 import edu.leipzig.model.graph.StreamTriple;
@@ -52,84 +53,6 @@ public class GraphStreamGroupingTest {
         .setNumberTaskManagers(1)
         .build());
 
-  @Test
-  public void testSimpleGrouping() throws Exception {
-    final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-    Timestamp t1 = new Timestamp(1619511681000L);
-    Timestamp t2 = new Timestamp(1619511682000L);
-    Timestamp t3 = new Timestamp(1619511683000L);
-    Timestamp t4 = new Timestamp(1619511684000L);
-
-    // Input data
-    StreamVertex v11 = new StreamVertex("v1", "A", Properties.create()
-      ,t1
-    );
-    StreamVertex v12 = new StreamVertex("v2", "B", Properties.create()
-      , t1
-    );
-
-    StreamVertex v21 = new StreamVertex("v1", "A", Properties.create()
-      , t2
-    );
-    StreamVertex v22 = new StreamVertex("v2", "B", Properties.create()
-      , t2
-      );
-
-    StreamVertex v31 = new StreamVertex("v1", "A", Properties.create()
-      , t3
-    );
-    StreamVertex v32 = new StreamVertex("v2", "B", Properties.create()
-      , t3
-    );
-
-    StreamVertex v41 = new StreamVertex("v1", "A", Properties.create()
-      , t4
-    );
-    StreamVertex v42 = new StreamVertex("v2", "B", Properties.create()
-      , t4
-    );
-
-    StreamTriple e1 = new StreamTriple("e1", t1, "label", Properties.create(), v11, v12);
-    StreamTriple e2 = new StreamTriple("e2", t2, "label", Properties.create(), v21, v22);
-    StreamTriple e3 = new StreamTriple("e3", t3, "label", Properties.create(), v31, v32);
-    StreamTriple e4 = new StreamTriple("e4", t4, "label", Properties.create(), v41, v42);
-
-    // Expected
-    StreamVertex superV1 = new StreamVertex("unknown", "A", Properties.create()
-      , t4
-      );
-    StreamVertex superV2 = new StreamVertex("unknown", "B", Properties.create()
-      , t4
-    );
-    StreamEdge superE1 = new StreamEdge("unknown", t4, "label", Properties.create(),
-      superV1.getVertexId(), superV2.getVertexId());
-
-    DataStream<StreamTriple> testStream = env.fromElements(e1, e2, e3, e4)
-      .assignTimestampsAndWatermarks(
-      WatermarkStrategy
-        .<StreamTriple>forBoundedOutOfOrderness(Duration.ofSeconds(5))
-        .withTimestampAssigner((event, timestamp) -> event.getTimestamp().getTime()));
-
-    StreamGraph streamGraph = StreamGraph.fromFlinkStream(testStream, new StreamGraphConfig(env));
-
-    streamGraph = streamGraph.groupBy(
-      Collections.singletonList(":label"),
-      null,
-      Collections.singletonList(":label"),
-      null);
-
-    //streamGraph.addVertexSink(new CollectVertexSink());
-   // streamGraph.addEdgeSink(new CollectEdgeSink());
-
-    //env.execute();
-
-    //assertEquals(1, CollectVertexSink.values.size());
-    //assertTrue(superV1.equalsWithoutId(CollectVertexSink.values.values().iterator().next()));
-/*
-    assertEquals(1, CollectEdgeSink.values.size());
-    assertTrue(superE1.equalsWithoutId(CollectEdgeSink.values.values().iterator().next()));*/
-  }
 
   private static class CollectVertexSink implements SinkFunction<Tuple2<Boolean, StreamVertex>> {
 
@@ -162,6 +85,7 @@ public class GraphStreamGroupingTest {
 
     }
   }
+
 
   @Test
   public void testDoubleGrouping() throws Exception {
@@ -201,17 +125,41 @@ public class GraphStreamGroupingTest {
         .assignTimestampsAndWatermarks(WatermarkStrategy.<StreamVertex>forBoundedOutOfOrderness(Duration.ofSeconds(5))
           .withTimestampAssigner((event, timestamp) -> event.getEventTime().getTime())),
       // Expressions with declaration of 'event_time' as rowtime
-      $(ID), $(LABEL), $(PROPERTIES), $(EVENT_TIME).rowtime());
+      $(ID), $(LABEL), $(PROPERTIES), $(EVENT_TIME).rowtime().as("w1_rowtime"));
+    vertices.execute().print();
+
+    Table test = streamTableEnvironment.sqlQuery("SELECT * FROM " + vertices);
+    test.execute().print();
+    streamTableEnvironment.registerTable("renamedTable", vertices);
+
 
 // 1. Prepare distinct vertices
+    /*
     Table preparedVertices = vertices
       .window(Tumble.over(lit(10).seconds()).on($(EVENT_TIME)).as("w1"))
       .groupBy($(ID), $(LABEL), $("w1"))
       .select($(ID), $(LABEL), lit(5L).as("prop"), $("w1").rowtime().as("w1_rowtime"));
 
- //preparedVertices.execute().print(); //--> would work well
+     */
+
+    Table preparedVerticesBetter = streamTableEnvironment.sqlQuery("SELECT window_start,  window_end" +
+      ", vertex_id, vertex_label FROM TABLE(TUMBLE(TABLE renamedTable, DESCRIPTOR(w1_rowtime), " +
+      "INTERVAL 10 SECONDS)) GROUP BY window_start, window_end, GROUPING SETS(vertex_id, vertex_label)");
+
+    preparedVerticesBetter.execute();
+
+
+    Table preparedVerticesBetter1 =
+      streamTableEnvironment.sqlQuery("Select vertex_id, vertex_label FROM renamedTable " +
+        " GROUP BY GROUPING SETS(vertex_id, vertex_label)");
+    preparedVerticesBetter1.execute().print();
+
+    //preparedVerticesBetter.execute().print();
+
+    //preparedVertices.execute().print(); //--> would work well
 
 // 2. Group vertices by label and/or property values
+    /*
     Table groupedVertices = preparedVertices
       .window(Tumble.over(lit(10).seconds()).on($("w1_rowtime")).as("w2"))
       .groupBy($(LABEL), $("w2"))
@@ -221,11 +169,29 @@ public class GraphStreamGroupingTest {
         $("w2").rowtime().as("w2_rowtime")
       );
 
- //groupedVertices.execute().print(); //--> would work well
+     */
+    /*
+    streamTableEnvironment.createTemporaryView("PreparedVertices", preparedVerticesBetter);
+    Table groupedVerticesBetter = streamTableEnvironment.sqlQuery("SELECT vertex_label, count(1) as " +
+      "super_count, " +
+      " window_start, window_end FROM TABLE (TUMBLE(TABLE PreparedVertices, " +
+      "DESCRIPTOR" +
+      "(w1_rowtime), INTERVAL '10' SECONDS)) GROUP BY window_start, window_end, GROUPING SETS " +
+      "(vertex_label)");
+    groupedVerticesBetter.execute().print();
+    streamTableEnvironment.createTemporaryView("GroupedVerticesNew", groupedVerticesBetter);
 
-   // streamTableEnvironment.toAppendStream(groupedVertices, Row.class).print();
+     */
+
+    //groupedVertices.execute().print(); //--> would work well
+
+    // streamTableEnvironment.toAppendStream(groupedVertices, Row.class).print();
+/*
     groupedVertices
       .select($("super_label"), $("w2_rowtime"))
       .execute().print(); // --> throws exception*/
+    //streamTableEnvironment.sqlQuery("Select super_label, window_end from GroupedVerticesNew").execute()
+    //.print();
   }
+
 }
