@@ -110,12 +110,12 @@ public class GraphStreamGroupingTest {
     Tuple3<String, String, Timestamp> tp1 = new Tuple3<>("1", "A", t1);
     Tuple3<String, String, Timestamp> tp2 = new Tuple3<>("2", "A", t1);
     Tuple3<String, String, Timestamp> tp3 = new Tuple3<>("3", "B", t2);
-    Tuple3<String, String, Timestamp> tp4 = new Tuple3<>("4", "B", t2);
+    Tuple3<String, String, Timestamp> tp4 = new Tuple3<>("4", "B", t3);
     Tuple3<String, String, Timestamp> tp5 = new Tuple3<>("5", "C", t1);
-    Tuple3<String, String, Timestamp> tp6 = new Tuple3<>("6", "C", t1);
-    Tuple3<String, String, Timestamp> tp7 = new Tuple3<>("7", "D", t2);
+    Tuple3<String, String, Timestamp> tp6 = new Tuple3<>("6", "C", t4);
+    Tuple3<String, String, Timestamp> tp7 = new Tuple3<>("7", "D", t3);
     Tuple3<String, String, Timestamp> tp8 = new Tuple3<>("8", "D", t2);
-    Tuple3<String, String, Timestamp> tp9 = new Tuple3<>("9", "E", t1);
+    Tuple3<String, String, Timestamp> tp9 = new Tuple3<>("9", "E", t5);
     Tuple3<String, String, Timestamp> tp10= new Tuple3<>("10", "E", t1);
 
     Table vertices = streamTableEnvironment.fromDataStream(
