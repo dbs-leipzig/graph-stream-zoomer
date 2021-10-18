@@ -2,12 +2,19 @@ package edu.leipzig.model.table;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.types.DataType;
 import org.gradoop.common.model.impl.properties.Properties;
+import edu.leipzig.model.graph.PropertiesModified;
+import scala.sys.Prop;
 
+import javax.xml.crypto.Data;
 import java.util.HashMap;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -100,6 +107,7 @@ public class TableSet extends HashMap<String, Table> {
      * Table key of graph table
      */
     static final String TABLE_GRAPH = "graph";
+    private static Properties TypeSerializer;
     /**
      * Initial table set schema of stream graph layout
      */
@@ -109,7 +117,7 @@ public class TableSet extends HashMap<String, Table> {
         .put(TABLE_VERTICES, new TableSchema.Builder()
           .field(FIELD_VERTEX_ID, DataTypes.STRING())
           .field(FIELD_VERTEX_LABEL, DataTypes.STRING())
-          .field(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          //.field(FIELD_VERTEX_PROPERTIES, DataTypes.AbstractField())
           .build()
         )
         .put(TABLE_EDGES, new TableSchema.Builder()
@@ -117,25 +125,26 @@ public class TableSet extends HashMap<String, Table> {
           .field(FIELD_SOURCE_ID, DataTypes.STRING())
           .field(FIELD_TARGET_ID, DataTypes.STRING())
           .field(FIELD_EDGE_LABEL, DataTypes.STRING())
-          .field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          //.field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
           .field(FIELD_EVENT_TIME, DataTypes.BIGINT(), $(FIELD_EVENT_TIME).proctime().toString())
           .build()
         )
         .put(TABLE_GRAPH, new TableSchema.Builder()
           .field(FIELD_EDGE_ID, DataTypes.STRING())
           .field(FIELD_EDGE_LABEL, DataTypes.STRING())
-          .field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+             // .field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
 
           .field(FIELD_SOURCE_ID, DataTypes.STRING())
           .field(FIELD_VERTEX_SOURCE_LABEL, DataTypes.STRING())
-          .field(FIELD_VERTEX_SOURCE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          //.field(FIELD_VERTEX_SOURCE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
 
           .field(FIELD_TARGET_ID, DataTypes.STRING())
           .field(FIELD_VERTEX_TARGET_LABEL, DataTypes.STRING())
-          .field(FIELD_VERTEX_TARGET_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          //.field(FIELD_VERTEX_TARGET_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
           .build()
         )
         .build());
+
 
     /**
      * Constructor
