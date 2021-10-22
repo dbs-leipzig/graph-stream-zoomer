@@ -127,9 +127,11 @@ public class GraphStreamGroupingTest {
     vertices.execute().print();
 
 
-    Table modifiedVertices = vertices.window(Tumble.over(lit(10).seconds()).on($("timestamp1")).as("tmp"))
+    Table modifiedVertices = vertices.window(Tumble.over(lit(20).seconds()).on($("timestamp1")).as("tmp"))
       .groupBy($("name"), $("label"), $("tmp"))
       .select($("name"), $("label"), $("tmp").rowtime().as("timestampv2"));
+
+    System.out.println(modifiedVertices.execute().getResolvedSchema().toString());
 
 
     /*
@@ -151,21 +153,35 @@ public class GraphStreamGroupingTest {
       .select($("label").as("super"), $("tmp").rowtime().as("timestampv4"));
 
  */
-    /*
-    Table groupedModifiedVertices = streamTableEnvironment.sqlQuery("Select window_start, window_end, label" +
-      " as super_label FROM TABLE ( TUMBLE ( TABLE " + modifiedVertices1 + ", DESCRIPTOR(window_end), INTERVAL '10' " +
-      "SECONDS)) GROUP BY window_start, window_end, super_label");
 
-     */
+    Table groupedModifiedVertices1 = streamTableEnvironment.sqlQuery("Select window_start, window_end, " +
+      "window_time, " +
+      "label" +
+      " as super_label, count(*) as amount FROM TABLE ( TUMBLE ( TABLE " + modifiedVertices + ", DESCRIPTOR" +
+      "(timestampv2), INTERVAL '20' " +
+      "SECONDS)) GROUP BY window_start, window_end, label, window_time");
+
+
     //groupedModifiedVertices.execute().print();
+    /*
     Table groupedModifiedVertices1 = streamTableEnvironment.sqlQuery("SELECT TUMBLE_START(timestampv2, " +
-      "INTERVAL '10' SECONDS) as " +
+      "INTERVAL '20' SECONDS) as " +
       "w2_rowtime, label as super_label, count(*) as amount FROM " + modifiedVertices + " GROUP BY TUMBLE" +
       "(timestampv2, INTERVAL" +
-      " '10' SECONDS), label");
-    groupedModifiedVertices1.execute().print();
+      " '20' SECONDS), label");
+
+     */
+    System.out.println(groupedModifiedVertices1.execute().getResolvedSchema().toString());
+
+    Table groupedVerticesTest = streamTableEnvironment.sqlQuery("SELECT TUMBLE_START(w2_rowtime, " +
+      "INTERVAL '20' SECONDS) as " +
+      "w3_rowtime, super_label FROM " + groupedModifiedVertices1 + " GROUP BY " +
+      "TUMBLE" +
+      "(w2_rowtime, INTERVAL" +
+      " '20' SECONDS), super_label");
 
     streamTableEnvironment.sqlQuery("SELECT w2_rowtime, super_label FROM " + groupedModifiedVertices1);
+    groupedVerticesTest.execute().print();
 
 
 
@@ -217,11 +233,11 @@ public class GraphStreamGroupingTest {
     modifiedVertices.execute().print();
 
     Table modifiedVertices1 =
-      modifiedVertices.select($("name"), $("label"), $("timestampv2").as("timestampv3").as("timestampv2"));
+      modifiedVertices.select($("name"), $("label"), $("timestampv2").as("timestampv3"));
 
 
     Table groupedModifiedVertices = modifiedVertices1.window(Tumble.over(lit(10).seconds()).on($(
-      "timestampv2")).as("tmp"))
+      "timestampv3")).as("tmp"))
     .groupBy($("label"), $("tmp"))
       .select($("label").as("super"), $("tmp").rowtime().as("timestampv4"));
 
@@ -240,10 +256,10 @@ public class GraphStreamGroupingTest {
     final EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
     final StreamTableEnvironment streamTableEnvironment = StreamTableEnvironment.create(env, bsSettings);
 
-    Timestamp t1 = new Timestamp(1619511681000L);
-    Timestamp t2 = new Timestamp(1619511682000L);
+    Timestamp t1 = new Timestamp(1619511661000L);
+    Timestamp t2 = new Timestamp(1619511672000L);
     Timestamp t3 = new Timestamp(1619511683000L);
-    Timestamp t4 = new Timestamp(1619511684000L);
+    Timestamp t4 = new Timestamp(1619511694000L);
 
     // Input data, StreamVertex(vertex_id, vertex_label, vertex_properties, event_time)
     StreamVertex v11 = new StreamVertex("v1", "A", Properties.create(), t1);
@@ -278,73 +294,24 @@ public class GraphStreamGroupingTest {
 
 // 1. Prepare distinct vertices
     Table preparedVertices = vertices
-      .window(Tumble.over(lit(10).seconds()).on($("w1_rowtime")).as("w1"))
+      .window(Tumble.over(lit(20).seconds()).on($("w1_rowtime")).as("w1"))
       .groupBy($(ID), $(LABEL), $("w1"))
       .select($(ID), $(LABEL), lit(5L).as("prop"), $("w1").rowtime().as("w1_rowtime"));
 
-    Table preparedVerticesTmp = streamTableEnvironment.sqlQuery("Select vertex_id, vertex_label, prop, " +
-      "w1_rowtime as w1_rowtime_tmp FROM " + preparedVertices);
-    preparedVerticesTmp.execute().print();
 
-
-
-/*
-    Table preparedVerticesBetter = streamTableEnvironment.sqlQuery("SELECT window_start,  window_end" +
-      ", vertex_id, vertex_label FROM TABLE(TUMBLE(TABLE renamedTable, DESCRIPTOR(w1_rowtime), " +
-      "INTERVAL 10 SECONDS)) GROUP BY window_start, window_end, GROUPING SETS(vertex_id, vertex_label)");
-
-
- */
-    preparedVertices.execute().print();
-
-
-
-    //preparedVerticesBetter1.execute().print();
-
-    //preparedVerticesBetter.execute().print();
-
-    //preparedVertices.execute().print(); //--> would work well
-
-// 2. Group vertices by label and/or property values
-
-    Table groupedVertices = preparedVerticesTmp
-      .window(Tumble.over(lit(10).seconds()).on($("w1_rowtime_tmp")).as("w2"))
-      .groupBy($(LABEL), $("w2"))
-      .select(
-        $(LABEL).as("super_label"),
-        lit(1).count().as("super_count"),
-        $("w2").rowtime().as("w2_rowtime")
-      );
+    Table groupedVertices = streamTableEnvironment.sqlQuery("SELECT  " +
+      "window_time as w2_rowtime, " +
+      " vertex_label as super_label, count(*) as super_count  FROM TABLE ( TUMBLE ( TABLE " + preparedVertices +
+      " , DESCRIPTOR(w1_rowtime), INTERVAL '20' SECONDS)) GROUP BY window_start, window_end, window_time, " +
+      "vertex_label");
 
     groupedVertices.execute().print();
 
-    Table groupedVerticesTmp = streamTableEnvironment.sqlQuery("SELECT super_label, super_count, w2_rowtime" +
-      " as w2_rowtime_tmp FROM " + groupedVertices);
-    groupedVerticesTmp.execute().print();
-
-
-    /*
-    streamTableEnvironment.createTemporaryView("PreparedVertices", preparedVerticesBetter);
-    Table groupedVerticesBetter = streamTableEnvironment.sqlQuery("SELECT vertex_label, count(1) as " +
-      "super_count, " +
-      " window_start, window_end FROM TABLE (TUMBLE(TABLE PreparedVertices, " +
-      "DESCRIPTOR" +
-      "(w1_rowtime), INTERVAL '10' SECONDS)) GROUP BY window_start, window_end, GROUPING SETS " +
-      "(vertex_label)");
-    groupedVerticesBetter.execute().print();
-    streamTableEnvironment.createTemporaryView("GroupedVerticesNew", groupedVerticesBetter);
-
-     */
-
-    //groupedVertices.execute().print(); //--> would work well
-
-    // streamTableEnvironment.toAppendStream(groupedVertices, Row.class).print();
-
     groupedVertices
       .select($("super_label"), $("w2_rowtime"))
-      .execute().print(); // --> throws exception
-    //streamTableEnvironment.sqlQuery("Select super_label, window_end from GroupedVerticesNew").execute()
-    //.print();
+      .execute().print();
+
+    System.out.println(groupedVertices.execute().getResolvedSchema());
   }
 
 }
