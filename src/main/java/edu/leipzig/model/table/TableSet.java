@@ -1,11 +1,13 @@
 package edu.leipzig.model.table;
 
 import com.google.common.collect.ImmutableMap;
+import org.apache.avro.SchemaBuilder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Expression;
@@ -34,6 +36,7 @@ import static org.apache.flink.table.api.Expressions.$;
  */
 
 public class TableSet extends HashMap<String, Table> {
+    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
     /**
      * Field name of id in vertices table
      */
@@ -112,27 +115,40 @@ public class TableSet extends HashMap<String, Table> {
      * Initial table set schema of stream graph layout
      */
 
+    private static final Schema.Builder SchemaTest = Schema.newBuilder();
+
     private static final TableSetSchema SCHEMA = new TableSetSchema(
-      ImmutableMap.<String, TableSchema>builder()
-        .put(TABLE_VERTICES, new TableSchema.Builder()
-          .field(FIELD_VERTEX_ID, DataTypes.STRING())
-          .field(FIELD_VERTEX_LABEL, DataTypes.STRING())
-          //.field(FIELD_VERTEX_PROPERTIES, DataTypes.AbstractField())
+      ImmutableMap.<String, Schema>builder()
+        .put(TABLE_VERTICES, SchemaTest
+          .column(FIELD_VERTEX_ID, DataTypes.STRING())
+          .column(FIELD_VERTEX_LABEL, DataTypes.STRING())
+          .column(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
           .build()
         )
-        .put(TABLE_EDGES, new TableSchema.Builder()
+        .put(TABLE_EDGES, Schema.newBuilder()
+          .column(FIELD_EDGE_ID, DataTypes.STRING())
+          .column(FIELD_SOURCE_ID, DataTypes.STRING())
+          .column(FIELD_TARGET_ID, DataTypes.STRING())
+          .column(FIELD_EDGE_LABEL, DataTypes.STRING())
+          .column(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .column(FIELD_EVENT_TIME, DataTypes.BIGINT())
+          /*
           .field(FIELD_EDGE_ID, DataTypes.STRING())
           .field(FIELD_SOURCE_ID, DataTypes.STRING())
           .field(FIELD_TARGET_ID, DataTypes.STRING())
           .field(FIELD_EDGE_LABEL, DataTypes.STRING())
-          //.field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          //.field(FIELD_EDGE_PROPERTIES, DataTypes.R)
           .field(FIELD_EVENT_TIME, DataTypes.BIGINT(), $(FIELD_EVENT_TIME).proctime().toString())
+
+           */
           .build()
         )
+        /*
         .put(TABLE_GRAPH, new TableSchema.Builder()
           .field(FIELD_EDGE_ID, DataTypes.STRING())
           .field(FIELD_EDGE_LABEL, DataTypes.STRING())
-             // .field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          //.field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+
 
           .field(FIELD_SOURCE_ID, DataTypes.STRING())
           .field(FIELD_VERTEX_SOURCE_LABEL, DataTypes.STRING())
@@ -143,6 +159,8 @@ public class TableSet extends HashMap<String, Table> {
           //.field(FIELD_VERTEX_TARGET_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
           .build()
         )
+
+         */
         .build());
 
 

@@ -270,6 +270,13 @@ public class GraphStreamGroupingTest {
     StreamVertex v32 = new StreamVertex("v2", "B", Properties.create(), t3);
     StreamVertex v41 = new StreamVertex("v1", "A", Properties.create(), t4);
     StreamVertex v42 = new StreamVertex("v2", "B", Properties.create(), t4);
+    HashMap<String, Object> propertiesMap = new HashMap<>();
+    propertiesMap.put("Relevanz", 1);
+    propertiesMap.put("Größe", 15);
+    propertiesMap.put("Name", "Dieter");
+    propertiesMap.put("ErsatzId", 1523213L);
+    Properties propertiesToSet = Properties.createFromMap(propertiesMap);
+    v11.setVertexProperties(propertiesToSet);
 
     String ID = FIELD_VERTEX_ID;
     String LABEL = FIELD_VERTEX_LABEL;
@@ -289,6 +296,7 @@ public class GraphStreamGroupingTest {
       // Expressions with declaration of 'event_time' as rowtime
       $(ID), $(LABEL), $(PROPERTIES), $(EVENT_TIME).rowtime().as("w1_rowtime"));
     vertices.execute().print();
+    System.out.println(vertices.getResolvedSchema().toString());
 
 
 

@@ -1,6 +1,7 @@
 package edu.leipzig.model.table;
 
 import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Expression;
 
@@ -23,14 +24,14 @@ class TableSetSchema {
     /**
      * schema map
      */
-    private final Map<String, TableSchema> schema;
+    private final Map<String, Schema> schema;
 
     /**
      * Constructor
      *
      * @param schema immutable schema map
      */
-    TableSetSchema(Map<String, TableSchema> schema) {
+    TableSetSchema(Map<String, Schema> schema) {
         this.schema = new HashMap<>();
         this.schema.putAll(schema);
     }
@@ -51,7 +52,7 @@ class TableSetSchema {
      * @param tableName name of table to get schema for
      * @return table schema for table with given table name
      */
-    private TableSchema getTable(String tableName) {
+    private Schema getTable(String tableName) {
         if (!containsTable(tableName)) {
             throw new RuntimeException("Invalid tableName " + tableName);
         }
@@ -66,7 +67,11 @@ class TableSetSchema {
      * @return scala sequence of expressions
      */
     Expression[] buildProjectExpressions(String tableName) {
-        return Arrays.stream(getTable(tableName).getFieldNames()).map(Expressions::$)
+        return Arrays.stream((String[])getTable(tableName).getColumns().toArray()).map(Expressions::$)
           .toArray(Expression[]::new);
+
+
     }
+    //Vorher: getFieldNames. Logik verändert?
+
 }
