@@ -1,5 +1,10 @@
 package edu.leipzig.impl.algorithm;
 
+import com.google.gson.internal.bind.JsonTreeReader;
+import edu.leipzig.impl.functions.aggregation.AvgProperty;
+import edu.leipzig.impl.functions.aggregation.MaxProperty;
+import edu.leipzig.impl.functions.aggregation.MinProperty;
+import edu.leipzig.impl.functions.aggregation.SumProperty;
 import edu.leipzig.impl.functions.utils.CreateSuperElementId;
 import edu.leipzig.impl.functions.utils.ToProperties;
 import edu.leipzig.model.graph.StreamEdge;
@@ -12,17 +17,20 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.Tumble;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Row;
+import org.apache.hadoop.util.hash.Hash;
 import org.gradoop.common.model.impl.properties.Properties;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -320,6 +328,72 @@ public class GraphStreamGroupingTest {
       .execute().print();
 
     System.out.println(groupedVertices.execute().getResolvedSchema());
+  }
+
+  @Test
+  public void testPerformGroupingMethod(){
+    final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    //Difference between timestamps: 10 seconds
+    Timestamp t1 = new Timestamp(1619511661000L);
+    Timestamp t2 = new Timestamp(1619511672000L);
+    Timestamp t3 = new Timestamp(1619511683000L);
+    Timestamp t4 = new Timestamp(1619511694000L);
+    StreamVertex v1 = new StreamVertex("v1", "A", Properties.create(), t1);
+    StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t1);
+    StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t1);
+    StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t1);
+
+    HashMap<String, Object> propertiesVertexV1 = new HashMap<>();
+    propertiesVertexV1.put("Relevance", 1);
+    propertiesVertexV1.put("Size", 15);
+    Properties propertiesV1 = Properties.createFromMap(propertiesVertexV1);
+    v1.setVertexProperties(propertiesV1);
+
+    HashMap<String, Object> propertiesVertexV2 = new HashMap<>();
+    propertiesVertexV2.put("Relevance", 3);
+    propertiesVertexV2.put("Size", 10);
+    Properties propertiesV2 = Properties.createFromMap(propertiesVertexV2);
+    v2.setVertexProperties(propertiesV2);
+
+    HashMap<String, Object> propertiesVertexV3 = new HashMap<>();
+    propertiesVertexV3.put("Relevance", 2);
+    propertiesVertexV3.put("Size", 30);
+    Properties propertiesV3 = Properties.createFromMap(propertiesVertexV3);
+    v3.setVertexProperties(propertiesV3);
+
+    HashMap<String, Object> propertiesVertexV4 = new HashMap<>();
+    propertiesVertexV4.put("Relevance", 5);
+    propertiesVertexV4.put("Size", 5);
+    Properties propertiesV4 = Properties.createFromMap(propertiesVertexV4);
+    v4.setVertexProperties(propertiesV4);
+
+    HashMap<String, Object> propertiesEdge1 = new HashMap<>();
+    propertiesEdge1.put("Weight", 5);
+    Properties propertiesE1 = Properties.createFromMap(propertiesEdge1);
+
+    HashMap<String, Object> propertiesEdge2 = new HashMap<>();
+    propertiesEdge2.put("Weight", 6);
+    Properties propertiesE2 = Properties.createFromMap(propertiesEdge2);
+
+    StreamTriple edge1 = new StreamTriple("1", t1, "impacts",  propertiesE1, v1, v2);
+    StreamTriple edge2 = new StreamTriple("2", t1, "impacts", propertiesE2, v3, v4);
+
+    DataStream<StreamTriple> testStream = env.fromElements(edge1, edge2);
+    StreamGraph streamGraph = StreamGraph.fromFlinkStream(testStream, new StreamGraphConfig(env));
+
+    GraphStreamGrouping groupingOperator = new TableGroupingBase.GroupingBuilder()
+      .addVertexGroupingKey(":label")
+      .addVertexAggregateFunction(new MinProperty("Relevance"))
+      .addVertexAggregateFunction(new MaxProperty("Relevance"))
+      .addVertexAggregateFunction(new AvgProperty("Size"))
+      .addVertexAggregateFunction(new SumProperty("Size"))
+      .addEdgeGroupingKey(":label")
+      .addEdgeAggregateFunction(new SumProperty("Weight"))
+      .build();
+
+    streamGraph = groupingOperator.execute(streamGraph);
+    streamGraph.print();
+
   }
 
 }

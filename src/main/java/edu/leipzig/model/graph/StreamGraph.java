@@ -5,14 +5,29 @@ import edu.leipzig.impl.functions.utils.Extractor;
 import edu.leipzig.model.table.TableSet;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.factories.DynamicTableSourceFactory;
+import org.apache.flink.table.planner.plan.nodes.calcite.Sink;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
+import org.gradoop.common.model.impl.properties.Properties;
 
+import javax.xml.crypto.Data;
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Objects;
 
@@ -102,11 +117,33 @@ public class StreamGraph extends StreamGraphLayout {
      * Prints the resulting super edges and vertices in parallel to stdout.
      */
     public void print() {
+        final StreamingFileSink<Tuple2<Boolean, Row>> vertexSink =
+          StreamingFileSink.forRowFormat(new Path("."), new SimpleStringEncoder<Tuple2<Boolean, Row>>("UTF" +
+            "-8"))
+            .build();
+        Schema edgeSchema = Schema.newBuilder()
+          .column("edge_id", DataTypes.STRING())
+          .column("edge_label", DataTypes.STRING())
+          .column("edge_properties", DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .column("source_id", DataTypes.STRING())
+          .column("target_id", DataTypes.STRING())
+          //.column("event_time", DataTypes.TIMESTAMP(6))
+        .build();
+
+        Schema vertexSchema = Schema.newBuilder()
+          .fromResolvedSchema(getTableSet().getVertices().getResolvedSchema())
+          //.column("event_time", DataTypes.TIMESTAMP(6)).
+          .build();
+
+
+        System.out.println(vertexSchema.toString());
+        System.out.println(getTableSet().getVertices().getResolvedSchema().toString());
+
         getConfig().getTableEnvironment()
-          .toRetractStream(getTableSet().getVertices(), StreamVertex.class)
+          .toChangelogStream(getTableSet().getVertices(), vertexSchema)
           .print();
         getConfig().getTableEnvironment()
-          .toRetractStream(getTableSet().getEdges(), StreamEdge.class)
+          .toChangelogStream(getTableSet().getEdges(), edgeSchema)
           .print();
     }
 
