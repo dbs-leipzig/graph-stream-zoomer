@@ -190,6 +190,7 @@ public class GraphStreamGroupingTest {
 
     streamTableEnvironment.sqlQuery("SELECT w2_rowtime, super_label FROM " + groupedModifiedVertices1);
     groupedVerticesTest.execute().print();
+    System.out.println(groupedVerticesTest.getResolvedSchema());
 
 
 
@@ -339,10 +340,11 @@ public class GraphStreamGroupingTest {
     Timestamp t3 = new Timestamp(1619511683000L);
     Timestamp t4 = new Timestamp(1619511694000L);
     StreamVertex v1 = new StreamVertex("v1", "A", Properties.create(), t1);
-    StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t1);
-    StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t1);
-    StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t1);
+    StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t2);
+    StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t3);
+    StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t4);
 
+    System.out.println(v1.getEventTime() + " " + v2.getEventTime() + " " + v3.getEventTime() + " " + v4.getEventTime());
     HashMap<String, Object> propertiesVertexV1 = new HashMap<>();
     propertiesVertexV1.put("Relevance", 1);
     propertiesVertexV1.put("Size", 15);
@@ -376,7 +378,7 @@ public class GraphStreamGroupingTest {
     Properties propertiesE2 = Properties.createFromMap(propertiesEdge2);
 
     StreamTriple edge1 = new StreamTriple("1", t1, "impacts",  propertiesE1, v1, v2);
-    StreamTriple edge2 = new StreamTriple("2", t1, "impacts", propertiesE2, v3, v4);
+    StreamTriple edge2 = new StreamTriple("2", t2, "impacts", propertiesE2, v3, v4);
 
     DataStream<StreamTriple> testStream = env.fromElements(edge1, edge2);
     StreamGraph streamGraph = StreamGraph.fromFlinkStream(testStream, new StreamGraphConfig(env));

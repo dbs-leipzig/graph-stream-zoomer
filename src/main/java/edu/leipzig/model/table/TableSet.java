@@ -117,18 +117,12 @@ public class TableSet extends HashMap<String, Table> {
 
     private static final Schema.Builder SchemaTest = Schema.newBuilder();
 
-    private static final TableSetSchema SCHEMA = new TableSetSchema(
-      ImmutableMap.<String, Schema>builder()
-        .put(TABLE_VERTICES, SchemaTest
-          .column(FIELD_VERTEX_ID, DataTypes.STRING())
-          .column(FIELD_VERTEX_LABEL, DataTypes.STRING())
+    private static final TableSetSchema SCHEMA = new TableSetSchema(ImmutableMap.<String, Schema>builder().put(TABLE_VERTICES,
+      SchemaTest.column(FIELD_VERTEX_ID, DataTypes.STRING()).column(FIELD_VERTEX_LABEL, DataTypes.STRING())
           .column(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
-          .build()
-        )
-        .put(TABLE_EDGES, Schema.newBuilder()
-          .column(FIELD_EDGE_ID, DataTypes.STRING())
-          .column(FIELD_SOURCE_ID, DataTypes.STRING())
-          .column(FIELD_TARGET_ID, DataTypes.STRING())
+          .column(FIELD_EVENT_TIME, DataTypes.BIGINT()).build()).put(TABLE_EDGES,
+      Schema.newBuilder().column(FIELD_EDGE_ID, DataTypes.STRING())
+          .column(FIELD_SOURCE_ID, DataTypes.STRING()).column(FIELD_TARGET_ID, DataTypes.STRING())
           .column(FIELD_EDGE_LABEL, DataTypes.STRING())
           .column(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
           .column(FIELD_EVENT_TIME, DataTypes.BIGINT())
@@ -140,28 +134,25 @@ public class TableSet extends HashMap<String, Table> {
           //.field(FIELD_EDGE_PROPERTIES, DataTypes.R)
           .field(FIELD_EVENT_TIME, DataTypes.BIGINT(), $(FIELD_EVENT_TIME).proctime().toString())
 
-           */
-          .build()
-        )
-        /*
-        .put(TABLE_GRAPH, new TableSchema.Builder()
-          .field(FIELD_EDGE_ID, DataTypes.STRING())
-          .field(FIELD_EDGE_LABEL, DataTypes.STRING())
-          //.field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+           */.build())
+      /*
+      .put(TABLE_GRAPH, new TableSchema.Builder()
+        .field(FIELD_EDGE_ID, DataTypes.STRING())
+        .field(FIELD_EDGE_LABEL, DataTypes.STRING())
+        //.field(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
 
 
-          .field(FIELD_SOURCE_ID, DataTypes.STRING())
-          .field(FIELD_VERTEX_SOURCE_LABEL, DataTypes.STRING())
-          //.field(FIELD_VERTEX_SOURCE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+        .field(FIELD_SOURCE_ID, DataTypes.STRING())
+        .field(FIELD_VERTEX_SOURCE_LABEL, DataTypes.STRING())
+        //.field(FIELD_VERTEX_SOURCE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
 
-          .field(FIELD_TARGET_ID, DataTypes.STRING())
-          .field(FIELD_VERTEX_TARGET_LABEL, DataTypes.STRING())
-          //.field(FIELD_VERTEX_TARGET_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
-          .build()
-        )
+        .field(FIELD_TARGET_ID, DataTypes.STRING())
+        .field(FIELD_VERTEX_TARGET_LABEL, DataTypes.STRING())
+        //.field(FIELD_VERTEX_TARGET_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+        .build()
+      )
 
-         */
-        .build());
+       */.build());
 
 
     /**
@@ -215,32 +206,30 @@ public class TableSet extends HashMap<String, Table> {
      */
     public static Expression[] getEdgeProjectExpressions() {
         return new Expression[] {
-          $(FIELD_EDGE_ID),
-          $(FIELD_SOURCE_ID),
-          $(FIELD_TARGET_ID),
-          $(FIELD_EDGE_LABEL),
-          $(FIELD_EDGE_PROPERTIES),
-          $(FIELD_EVENT_TIME).rowtime()
+          $(FIELD_EDGE_ID), $(FIELD_SOURCE_ID), $(FIELD_TARGET_ID), $(FIELD_EDGE_LABEL),
+          $(FIELD_EDGE_PROPERTIES), $(FIELD_EVENT_TIME).rowtime()
         };
     }
 
     public static Expression[] getEdgeProjectExpressionsWithCastedRowtime() {
         return new Expression[] {
-          $(FIELD_EDGE_ID),
-          $(FIELD_SOURCE_ID),
-          $(FIELD_TARGET_ID),
-          $(FIELD_EDGE_LABEL),
-          $(FIELD_EDGE_PROPERTIES),
-          $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP()).as(FIELD_EVENT_TIME)
+          $(FIELD_EDGE_ID), $(FIELD_SOURCE_ID), $(FIELD_TARGET_ID), $(FIELD_EDGE_LABEL),
+          $(FIELD_EDGE_PROPERTIES), $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP()).as(FIELD_EVENT_TIME)
         };
     }
 
     public static Expression[] getVertexProjectExpressions() {
         return new Expression[] {
-          $(FIELD_VERTEX_ID),
-          $(FIELD_VERTEX_LABEL),
-          $(FIELD_VERTEX_PROPERTIES),
-          $(FIELD_EVENT_TIME).rowtime()
+          $(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL), $(FIELD_VERTEX_PROPERTIES), $(FIELD_EVENT_TIME).rowtime()
         };
+    }
+
+    public static Schema getVertexSchema() {
+        return Schema.newBuilder().column(FIELD_VERTEX_ID, DataTypes.STRING())
+          .column(FIELD_VERTEX_LABEL, DataTypes.STRING())
+          .column(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .watermark(FIELD_EVENT_TIME, $(FIELD_EVENT_TIME) + " ::timestamptz(0) - INTERVAL '10' SECONDS")
+          //.columnByMetadata(FIELD_VERTEX_EVENT_TIME, DataTypes.TIMESTAMP_LTZ())
+          .build();
     }
 }

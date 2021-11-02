@@ -6,9 +6,15 @@ import edu.leipzig.impl.functions.utils.PlannerExpressionBuilder;
 import edu.leipzig.impl.functions.utils.PlannerExpressionSeqBuilder;
 import edu.leipzig.model.table.TableSet;
 import edu.leipzig.model.table.TableSetFactory;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
+import org.gradoop.common.model.impl.properties.Properties;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
@@ -36,10 +42,13 @@ public class StreamGraphLayout {
     StreamGraphConfig config) {
     TableSet tableSet = new TableSet();
 
+/*
     tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices, TableSet.getVertexProjectExpressions()));
     tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges, TableSet.getEdgeProjectExpressions()));
-    //tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices));
-    //tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges));
+
+ */
+    tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices, TableSet.getVertexSchema()));
+    tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges));
     this.tableSet = tableSet;
     this.config = Objects.requireNonNull(config);
   }

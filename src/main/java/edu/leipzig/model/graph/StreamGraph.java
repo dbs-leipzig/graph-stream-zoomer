@@ -140,10 +140,12 @@ public class StreamGraph extends StreamGraphLayout {
         System.out.println(getTableSet().getVertices().getResolvedSchema().toString());
 
         getConfig().getTableEnvironment()
-          .toChangelogStream(getTableSet().getVertices(), vertexSchema)
+          .toRetractStream(getTableSet().getVertices(), StreamVertex.class)
+         //.toChangelogStream(getTableSet().getVertices(), vertexSchema)
           .print();
         getConfig().getTableEnvironment()
-          .toChangelogStream(getTableSet().getEdges(), edgeSchema)
+          .toRetractStream(getTableSet().getEdges(), StreamEdge.class)
+          //.toChangelogStream(getTableSet().getEdges(), edgeSchema)
           .print();
     }
 

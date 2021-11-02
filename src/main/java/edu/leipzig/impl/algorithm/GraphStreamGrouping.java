@@ -11,8 +11,11 @@ import edu.leipzig.model.graph.GraphStreamToGraphStreamOperator;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphLayout;
 import edu.leipzig.model.table.TableSet;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.Tumble;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.gradoop.common.util.GradoopConstants;
@@ -71,7 +74,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         this.tableSet = streamGraph.getTableSet();
 
         // Perform the grouping and create a new graph stream
-        return new StreamGraph(performGrouping(), getConfig());
+        return new StreamGraph(testPerformGrouping(), getConfig());
         // Todo: use this first for testing issues
         // return new StreamGraph(testPerformGrouping(), getConfig());
     }
@@ -129,6 +132,11 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
 
+        tableSet.getVertices().execute().print();
+        System.out.println(tableSet.getVertices().getResolvedSchema());
+        tableSet.getEdges().execute().print();
+        System.out.println(tableSet.getEdges().getResolvedSchema());
+
         List<ScalarFunction> scalarFunctionsToRegister = Arrays.asList(
           new CreateSuperElementId(),
           new ToProperties()
@@ -142,17 +150,20 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             }
         }
 
-
         // 1. Prepare distinct vertices
         Table preparedVertices = tableSet.getVertices()
           .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"))
           .groupBy($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL), $("eventWindow"))
-          .select($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL),
+          .select($(FIELD_VERTEX_ID).as(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_LABEL),
             $("eventWindow").rowtime().as(FIELD_VERTEX_EVENT_TIME));
             //$(FIELD_EVENT_TIME));
 
+        preparedVertices.execute().print();
+
+
         // group by id, label, window ; select id label window
           //.distinct();
+
 
         // 2. Group vertices by label and/or property values
         Table groupedVertices = preparedVertices
@@ -160,12 +171,16 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
           .groupBy($(FIELD_VERTEX_LABEL), $("eventWindow"))
           //.groupBy($(FIELD_VERTEX_LABEL), $(FIELD_EVENT_TIME)) // here, EVENT_TIME ist the window identifier timestamp
           .select(
+            //superElementId muss auch abhängig vom event window sein?
             call("CreateSuperElementId", $(FIELD_VERTEX_LABEL)).as(FIELD_SUPER_VERTEX_ID),
             $(FIELD_VERTEX_LABEL).as(FIELD_SUPER_VERTEX_LABEL),
             lit(1).count().as("TMP12"),
             $("eventWindow").rowtime().as("vertexWindowTime")
            // $(FIELD_EVENT_TIME).as("vertexWindowTime")
             );
+
+
+        groupedVertices.execute().print();
 
         //todo: check that there are no duplicates aggregated
 
@@ -178,6 +193,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             $("vertexWindowTime").as(FIELD_EVENT_TIME)
           );
 
+        newVertices.execute().print();
+
         // 4. Expand a (vertex -> super vertex) mapping
         Table expandedVertices = preparedVertices
           .select($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL), $(FIELD_VERTEX_EVENT_TIME).as("preparedVerticesTime"))
@@ -188,7 +205,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
               .and($("preparedVerticesTime").isEqual($("groupedVerticesTime")))
           )
               //.and($("preparedVerticesTime").isGreaterOrEqual($("groupedVerticesTime").minus(lit(10).seconds()))))
-          .select($(FIELD_VERTEX_ID), $(FIELD_SUPER_VERTEX_ID), $("preparedVerticesTime").as(FIELD_EVENT_TIME));
+          .select($(FIELD_VERTEX_ID), $(FIELD_SUPER_VERTEX_ID),
+            $("preparedVerticesTime").as(FIELD_EVENT_TIME));
 // todo: joining preparedvertices #m with groupedVertices #n results in #m * #n pairs, maybe is solved with distinct
 
         expandedVertices.execute().print();
@@ -252,6 +270,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         // vertex_id
         builder.field(TableSet.FIELD_VERTEX_ID);
+
 
         // optionally: vertex_label
         if (useVertexLabels) {
