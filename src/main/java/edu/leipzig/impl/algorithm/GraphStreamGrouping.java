@@ -74,7 +74,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         this.tableSet = streamGraph.getTableSet();
 
         // Perform the grouping and create a new graph stream
-        return new StreamGraph(performGrouping(), getConfig());
+        return new StreamGraph(testPerformGrouping(), getConfig());
         // Todo: use this first for testing issues
         // return new StreamGraph(testPerformGrouping(), getConfig());
     }
