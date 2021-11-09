@@ -74,7 +74,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         this.tableSet = streamGraph.getTableSet();
 
         // Perform the grouping and create a new graph stream
-        return new StreamGraph(testPerformGrouping(), getConfig());
+        return new StreamGraph(performGrouping(), getConfig());
         // Todo: use this first for testing issues
         // return new StreamGraph(testPerformGrouping(), getConfig());
     }
@@ -132,10 +132,14 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
 
+
+        System.out.println("Basic Vertices\n");
         tableSet.getVertices().execute().print();
+        /*
         System.out.println(tableSet.getVertices().getResolvedSchema());
         tableSet.getEdges().execute().print();
         System.out.println(tableSet.getEdges().getResolvedSchema());
+         */
 
         List<ScalarFunction> scalarFunctionsToRegister = Arrays.asList(
           new CreateSuperElementId(),
@@ -154,10 +158,12 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         Table preparedVertices = tableSet.getVertices()
           .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"))
           .groupBy($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL), $("eventWindow"))
-          .select($(FIELD_VERTEX_ID).as(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_LABEL),
-            $("eventWindow").rowtime().as(FIELD_VERTEX_EVENT_TIME));
+          //.select($(FIELD_VERTEX_ID).as(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_LABEL),
+            //$("eventWindow").rowtime().as(FIELD_VERTEX_EVENT_TIME));
+          .select(buildSuperVertexProjectExpressions());
             //$(FIELD_EVENT_TIME));
 
+        System.out.println("Prepared Vertices\n");
         preparedVertices.execute().print();
 
 
@@ -179,7 +185,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
            // $(FIELD_EVENT_TIME).as("vertexWindowTime")
             );
 
-
+        System.out.println("Grouped Vertices:\n");
         groupedVertices.execute().print();
 
         //todo: check that there are no duplicates aggregated
@@ -193,6 +199,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             $("vertexWindowTime").as(FIELD_EVENT_TIME)
           );
 
+        System.out.println("New Vertices\n");
         newVertices.execute().print();
 
         // 4. Expand a (vertex -> super vertex) mapping
@@ -201,15 +208,19 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
           .join(
             groupedVertices.select($(FIELD_SUPER_VERTEX_ID), $(FIELD_SUPER_VERTEX_LABEL), $("vertexWindowTime").as("groupedVerticesTime")),
             $(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL))
-              //.and($("preparedVerticesTime").isLessOrEqual($("groupedVerticesTime")))
-              .and($("preparedVerticesTime").isEqual($("groupedVerticesTime")))
+              .and($("preparedVerticesTime").isLessOrEqual($("groupedVerticesTime")))
+              //.and($("preparedVerticesTime").isEqual($("groupedVerticesTime")))
           )
               //.and($("preparedVerticesTime").isGreaterOrEqual($("groupedVerticesTime").minus(lit(10).seconds()))))
           .select($(FIELD_VERTEX_ID), $(FIELD_SUPER_VERTEX_ID),
             $("preparedVerticesTime").as(FIELD_EVENT_TIME));
 // todo: joining preparedvertices #m with groupedVertices #n results in #m * #n pairs, maybe is solved with distinct
 
+        System.out.println("Expanded Vertices\n");
         expandedVertices.execute().print();
+
+        System.out.println("Edges Table:\n");
+        tableSet.getEdges().execute().print();
 
         // 5. Assign super vertices to edges
         Table edgesWithSuperVertices = tableSet.getEdges()
@@ -219,20 +230,23 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
               $(FIELD_SUPER_VERTEX_ID).as("supVTargetId"),
               $(FIELD_EVENT_TIME).as("vTargetEventTime")),
             $(FIELD_TARGET_ID).isEqual($("vTargetId"))
-            .and($(FIELD_EVENT_TIME).isEqual($("vTargetEventTime"))))
+            .and($(FIELD_EVENT_TIME).isLessOrEqual($("vTargetEventTime"))))
           .join(
             expandedVertices.select(
               $(FIELD_VERTEX_ID).as("vSourceId"),
               $(FIELD_SUPER_VERTEX_ID).as("supVSourceId"),
               $(FIELD_EVENT_TIME).as("vSourceEventTime")),
-            $(FIELD_SOURCE_ID).isEqual($("vSourceId"))
-            .and($(FIELD_EVENT_TIME).isEqual($("vSourceEventTime"))))
+                $(FIELD_SOURCE_ID).isEqual($("vSourceId"))
+            .and($(FIELD_EVENT_TIME).isLessOrEqual($("vSourceEventTime"))))
           .select(
             $(FIELD_EDGE_ID),
             $(FIELD_EVENT_TIME),
             $("supVSourceId").as(FIELD_SOURCE_ID),
             $("supVTargetId").as(FIELD_TARGET_ID),
             $(FIELD_EDGE_LABEL));
+
+        System.out.println("Edges with super vertices:\n");
+        edgesWithSuperVertices.execute().print();
 
         // 6. Group edges by label and/or property values
         Table groupedEdges = edgesWithSuperVertices
@@ -246,6 +260,9 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             lit(1).count().as("TMP13"),
             $("eventWindow").rowtime().as("rowtime"));
 
+        System.out.println("Grouped edges:\n");
+        groupedEdges.execute().print();
+
         // 7. Derive new super edges from grouped edges
         Table newEdges = groupedEdges
           .select(
@@ -256,6 +273,9 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             call("ToProperties", row(lit("count"), $("TMP13"))).as(FIELD_EDGE_PROPERTIES),
             $("rowtime").as(FIELD_EVENT_TIME)
           );
+
+        System.out.println("New edges:\n");
+        newEdges.execute().print();
 
         return getConfig().getTableSetFactory().fromTables(newVertices, newEdges);
     }

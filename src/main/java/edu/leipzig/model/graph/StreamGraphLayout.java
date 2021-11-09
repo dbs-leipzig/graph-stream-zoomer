@@ -42,13 +42,20 @@ public class StreamGraphLayout {
     StreamGraphConfig config) {
     TableSet tableSet = new TableSet();
 
+
+    tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices,
+      TableSet.getVertexSchema()));
+    tableSet.getVertices().printSchema();
+    Table testTableVertices = tableSet.getVertices();
+    testTableVertices.execute().print();
+    tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges, TableSet.getEdgeSchema()));
+
 /*
-    tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices, TableSet.getVertexProjectExpressions()));
-    tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges, TableSet.getEdgeProjectExpressions()));
+    tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices,
+      TableSet.getVertexSchema()));
+    tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges));
 
  */
-    tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices, TableSet.getVertexSchema()));
-    tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges));
     this.tableSet = tableSet;
     this.config = Objects.requireNonNull(config);
   }

@@ -20,6 +20,7 @@ import javax.xml.crypto.Data;
 import java.util.HashMap;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.lit;
 
 /**
  * Basic table set class which is just a wrapper for a map: tableName->{@link Table}
@@ -225,11 +226,24 @@ public class TableSet extends HashMap<String, Table> {
     }
 
     public static Schema getVertexSchema() {
-        return Schema.newBuilder().column(FIELD_VERTEX_ID, DataTypes.STRING())
+        return Schema.newBuilder()
+          .column(FIELD_VERTEX_ID, DataTypes.STRING())
           .column(FIELD_VERTEX_LABEL, DataTypes.STRING())
           .column(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
-          .watermark(FIELD_EVENT_TIME, $(FIELD_EVENT_TIME) + " ::timestamptz(0) - INTERVAL '10' SECONDS")
-          //.columnByMetadata(FIELD_VERTEX_EVENT_TIME, DataTypes.TIMESTAMP_LTZ())
+          .column(FIELD_EVENT_TIME, DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class))
+          .watermark(FIELD_EVENT_TIME, "SOURCE_WATERMARK()")
+          .build();
+    }
+
+    public static Schema getEdgeSchema() {
+        return Schema.newBuilder()
+          .column(FIELD_EDGE_ID, DataTypes.STRING())
+          .column(FIELD_EDGE_LABEL, DataTypes.STRING())
+          .column(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .column(FIELD_TARGET_ID, DataTypes.STRING())
+          .column(FIELD_SOURCE_ID, DataTypes.STRING())
+          .column(FIELD_EVENT_TIME, DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class))
+          .watermark(FIELD_EVENT_TIME, "SOURCE_WATERMARK()")
           .build();
     }
 }

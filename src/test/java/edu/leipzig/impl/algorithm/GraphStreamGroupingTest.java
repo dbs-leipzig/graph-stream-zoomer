@@ -1,55 +1,40 @@
 package edu.leipzig.impl.algorithm;
 
-import com.google.gson.internal.bind.JsonTreeReader;
 import edu.leipzig.impl.functions.aggregation.AvgProperty;
 import edu.leipzig.impl.functions.aggregation.MaxProperty;
 import edu.leipzig.impl.functions.aggregation.MinProperty;
 import edu.leipzig.impl.functions.aggregation.SumProperty;
 import edu.leipzig.impl.functions.utils.CreateSuperElementId;
-import edu.leipzig.impl.functions.utils.ToProperties;
-import edu.leipzig.model.graph.StreamEdge;
 import edu.leipzig.model.graph.StreamEdge;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
 import edu.leipzig.model.graph.StreamTriple;
 import edu.leipzig.model.graph.StreamVertex;
+import edu.leipzig.model.table.TableSet;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.Tumble;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.types.Row;
-import org.apache.hadoop.util.hash.Hash;
 import org.gradoop.common.model.impl.properties.Properties;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 
-import static edu.leipzig.impl.algorithm.TableGroupingBase.FIELD_SUPER_VERTEX_ID;
-import static edu.leipzig.impl.algorithm.TableGroupingBase.FIELD_SUPER_VERTEX_LABEL;
 import static edu.leipzig.model.table.TableSet.*;
 import static org.apache.flink.table.api.Expressions.*;
 import static org.junit.Assert.assertEquals;
@@ -397,5 +382,4 @@ public class GraphStreamGroupingTest {
     streamGraph.print();
 
   }
-
 }
