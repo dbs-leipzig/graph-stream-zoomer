@@ -241,6 +241,8 @@ public abstract class TableGroupingBase {
             expressions.add($(TableSet.FIELD_VERTEX_ID));
         }
 
+        expressions.add($("eventWindow"));
+
         return expressions.toArray(new Expression[0]);
     }
 

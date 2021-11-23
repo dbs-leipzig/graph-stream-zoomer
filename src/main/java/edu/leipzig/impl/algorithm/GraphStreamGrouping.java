@@ -1,6 +1,7 @@
 package edu.leipzig.impl.algorithm;
 
 import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
+import edu.leipzig.impl.functions.aggregation.MinProperty;
 import edu.leipzig.impl.functions.utils.CreateSuperElementId;
 import edu.leipzig.impl.functions.utils.EmptyProperties;
 import edu.leipzig.impl.functions.utils.ExtractPropertyValue;
@@ -14,6 +15,7 @@ import edu.leipzig.model.table.TableSet;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.Tumble;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.expressions.Expression;
@@ -92,7 +94,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         // 1. Prepare distinct vertices
         Table preparedVertices = tableSet.getVertices()
-          .select(buildVertexGroupProjectExpressions())
+          .select(buildVertexGroupProjectExpressions(true))
           .distinct();
 
         // 2. Group vertices by label and/or property values
@@ -136,14 +138,27 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
 
-
-        System.out.println("Basic Vertices\n");
-        //tableSet.getVertices().execute().print();
-        Table beforePreparedVertices = streamTableEnvironment.sqlQuery("SELECT " + FIELD_VERTEX_ID
+        Table beforePreparedVertices = getTableEnv().sqlQuery("SELECT " + FIELD_VERTEX_ID
         +" as " + FIELD_VERTEX_ID +", " + FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL +", " +
           FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES +", " + FIELD_EVENT_TIME + " as " +
-          FIELD_EVENT_TIME + " FROM " + tableSet.getVertices());
-        beforePreparedVertices.execute().print();
+          FIELD_EVENT_TIME + " FROM " + getTableEnv().from(TABLE_VERTICES));
+        //beforePreparedVertices.execute().print();
+
+        Table preparedVertices = getTableEnv().sqlQuery(
+                "Select window_time as " + FIELD_VERTEX_EVENT_TIME + ", " + FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID+
+                        ", " + FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL + ", " + FIELD_VERTEX_PROPERTIES +
+                        " as " + FIELD_VERTEX_PROPERTIES + " FROM TABLE ( TUMBLE ( TABLE  " +
+                        getTableEnv().from(TABLE_VERTICES) + ", DESCRIPTOR(" + FIELD_EVENT_TIME + "), INTERVAL " +
+                        "'10' SECONDS)) GROUP BY window_time, " + FIELD_VERTEX_ID + ", " + FIELD_VERTEX_LABEL
+                        + ", " + FIELD_VERTEX_PROPERTIES + ", window_start, window_end"
+        );
+        System.out.println("Prepared Vertices Table: \n");
+        preparedVertices.execute().print();
+
+        Table furtherPreparedVertices = preparedVertices.select(buildVertexGroupProjectExpressions(true));
+        furtherPreparedVertices.execute().print();
+
+
 
         List<ScalarFunction> scalarFunctionsToRegister = Arrays.asList(
           new CreateSuperElementId(),
@@ -158,39 +173,54 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             }
         }
 
-        System.out.println("Pre Prepared Vertices");
 
         // 1. Prepare distinct vertices
-        Table preparedVertices = beforePreparedVertices
+        /*
+        Table preparedVertices = getTableEnv().from(TABLE_VERTICES)
           .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"))
           .groupBy($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL), $("eventWindow"))
           .select($(FIELD_VERTEX_ID).as(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_LABEL),
-            $("eventWindow").rowtime().as(FIELD_VERTEX_EVENT_TIME), $(FIELD_VERTEX_PROPERTIES).as(FIELD_VERTEX_PROPERTIES));
+            $("eventWindow").rowtime().as(FIELD_VERTEX_EVENT_TIME));
           //.select(buildVertexGroupProjectExpressions());
             //$(FIELD_EVENT_TIME));
 
         System.out.println("Prepared Vertices\n");
         preparedVertices.execute().print();
 
+         */
 
         // group by id, label, window ; select id label window
           //.distinct();
 
+        for (CustomizedAggregationFunction caf : vertexAggregateFunctions) {
+            System.out.println(caf.getAggregatePropertyKey()  + " " + caf.getPropertyKey() + " " + caf + " "+ caf.getTableAggFunction());
+        }
 
         // 2. Group vertices by label and/or property values
-        Table groupedVertices = preparedVertices
+        Table groupedVertices = furtherPreparedVertices
           .window(Tumble.over(lit(10).seconds()).on($(FIELD_VERTEX_EVENT_TIME)).as("eventWindow"))
-          .groupBy($(FIELD_VERTEX_LABEL), $("eventWindow"))
-          //.groupBy($(FIELD_VERTEX_LABEL), $(FIELD_EVENT_TIME)) // here, EVENT_TIME ist the window identifier timestamp
-          .select(
-            //superElementId muss auch abhängig vom event window sein?
-            call("CreateSuperElementId", $(FIELD_VERTEX_LABEL)).as(FIELD_SUPER_VERTEX_ID),
-            $(FIELD_VERTEX_LABEL).as(FIELD_SUPER_VERTEX_LABEL),
-            lit(1).count().as("TMP12"),
-            $("eventWindow").rowtime().as("vertexWindowTime")
-           // $(FIELD_EVENT_TIME).as("vertexWindowTime")
-            );
+          .groupBy(buildVertexGroupExpressions())
+                .select(call("TableMinProperty",
+                        $("TMP_0")));
 
+
+          //.groupBy($(FIELD_VERTEX_LABEL), $(FIELD_EVENT_TIME)) // here, EVENT_TIME ist the window identifier timestamp
+
+        /*
+        Table groupedVertices = preparedVertices
+                .window(Tumble.over(lit(10).seconds()).on($(FIELD_VERTEX_EVENT_TIME)).as("eventWindow"))
+                .groupBy($(FIELD_VERTEX_LABEL), $("eventWindow"))
+                //.groupBy($(FIELD_VERTEX_LABEL), $(FIELD_EVENT_TIME)) // here, EVENT_TIME ist the window identifier timestamp
+                .select(
+                        //superElementId muss auch abhängig vom event window sein?
+                        call("CreateSuperElementId", $(FIELD_VERTEX_LABEL)).as(FIELD_SUPER_VERTEX_ID),
+                        $(FIELD_VERTEX_LABEL).as(FIELD_SUPER_VERTEX_LABEL),
+                        lit(1).count().as("TMP12"),
+                        $("eventWindow").rowtime().as("vertexWindowTime")
+                        // $(FIELD_EVENT_TIME).as("vertexWindowTime")
+                );
+
+         */
         System.out.println("Grouped Vertices:\n");
         groupedVertices.execute().print();
 
@@ -291,12 +321,26 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      *
      * @return prepared vertices table
      */
-    private Expression[] buildVertexGroupProjectExpressions() {
+    private Expression[] buildVertexGroupProjectExpressions(boolean flag) {
         PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
+        PlannerExpressionSeqBuilder createSuperElementIdEx = new PlannerExpressionSeqBuilder(getTableEnv());
+        createSuperElementIdEx.expression($(FIELD_VERTEX_LABEL));
+        Expression[] functionParameter = createSuperElementIdEx.build();
 
         // vertex_id
-        builder.field(TableSet.FIELD_VERTEX_ID);
+        if (flag) {
+            builder.field(TableSet.FIELD_VERTEX_ID);
+            builder.field(FIELD_VERTEX_EVENT_TIME);
+        }
+        else {
+            //builder.field(FIELD_SUPER_VERTEX_ID);
+            //builder.expression($("eventWindow").rowtime()).as("vertexWindowTime");
+            builder.field(FIELD_VERTEX_EVENT_TIME);
+            builder.expression(call("CreateSuperElementId", $(FIELD_VERTEX_LABEL)).as(FIELD_SUPER_VERTEX_ID));
+            builder.expression($(FIELD_VERTEX_LABEL).as(FIELD_SUPER_VERTEX_LABEL));
 
+
+        }
 
         // optionally: vertex_label
         if (useVertexLabels) {
@@ -326,6 +370,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
                   .put(aggregateFunction.getAggregatePropertyKey(), propertyFieldAlias);
             }
         }
+
+        System.out.println("DAS IST DER BUILDER:\n " + builder.buildString());
 
         return builder.build();
     }

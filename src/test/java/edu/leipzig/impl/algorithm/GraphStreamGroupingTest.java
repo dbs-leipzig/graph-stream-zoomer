@@ -326,8 +326,8 @@ public class GraphStreamGroupingTest {
     Timestamp t4 = new Timestamp(1619511694000L);
     StreamVertex v1 = new StreamVertex("v1", "A", Properties.create(), t1);
     StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t2);
-    StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t3);
-    StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t4);
+    StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t1);
+    StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t2);
 
     System.out.println(v1.getEventTime() + " " + v2.getEventTime() + " " + v3.getEventTime() + " " + v4.getEventTime());
     HashMap<String, Object> propertiesVertexV1 = new HashMap<>();
@@ -371,9 +371,7 @@ public class GraphStreamGroupingTest {
     GraphStreamGrouping groupingOperator = new TableGroupingBase.GroupingBuilder()
       .addVertexGroupingKey(":label")
       .addVertexAggregateFunction(new MinProperty("Relevance"))
-      .addVertexAggregateFunction(new MaxProperty("Relevance"))
       .addVertexAggregateFunction(new AvgProperty("Size"))
-      .addVertexAggregateFunction(new SumProperty("Size"))
       .addEdgeGroupingKey(":label")
       .addEdgeAggregateFunction(new SumProperty("Weight"))
       .build();
