@@ -156,7 +156,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         preparedVertices.execute().print();
 
         Table furtherPreparedVertices = preparedVertices.select(buildVertexGroupProjectExpressions(true));
-        System.out.println("FurhterPreparedVertices: \n");
         furtherPreparedVertices.execute().print();
 
 
@@ -193,31 +192,16 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // group by id, label, window ; select id label window
           //.distinct();
 
-        String queryString = "";
-        for (String key : vertexAggregationPropertyFieldNames.keySet()) {
-                queryString += ", " + vertexAggregationPropertyFieldNames.get(key);
+        for (CustomizedAggregationFunction caf : vertexAggregateFunctions) {
+            System.out.println(caf.getAggregatePropertyKey()  + " " + caf.getPropertyKey() + " " + caf + " "+ caf.getTableAggFunction());
         }
 
-
-        Table beforeGroupedVertices = getTableEnv().sqlQuery(
-                "SELECT window_time as eventWindow, " + FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL + ", " +
-                        FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID +
-                        queryString + " FROM TABLE ( TUMBLE ( TABLE " + furtherPreparedVertices +
-                        ", DESCRIPTOR(" + FIELD_VERTEX_EVENT_TIME + "), INTERVAL '10' SECONDS)) GROUP BY " +
-                        "window_time, window_start, window_end, " + FIELD_VERTEX_LABEL + ", " + FIELD_VERTEX_ID +
-                        queryString);
-        beforeGroupedVertices.execute().print();
-
         // 2. Group vertices by label and/or property values
-        /*
-        Causes Aliasbug, Input fields are [vertex_label, EXPR$0, EXPR$1]
-        Bug thrown when windowing on furtherPreparedVertices vertex_event_time
-        idea: Tumble with sqlQuery() first in beforeGroupedVerticesTable, after that groupBy and select with tableApi
-        to groupedVertices. Problem: GroupedVertices getting added to table, while old ungrouped vertices still in it.
-         */
-        Table groupedVertices = beforeGroupedVertices
+        Table groupedVertices = furtherPreparedVertices
+          .window(Tumble.over(lit(10).seconds()).on($(FIELD_VERTEX_EVENT_TIME)).as("eventWindow"))
           .groupBy(buildVertexGroupExpressions())
-                .select(buildVertexProjectExpressions());
+                .select(call("TableMinProperty",
+                        $("TMP_0")));
 
 
           //.groupBy($(FIELD_VERTEX_LABEL), $(FIELD_EVENT_TIME)) // here, EVENT_TIME ist the window identifier timestamp
@@ -240,10 +224,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         System.out.println("Grouped Vertices:\n");
         groupedVertices.execute().print();
 
-        for (String key : vertexAfterAggregationPropertyFieldNames.keySet()) {
-            System.out.println("Key: " + key + " ---- value : " + vertexAfterAggregationPropertyFieldNames.get(key));
-        }
-
         //todo: check that there are no duplicates aggregated
 
         // 3. Derive new super vertices
@@ -251,7 +231,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
           .select(
             $(FIELD_SUPER_VERTEX_ID).as(FIELD_VERTEX_ID),
             $(FIELD_SUPER_VERTEX_LABEL).as(FIELD_VERTEX_LABEL),
-            //call("ToProperties", row(vertexAfterAggregationPropertyFieldNames.get(0)).as(FIELD_VERTEX_PROPERTIES)),
+            call("ToProperties", row(lit("count"), $("TMP12"))).as(FIELD_VERTEX_PROPERTIES),
             $("vertexWindowTime").as(FIELD_EVENT_TIME)
           );
 
@@ -343,6 +323,9 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      */
     private Expression[] buildVertexGroupProjectExpressions(boolean flag) {
         PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
+        PlannerExpressionSeqBuilder createSuperElementIdEx = new PlannerExpressionSeqBuilder(getTableEnv());
+        createSuperElementIdEx.expression($(FIELD_VERTEX_LABEL));
+        Expression[] functionParameter = createSuperElementIdEx.build();
 
         // vertex_id
         if (flag) {
@@ -352,7 +335,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         else {
             //builder.field(FIELD_SUPER_VERTEX_ID);
             //builder.expression($("eventWindow").rowtime()).as("vertexWindowTime");
-            builder.expression($("eventWindow"));
+            builder.field(FIELD_VERTEX_EVENT_TIME);
+            builder.expression(call("CreateSuperElementId", $(FIELD_VERTEX_LABEL)).as(FIELD_SUPER_VERTEX_ID));
             builder.expression($(FIELD_VERTEX_LABEL).as(FIELD_SUPER_VERTEX_LABEL));
 
 
@@ -386,6 +370,9 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
                   .put(aggregateFunction.getAggregatePropertyKey(), propertyFieldAlias);
             }
         }
+
+        System.out.println("DAS IST DER BUILDER:\n " + builder.buildString());
+
         return builder.build();
     }
 
