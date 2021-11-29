@@ -200,8 +200,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         Table groupedVertices = furtherPreparedVertices
           .window(Tumble.over(lit(10).seconds()).on($(FIELD_VERTEX_EVENT_TIME)).as("eventWindow"))
           .groupBy(buildVertexGroupExpressions())
-                .select(call("TableMinProperty",
-                        $("TMP_0")));
+                .select(buildVertexProjectExpressions());
 
 
           //.groupBy($(FIELD_VERTEX_LABEL), $(FIELD_EVENT_TIME)) // here, EVENT_TIME ist the window identifier timestamp
@@ -229,15 +228,16 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // 3. Derive new super vertices
         Table newVertices = groupedVertices
           .select(
-            $(FIELD_SUPER_VERTEX_ID).as(FIELD_VERTEX_ID),
-            $(FIELD_SUPER_VERTEX_LABEL).as(FIELD_VERTEX_LABEL),
-            call("ToProperties", row(lit("count"), $("TMP12"))).as(FIELD_VERTEX_PROPERTIES),
-            $("vertexWindowTime").as(FIELD_EVENT_TIME)
+            buildSuperVertexProjectExpressions()
           );
 
         System.out.println("New Vertices\n");
         newVertices.execute().print();
 
+        /*
+        Zu ändern: Es wird noch davon ausgegangen, dass nur auf das Label gruppiert wird. Sollten Attribute ins Spiel
+        kommen noch falsch
+         */
         // 4. Expand a (vertex -> super vertex) mapping
         Table expandedVertices = preparedVertices
           .select($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL), $(FIELD_VERTEX_EVENT_TIME).as("preparedVerticesTime"))
@@ -266,14 +266,14 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
               $(FIELD_SUPER_VERTEX_ID).as("supVTargetId"),
               $(FIELD_EVENT_TIME).as("vTargetEventTime")),
             $(FIELD_TARGET_ID).isEqual($("vTargetId"))
-            .and($(FIELD_EVENT_TIME).isLessOrEqual($("vTargetEventTime"))))
+            .and($(FIELD_EVENT_TIME).isGreaterOrEqual($("vTargetEventTime"))))
           .join(
             expandedVertices.select(
               $(FIELD_VERTEX_ID).as("vSourceId"),
               $(FIELD_SUPER_VERTEX_ID).as("supVSourceId"),
               $(FIELD_EVENT_TIME).as("vSourceEventTime")),
                 $(FIELD_SOURCE_ID).isEqual($("vSourceId"))
-            .and($(FIELD_EVENT_TIME).isLessOrEqual($("vSourceEventTime"))))
+            .and($(FIELD_EVENT_TIME).isGreaterOrEqual($("vSourceEventTime"))))
           .select(
             $(FIELD_EDGE_ID),
             $(FIELD_EVENT_TIME),

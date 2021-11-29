@@ -324,6 +324,8 @@ public abstract class TableGroupingBase {
 
             builder.as(fieldNameAfterAggregation);
         }
+
+        builder.expression($("eventWindow").rowtime()).as("vertexWindowTime");
         return builder.build();
     }
 

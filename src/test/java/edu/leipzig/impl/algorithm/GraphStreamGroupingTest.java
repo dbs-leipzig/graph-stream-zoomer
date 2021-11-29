@@ -362,7 +362,7 @@ public class GraphStreamGroupingTest {
     propertiesEdge2.put("Weight", 6);
     Properties propertiesE2 = Properties.createFromMap(propertiesEdge2);
 
-    StreamTriple edge1 = new StreamTriple("1", t1, "impacts",  propertiesE1, v1, v2);
+    StreamTriple edge1 = new StreamTriple("1", t2, "impacts",  propertiesE1, v1, v2);
     StreamTriple edge2 = new StreamTriple("2", t2, "impacts", propertiesE2, v3, v4);
 
     DataStream<StreamTriple> testStream = env.fromElements(edge1, edge2);
