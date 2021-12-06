@@ -325,9 +325,9 @@ public class GraphStreamGroupingTest {
     Timestamp t3 = new Timestamp(1619511683000L);
     Timestamp t4 = new Timestamp(1619511694000L);
     StreamVertex v1 = new StreamVertex("v1", "A", Properties.create(), t1);
-    StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t2);
+    StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t1);
     StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t1);
-    StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t2);
+    StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t1);
 
     System.out.println(v1.getEventTime() + " " + v2.getEventTime() + " " + v3.getEventTime() + " " + v4.getEventTime());
     HashMap<String, Object> propertiesVertexV1 = new HashMap<>();
@@ -362,8 +362,8 @@ public class GraphStreamGroupingTest {
     propertiesEdge2.put("Weight", 6);
     Properties propertiesE2 = Properties.createFromMap(propertiesEdge2);
 
-    StreamTriple edge1 = new StreamTriple("1", t2, "impacts",  propertiesE1, v1, v2);
-    StreamTriple edge2 = new StreamTriple("2", t2, "impacts", propertiesE2, v3, v4);
+    StreamTriple edge1 = new StreamTriple("1", t1, "impacts",  propertiesE1, v1, v2);
+    StreamTriple edge2 = new StreamTriple("2", t1, "impacts", propertiesE2, v3, v4);
 
     DataStream<StreamTriple> testStream = env.fromElements(edge1, edge2);
     StreamGraph streamGraph = StreamGraph.fromFlinkStream(testStream, new StreamGraphConfig(env));

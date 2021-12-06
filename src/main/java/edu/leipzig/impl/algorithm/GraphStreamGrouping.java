@@ -264,25 +264,39 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             expandedVertices.select(
               $(FIELD_VERTEX_ID).as("vTargetId"),
               $(FIELD_SUPER_VERTEX_ID).as("supVTargetId"),
-              $(FIELD_EVENT_TIME).as("vTargetEventTime")),
+              $(FIELD_EVENT_TIME).as("vTargetEventTime")
+            ))
+          .where(
             $(FIELD_TARGET_ID).isEqual($("vTargetId"))
-            .and($(FIELD_EVENT_TIME).isGreaterOrEqual($("vTargetEventTime"))))
+              .and($(FIELD_EVENT_TIME).isLess($("vTargetEventTime")))
+              .and($(FIELD_EVENT_TIME).isGreaterOrEqual($("vTargetEventTime").minus(lit(10).seconds())))
+               )
+          .select($("vTargetEventTime"), $("vTargetId"), $("supVTargetId"));
+          /*
           .join(
             expandedVertices.select(
               $(FIELD_VERTEX_ID).as("vSourceId"),
               $(FIELD_SUPER_VERTEX_ID).as("supVSourceId"),
-              $(FIELD_EVENT_TIME).as("vSourceEventTime")),
+              $(FIELD_EVENT_TIME).as("vSourceEventTime")
+              //$(FIELD_EVENT_TIME).minus(lit(10).seconds()).as("vSourceWindowLowerBound")
+            ))
+          .where(
                 $(FIELD_SOURCE_ID).isEqual($("vSourceId"))
-            .and($(FIELD_EVENT_TIME).isGreaterOrEqual($("vSourceEventTime"))))
+            .and($(FIELD_EVENT_TIME).isLessOrEqual($("vSourceEventTime")))
+            .and($(FIELD_EVENT_TIME).isGreater($("vSourceWindowLowerBound"))))
           .select(
+            //$("vSourceWindowLowerBound"),
             $(FIELD_EDGE_ID),
             $(FIELD_EVENT_TIME),
             $("supVSourceId").as(FIELD_SOURCE_ID),
             $("supVTargetId").as(FIELD_TARGET_ID),
             $(FIELD_EDGE_LABEL));
 
+           */
+
         System.out.println("Edges with super vertices:\n");
         edgesWithSuperVertices.execute().print();
+        edgesWithSuperVertices.printSchema();
 
         // 6. Group edges by label and/or property values
         Table groupedEdges = edgesWithSuperVertices
