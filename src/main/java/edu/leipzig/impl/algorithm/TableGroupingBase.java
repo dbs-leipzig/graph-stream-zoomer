@@ -450,32 +450,16 @@ public abstract class TableGroupingBase {
             }
         }
 
-        Table enrichedEdges = edges
-          //.select(TableSet.getEdgeProjectExpressionsWithCastedRowtime())
-          .join(expandedVertices
-            .select(new PlannerExpressionSeqBuilder(getTableEnv())
-              .field(TableSet.FIELD_VERTEX_ID).as(vertexTargetId)
-              .field(FIELD_SUPER_VERTEX_ID).as(superVertexTargetId)
-              //.field(FIELD_VERTEX_EVENT_TIME).as(vertexTargetEventTime)
-              .build()),
-            // join condition
-            $(FIELD_TARGET_ID).isEqual($(vertexTargetId))
-              //.and($(FIELD_EVENT_TIME).between($(vertexTargetEventTime).minus(lit(4).hours()), $(vertexTargetEventTime)))
-              .and($(FIELD_EVENT_TIME).between($(FIELD_EVENT_TIME).minus(lit(4).minutes()), $(FIELD_EVENT_TIME)))
-          )
-          .join(expandedVertices
-            .select(new PlannerExpressionSeqBuilder(getTableEnv())
-                .field(TableSet.FIELD_VERTEX_ID).as(vertexSourceId)
-                .field(FIELD_SUPER_VERTEX_ID).as(superVertexSourceId)
-              //  .field(FIELD_VERTEX_EVENT_TIME).as(vertexSourceEventTime)
-              .build()),
-            // join condition
-            $(FIELD_SOURCE_ID).isEqual($(vertexSourceId))
-          //    .and($(FIELD_EVENT_TIME).between($(vertexSourceEventTime).minus(lit(4).hours()), $(vertexSourceEventTime)))
-              .and($(FIELD_EVENT_TIME).between($(FIELD_EVENT_TIME).minus(lit(4).minutes()), $(FIELD_EVENT_TIME)))
-            );
+        Table enrichEdges = edges.select(
+          $(FIELD_EDGE_ID),
+          $(FIELD_EVENT_TIME),
+          $(FIELD_SOURCE_ID).as(superVertexSourceId),
+          $(FIELD_TARGET_ID).as(superVertexTargetId),
+          $(FIELD_EDGE_LABEL),
+          $(FIELD_EDGE_PROPERTIES)
+        );
 
-        return enrichedEdges.select(projectExpressionsBuilder.build());
+        return enrichEdges.select(projectExpressionsBuilder.build());
     }
 
     /**
@@ -505,7 +489,7 @@ public abstract class TableGroupingBase {
             builder.field(TableSet.FIELD_EDGE_ID);
         }
 
-        //builder.field("eventWindow");
+        builder.field("eventWindow");
 
         return builder.build();
     }

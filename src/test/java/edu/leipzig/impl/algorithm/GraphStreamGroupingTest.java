@@ -317,7 +317,7 @@ public class GraphStreamGroupingTest {
   }
 
   @Test
-  public void testPerformGroupingMethod(){
+  public void testPerformGroupingMethod() throws Exception{
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     //Difference between timestamps: 10 seconds
     Timestamp t1 = new Timestamp(1619511661000L);

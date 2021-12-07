@@ -1,11 +1,14 @@
 package edu.leipzig.model.graph;
 
+import edu.leipzig.impl.algorithm.TableGroupingBase;
 import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
 import edu.leipzig.impl.functions.utils.Extractor;
+import edu.leipzig.impl.functions.utils.PlannerExpressionBuilder;
 import edu.leipzig.model.table.TableSet;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -116,7 +119,7 @@ public class StreamGraph extends StreamGraphLayout {
     /**
      * Prints the resulting super edges and vertices in parallel to stdout.
      */
-    public void print() {
+    public void print() throws Exception{
         final StreamingFileSink<Tuple2<Boolean, Row>> vertexSink =
           StreamingFileSink.forRowFormat(new Path("."), new SimpleStringEncoder<Tuple2<Boolean, Row>>("UTF" +
             "-8"))
@@ -124,7 +127,7 @@ public class StreamGraph extends StreamGraphLayout {
         Schema edgeSchema = Schema.newBuilder()
           .column("edge_id", DataTypes.STRING())
           .column("edge_label", DataTypes.STRING())
-          .column("edge_properties", DataTypes.RAW(TypeInformation.of(Properties.class)))
+          //.column("edge_properties", DataTypes.RAW(TypeInformation.of(Properties.class)))
           .column("source_id", DataTypes.STRING())
           .column("target_id", DataTypes.STRING())
           //.column("event_time", DataTypes.TIMESTAMP(6))
@@ -135,17 +138,20 @@ public class StreamGraph extends StreamGraphLayout {
           //.column("event_time", DataTypes.TIMESTAMP(6)).
           .build();
 
+        final StreamTableEnvironment streamTableEnvironment =
+          StreamTableEnvironment.create(StreamExecutionEnvironment.getExecutionEnvironment());
 
         System.out.println(vertexSchema.toString());
-        System.out.println(getTableSet().getVertices().getResolvedSchema().toString());
+        getTableSet().get("vertices").printSchema();
+        getTableSet().getVertices().execute().print();
+        getConfig().getTableEnvironment()
+          //.toRetractStream(getTableSet().getVertices(), StreamVertex.class)
+         .toChangelogStream(getTableSet().get("vertices"), vertexSchema)
+          .print();
 
         getConfig().getTableEnvironment()
-          .toRetractStream(getTableSet().getVertices(), StreamVertex.class)
-         //.toChangelogStream(getTableSet().getVertices(), vertexSchema)
-          .print();
-        getConfig().getTableEnvironment()
-          .toRetractStream(getTableSet().getEdges(), StreamEdge.class)
-          //.toChangelogStream(getTableSet().getEdges(), edgeSchema)
+          //.toRetractStream(getTableSet().getEdges(), StreamEdge.class)
+          .toChangelogStream(getTableSet().getEdges(), edgeSchema)
           .print();
     }
 

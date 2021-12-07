@@ -45,6 +45,7 @@ public class StreamGraphLayout {
 
     tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices,
       TableSet.getVertexSchema()));
+    System.out.println("HIER IST SCHEMA");
     tableSet.getVertices().printSchema();
     Table testTableVertices = tableSet.getVertices();
     testTableVertices.execute().print();

@@ -245,9 +245,9 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             groupedVertices.select($(FIELD_SUPER_VERTEX_ID), $(FIELD_SUPER_VERTEX_LABEL), $("vertexWindowTime").as("groupedVerticesTime")),
             $(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL))
               .and($("preparedVerticesTime").isLessOrEqual($("groupedVerticesTime")))
-              //.and($("preparedVerticesTime").isEqual($("groupedVerticesTime")))
+              .and($("preparedVerticesTime").isGreater($("groupedVerticesTime").minus(lit(10).seconds())))
+            //zweites and essentiell, dass IllegalState beim edgesWithSuperVerticesJoin vermieden wird
           )
-              //.and($("preparedVerticesTime").isGreaterOrEqual($("groupedVerticesTime").minus(lit(10).seconds()))))
           .select($(FIELD_VERTEX_ID), $(FIELD_SUPER_VERTEX_ID),
             $("preparedVerticesTime").as(FIELD_EVENT_TIME));
 // todo: joining preparedvertices #m with groupedVertices #n results in #m * #n pairs, maybe is solved with distinct
@@ -257,6 +257,13 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         System.out.println("Edges Table:\n");
         tableSet.getEdges().execute().print();
+
+        Table enrichedEdges = enrichEdges(tableSet.getEdges(), expandedVertices);
+        enrichedEdges.execute().print();
+        System.out.println("Hier sollte was stehen");
+        for (String s : edgeAggregationPropertyFieldNames.keySet()) {
+            System.out.println(s + " with value " + edgeAggregationPropertyFieldNames.get(s));
+        }
 
         // 5. Assign super vertices to edges
         Table edgesWithSuperVertices = tableSet.getEdges()
@@ -268,47 +275,43 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             ))
           .where(
             $(FIELD_TARGET_ID).isEqual($("vTargetId"))
-              .and($(FIELD_EVENT_TIME).isLess($("vTargetEventTime")))
-              .and($(FIELD_EVENT_TIME).isGreaterOrEqual($("vTargetEventTime").minus(lit(10).seconds())))
+              .and($(FIELD_EVENT_TIME).isLessOrEqual($("vTargetEventTime")))
+              .and($(FIELD_EVENT_TIME).isGreater($("vTargetEventTime").minus(lit(10).seconds())))
                )
-          .select($("vTargetEventTime"), $("vTargetId"), $("supVTargetId"));
-          /*
+
           .join(
             expandedVertices.select(
               $(FIELD_VERTEX_ID).as("vSourceId"),
               $(FIELD_SUPER_VERTEX_ID).as("supVSourceId"),
               $(FIELD_EVENT_TIME).as("vSourceEventTime")
-              //$(FIELD_EVENT_TIME).minus(lit(10).seconds()).as("vSourceWindowLowerBound")
             ))
           .where(
                 $(FIELD_SOURCE_ID).isEqual($("vSourceId"))
             .and($(FIELD_EVENT_TIME).isLessOrEqual($("vSourceEventTime")))
-            .and($(FIELD_EVENT_TIME).isGreater($("vSourceWindowLowerBound"))))
+            .and($(FIELD_EVENT_TIME).isGreater($("vSourceEventTime").minus(lit(10).seconds()))))
           .select(
-            //$("vSourceWindowLowerBound"),
             $(FIELD_EDGE_ID),
             $(FIELD_EVENT_TIME),
             $("supVSourceId").as(FIELD_SOURCE_ID),
             $("supVTargetId").as(FIELD_TARGET_ID),
-            $(FIELD_EDGE_LABEL));
+            $(FIELD_EDGE_LABEL),
+            $("edge_properties")
+          );
 
-           */
 
         System.out.println("Edges with super vertices:\n");
         edgesWithSuperVertices.execute().print();
-        edgesWithSuperVertices.printSchema();
+
+        Table enrichedEdgesWithSuperVertices = enrichEdges(edgesWithSuperVertices, expandedVertices);
+        System.out.println("Edges enriched:\n");
+        enrichedEdgesWithSuperVertices.execute().print();
+
 
         // 6. Group edges by label and/or property values
-        Table groupedEdges = edgesWithSuperVertices
+        Table groupedEdges = enrichedEdgesWithSuperVertices
           .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"))
-          .groupBy($(FIELD_SOURCE_ID), $(FIELD_TARGET_ID), $(FIELD_EDGE_LABEL), $("eventWindow"))
-          .select(
-            call("CreateSuperElementId", $(FIELD_EDGE_LABEL)).as(FIELD_SUPER_EDGE_ID),
-            $(FIELD_SOURCE_ID),
-            $(FIELD_TARGET_ID),
-            $(FIELD_EDGE_LABEL),
-            lit(1).count().as("TMP13"),
-            $("eventWindow").rowtime().as("rowtime"));
+          .groupBy(buildEdgeGroupExpressions())
+          .select(buildEdgeProjectExpressions());
 
         System.out.println("Grouped edges:\n");
         groupedEdges.execute().print();
@@ -316,12 +319,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // 7. Derive new super edges from grouped edges
         Table newEdges = groupedEdges
           .select(
-            $(FIELD_SUPER_EDGE_ID).as(FIELD_EDGE_ID),
-            $(FIELD_SOURCE_ID),
-            $(FIELD_TARGET_ID),
-            $(FIELD_EDGE_LABEL),
-            call("ToProperties", row(lit("count"), $("TMP13"))).as(FIELD_EDGE_PROPERTIES),
-            $("rowtime").as(FIELD_EVENT_TIME)
+            buildSuperEdgeProjectExpressions()
           );
 
         System.out.println("New edges:\n");
