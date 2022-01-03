@@ -13,13 +13,11 @@ import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphLayout;
 import edu.leipzig.model.table.TableSet;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.Tumble;
+import org.apache.flink.table.api.*;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.planner.expressions.ExpressionBuilder;
 import org.gradoop.common.util.GradoopConstants;
 
 import java.util.Arrays;
@@ -234,11 +232,52 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         System.out.println("New Vertices\n");
         newVertices.execute().print();
 
+        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
+        builder.scalarFunctionCall(new ExtractPropertyValue("Weekday"), TableSet.FIELD_VERTEX_PROPERTIES);
+
+        Table test = preparedVertices.select(builder.build());
+        System.out.println("Test\n");
+        test.execute().print();
+
+        PlannerExpressionSeqBuilder selectPreparedVerticesGroupAttributes = new PlannerExpressionSeqBuilder(getTableEnv());
+        PlannerExpressionSeqBuilder selectGroupedVerticesGroupAttributes = new PlannerExpressionSeqBuilder(getTableEnv());
+        PlannerExpressionSeqBuilder joinConditions = new PlannerExpressionSeqBuilder(getTableEnv());
+
+        for (String key : vertexAfterGroupingPropertyFieldNames.keySet()) {
+            System.out.println(key + " mit dem namen danach: " + vertexAfterGroupingPropertyFieldNames.get(key));
+        }
+
+
+        for (String key : vertexGroupingPropertyFieldNames.keySet()) {
+            selectPreparedVerticesGroupAttributes.field(vertexGroupingPropertyFieldNames.get(key));
+            selectGroupedVerticesGroupAttributes.field(vertexAfterGroupingPropertyFieldNames.get(key));
+            joinConditions.expression($(vertexGroupingPropertyFieldNames.get(key)).isEqual($(vertexAfterGroupingPropertyFieldNames.get(key))));
+            if (useVertexLabels) {
+                joinConditions.expression($(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL)));
+            }
+        }
+        selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_EVENT_TIME).as("preparedVerticesTime");
+        selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_ID);
+        selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_LABEL);
+        selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_LABEL);
+        selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_ID);
+        selectGroupedVerticesGroupAttributes.field("vertexWindowTime").as("groupedVerticesTime");
+        joinConditions.expression($("preparedVerticesTime").isLessOrEqual($("groupedVerticesTime")))
+                .and($("preparedVerticesTime").isGreater($("groupedVerticesTime").minus(lit(10).seconds())));
+        Expression[] joinConditionArray = joinConditions.build();
+        ApiExpression apiExpression = (ApiExpression) joinConditionArray[0];
+        for (int i=0; i<joinConditions.build().length-1; i++) {
+            apiExpression = apiExpression.and(joinConditionArray[i+1]);
+        }
+
+
+
         /*
         Zu ändern: Es wird noch davon ausgegangen, dass nur auf das Label gruppiert wird. Sollten Attribute ins Spiel
         kommen noch falsch
          */
         // 4. Expand a (vertex -> super vertex) mapping
+        /*
         Table expandedVertices = preparedVertices
           .select($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL), $(FIELD_VERTEX_EVENT_TIME).as("preparedVerticesTime"))
           .join(
@@ -254,6 +293,16 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         System.out.println("Expanded Vertices\n");
         expandedVertices.execute().print();
+
+         */
+
+        Table expandedVertices = furtherPreparedVertices.select(selectPreparedVerticesGroupAttributes.build())
+                .join(groupedVertices.select(selectGroupedVerticesGroupAttributes.build())).where(
+                        apiExpression
+                ).select($(FIELD_VERTEX_ID), $(FIELD_SUPER_VERTEX_LABEL), $("preparedVerticesTime").as(FIELD_EVENT_TIME), $(FIELD_SUPER_VERTEX_ID));
+        System.out.println("NEUE EXPANDED VERTICES");
+        expandedVertices.execute().print();
+
 
         System.out.println("Edges Table:\n");
         tableSet.getEdges().execute().print();

@@ -41,24 +41,28 @@ public class GraphSummarizationJob {
         HashMap<String, Object> propertiesVertexV1 = new HashMap<>();
         propertiesVertexV1.put("Relevance", 1);
         propertiesVertexV1.put("Size", 15);
+        propertiesVertexV1.put("Weekday", "Monday");
         Properties propertiesV1 = Properties.createFromMap(propertiesVertexV1);
         v1.setVertexProperties(propertiesV1);
 
         HashMap<String, Object> propertiesVertexV2 = new HashMap<>();
         propertiesVertexV2.put("Relevance", 3);
         propertiesVertexV2.put("Size", 10);
+        propertiesVertexV2.put("Weekday", "Tuesday");
         Properties propertiesV2 = Properties.createFromMap(propertiesVertexV2);
         v2.setVertexProperties(propertiesV2);
 
         HashMap<String, Object> propertiesVertexV3 = new HashMap<>();
         propertiesVertexV3.put("Relevance", 2);
         propertiesVertexV3.put("Size", 30);
+        propertiesVertexV3.put("Weekday", "Wednesday");
         Properties propertiesV3 = Properties.createFromMap(propertiesVertexV3);
         v3.setVertexProperties(propertiesV3);
 
         HashMap<String, Object> propertiesVertexV4 = new HashMap<>();
         propertiesVertexV4.put("Relevance", 5);
         propertiesVertexV4.put("Size", 5);
+        propertiesVertexV4.put("Weekday", "Thursday");
         Properties propertiesV4 = Properties.createFromMap(propertiesVertexV4);
         v4.setVertexProperties(propertiesV4);
 
@@ -116,11 +120,11 @@ public class GraphSummarizationJob {
             groupingBuilder.addVertexAggregateFunction(customizedAggregationFunction);
         }
         for (CustomizedAggregationFunction customizedAggregationFunction : inputToCustomizedAggFunction(edgeAggregateFunctions)) {
-            groupingBuilder.addVertexAggregateFunction(customizedAggregationFunction);
+            groupingBuilder.addEdgeAggregateFunction(customizedAggregationFunction);
         }
 
         streamGraph = groupingBuilder.build().execute(streamGraph);
-        streamGraph.print();
+        //streamGraph.print();
 
 
     }
