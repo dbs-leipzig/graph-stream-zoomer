@@ -523,9 +523,12 @@ public abstract class TableGroupingBase {
             fields = new String[edgeGroupingPropertyFieldNames.size()];
             for (int i = 0; i < edgeGroupingPropertyKeys.size(); i++)
                 fields[i] = edgeGroupingPropertyFieldNames.get(edgeGroupingPropertyKeys.get(i));
+            /*
             builder
                     .scalarFunctionCall(new CreateSuperElementId(), fields)
                     .as(FIELD_SUPER_EDGE_ID);
+
+             */
         } // no edge grouping criteria specified
         else {
             fields = new String[1];

@@ -254,12 +254,12 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             joinConditions.expression($(vertexGroupingPropertyFieldNames.get(key)).isEqual($(vertexAfterGroupingPropertyFieldNames.get(key))));
             if (useVertexLabels) {
                 joinConditions.expression($(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL)));
+                selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_LABEL);
+                selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_LABEL);
             }
         }
         selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_EVENT_TIME).as("preparedVerticesTime");
         selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_ID);
-        selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_LABEL);
-        selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_LABEL);
         selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_ID);
         selectGroupedVerticesGroupAttributes.field("vertexWindowTime").as("groupedVerticesTime");
         joinConditions.expression($("preparedVerticesTime").isLessOrEqual($("groupedVerticesTime")))
@@ -296,10 +296,17 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
          */
 
+        PlannerExpressionSeqBuilder selectFromExpandedVertices = new PlannerExpressionSeqBuilder(getTableEnv());
+        selectFromExpandedVertices.field(FIELD_VERTEX_ID);
+        selectFromExpandedVertices.field("preparedVerticesTime").as(FIELD_EVENT_TIME);
+        selectFromExpandedVertices.field(FIELD_SUPER_VERTEX_ID);
+        if (useVertexLabels){
+            selectFromExpandedVertices.field(FIELD_SUPER_VERTEX_LABEL);
+        }
         Table expandedVertices = furtherPreparedVertices.select(selectPreparedVerticesGroupAttributes.build())
                 .join(groupedVertices.select(selectGroupedVerticesGroupAttributes.build())).where(
                         apiExpression
-                ).select($(FIELD_VERTEX_ID), $(FIELD_SUPER_VERTEX_LABEL), $("preparedVerticesTime").as(FIELD_EVENT_TIME), $(FIELD_SUPER_VERTEX_ID));
+                ).select(selectFromExpandedVertices.build());
         System.out.println("NEUE EXPANDED VERTICES");
         expandedVertices.execute().print();
 
@@ -366,6 +373,9 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         groupedEdges.execute().print();
 
         // 7. Derive new super edges from grouped edges
+        for (Expression apiExpressionNext :  buildSuperEdgeProjectExpressions()) {
+            System.out.println(apiExpressionNext.asSummaryString());
+        }
         Table newEdges = groupedEdges
           .select(
             buildSuperEdgeProjectExpressions()
@@ -454,10 +464,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // vertex_label
         if (useVertexLabels) {
             builder.field(FIELD_SUPER_VERTEX_LABEL).as(TableSet.FIELD_VERTEX_LABEL);
-        } else {
-            builder
-                    .literal(GradoopConstants.DEFAULT_VERTEX_LABEL)
-                    .as(TableSet.FIELD_VERTEX_LABEL);
         }
 
         // grouped_properties + aggregated_properties -> vertex_properties
@@ -503,12 +509,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // edge_label
         if (useEdgeLabels) {
             builder.field(TableSet.FIELD_EDGE_LABEL);
-        } else {
-            builder
-                    .literal(GradoopConstants.DEFAULT_EDGE_LABEL)
-                    .as(TableSet.FIELD_EDGE_LABEL);
         }
-
         // grouped_properties + aggregated_properties -> edge_properties
         PlannerExpressionSeqBuilder propertyKeysAndFieldsBuilder = new PlannerExpressionSeqBuilder(getTableEnv());
         addPropertyKeyValueExpressions(

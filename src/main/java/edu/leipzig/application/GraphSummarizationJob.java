@@ -68,16 +68,19 @@ public class GraphSummarizationJob {
 
         HashMap<String, Object> propertiesEdge1 = new HashMap<>();
         propertiesEdge1.put("Weight", 5);
+        propertiesEdge1.put("Weekday", "Thursday");
         Properties propertiesE1 = Properties.createFromMap(propertiesEdge1);
 
         HashMap<String, Object> propertiesEdge2 = new HashMap<>();
         propertiesEdge2.put("Weight", 6);
+        propertiesEdge2.put("Weekday", "Wednesday");
         Properties propertiesE2 = Properties.createFromMap(propertiesEdge2);
 
         StreamTriple edge1 = new StreamTriple("1", t1, "impacts",  propertiesE1, v1, v2);
         StreamTriple edge2 = new StreamTriple("2", t1, "impacts", propertiesE2, v3, v4);
+        StreamTriple edge3 = new StreamTriple("3", t1, "calculates", propertiesE1, v3, v4);
 
-        DataStream<StreamTriple> testStream = env.fromElements(edge1, edge2);
+        DataStream<StreamTriple> testStream = env.fromElements(edge1, edge2, edge3);
 
         /*
         args: 1: windowsize
