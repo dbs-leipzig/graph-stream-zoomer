@@ -55,7 +55,7 @@ public class GraphSummarizationJob {
         HashMap<String, Object> propertiesVertexV3 = new HashMap<>();
         propertiesVertexV3.put("Relevance", 2);
         propertiesVertexV3.put("Size", 30);
-        propertiesVertexV3.put("Weekday", "Wednesday");
+        propertiesVertexV3.put("Weekday", "Monday");
         Properties propertiesV3 = Properties.createFromMap(propertiesVertexV3);
         v3.setVertexProperties(propertiesV3);
 

@@ -129,6 +129,14 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      */
     protected TableSet testPerformGrouping() {
 
+        /*Todo: Knoten ohne zu gruppierende Eigenschaft in eigenen SuperVertex
+        Null bei Gruppieren ohne Grouping property
+        Aggregateproperties, die nicht existieren, überspringen
+        Twitteranmeldung -> Developerplattform twitter -> neue Anwendung -> 4 keys für t.e-input
+        Konfigurationsmöglichkeiten in Integrationtests einbauen
+        JoinConditions als PlannerExpressionBuilder
+         */
+
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
         final StreamTableEnvironment streamTableEnvironment = StreamTableEnvironment.create(env, bsSettings);
@@ -235,9 +243,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
         builder.scalarFunctionCall(new ExtractPropertyValue("Weekday"), TableSet.FIELD_VERTEX_PROPERTIES);
 
-        Table test = preparedVertices.select(builder.build());
-        System.out.println("Test\n");
-        test.execute().print();
 
         PlannerExpressionSeqBuilder selectPreparedVerticesGroupAttributes = new PlannerExpressionSeqBuilder(getTableEnv());
         PlannerExpressionSeqBuilder selectGroupedVerticesGroupAttributes = new PlannerExpressionSeqBuilder(getTableEnv());
@@ -252,11 +257,11 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             selectPreparedVerticesGroupAttributes.field(vertexGroupingPropertyFieldNames.get(key));
             selectGroupedVerticesGroupAttributes.field(vertexAfterGroupingPropertyFieldNames.get(key));
             joinConditions.expression($(vertexGroupingPropertyFieldNames.get(key)).isEqual($(vertexAfterGroupingPropertyFieldNames.get(key))));
-            if (useVertexLabels) {
-                joinConditions.expression($(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL)));
-                selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_LABEL);
-                selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_LABEL);
-            }
+        }
+        if (useVertexLabels) {
+            joinConditions.expression($(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL)));
+            selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_LABEL);
+            selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_LABEL);
         }
         selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_EVENT_TIME).as("preparedVerticesTime");
         selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_ID);
