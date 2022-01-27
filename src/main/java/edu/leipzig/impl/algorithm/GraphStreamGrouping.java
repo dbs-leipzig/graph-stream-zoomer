@@ -408,6 +408,11 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         }
     }
 
+    /**
+     * Builds expression to select necessary columns from expandedVertices table
+     *
+     * @return scala sequence of expressions defining the selected columns
+     */
     private Expression[] buildSelectFromExpandedVertices() {
         PlannerExpressionSeqBuilder selectFromExpandedVertices =
           new PlannerExpressionSeqBuilder(getTableEnv());
@@ -419,7 +424,11 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         }
         return selectFromExpandedVertices.build();
     }
-
+    /**
+     * selects attributes from furtherPreparedVertices table to join them with groupedVertices table
+     *
+     * @return scala sequence of expressions defining the selected columns for the join
+     */
     private Expression[] buildSelectPreparedVerticesGroupAttributes(){
         PlannerExpressionSeqBuilder selectPreparedVerticesGroupAttributes =
           new PlannerExpressionSeqBuilder(getTableEnv());
@@ -436,6 +445,11 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         return selectPreparedVerticesGroupAttributes.build();
     }
 
+    /**
+     * selects attributes from groupedVertices table to join them with furtherPreparedVertices table
+     *
+     * @return scala sequence of expressions defining the selected columns for the join
+     */
     private Expression[] buildSelectGroupedVerticesGroupAttributes(){
         PlannerExpressionSeqBuilder selectGroupedVerticesGroupAttributes =
           new PlannerExpressionSeqBuilder(getTableEnv());
@@ -451,6 +465,12 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         return selectGroupedVerticesGroupAttributes.build();
     }
 
+    /**
+     * Defines the join condition for groupedVertices and furtherPreparedVertices to create the
+     * expandedVertices table
+     *
+     * @return Join conditions connected via conjunctions
+     */
     private Expression buildJoinConditionForExpandedVertices(){
         PlannerExpressionSeqBuilder joinConditions = new PlannerExpressionSeqBuilder(getTableEnv());
         for (String key : vertexGroupingPropertyFieldNames.keySet()) {
