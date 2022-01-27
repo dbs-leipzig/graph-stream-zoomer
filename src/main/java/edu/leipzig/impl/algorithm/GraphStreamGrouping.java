@@ -92,7 +92,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         // 1. Prepare distinct vertices
         Table preparedVertices = tableSet.getVertices()
-          .select(buildVertexGroupProjectExpressions(true))
+          .select(buildVertexGroupProjectExpressions())
           .distinct();
 
         // 2. Group vertices by label and/or property values
@@ -136,20 +136,10 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         Konfigurationsmöglichkeiten in Integrationtests einbauen
         JoinConditions als PlannerExpressionBuilder
          */
-
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        final EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        final StreamTableEnvironment streamTableEnvironment = StreamTableEnvironment.create(env, bsSettings);
-
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
 
-        Table beforePreparedVertices = getTableEnv().sqlQuery("SELECT " + FIELD_VERTEX_ID
-        +" as " + FIELD_VERTEX_ID +", " + FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL +", " +
-          FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES +", " + FIELD_EVENT_TIME + " as " +
-          FIELD_EVENT_TIME + " FROM " + getTableEnv().from(TABLE_VERTICES));
-        //beforePreparedVertices.execute().print();
-
+        // 1. Prepare distinct vertices
         Table preparedVertices = getTableEnv().sqlQuery(
                 "Select window_time as " + FIELD_VERTEX_EVENT_TIME + ", " + FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID+
                         ", " + FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL + ", " + FIELD_VERTEX_PROPERTIES +
@@ -161,10 +151,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         System.out.println("Prepared Vertices Table: \n");
         preparedVertices.execute().print();
 
-        Table furtherPreparedVertices = preparedVertices.select(buildVertexGroupProjectExpressions(true));
+        Table furtherPreparedVertices = preparedVertices.select(buildVertexGroupProjectExpressions());
         furtherPreparedVertices.execute().print();
-
-
 
         List<ScalarFunction> scalarFunctionsToRegister = Arrays.asList(
           new CreateSuperElementId(),
@@ -178,54 +166,12 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
                 getTableEnv().registerFunction(f.toString(), f);
             }
         }
-
-
-        // 1. Prepare distinct vertices
-        /*
-        Table preparedVertices = getTableEnv().from(TABLE_VERTICES)
-          .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"))
-          .groupBy($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL), $("eventWindow"))
-          .select($(FIELD_VERTEX_ID).as(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_LABEL),
-            $("eventWindow").rowtime().as(FIELD_VERTEX_EVENT_TIME));
-          //.select(buildVertexGroupProjectExpressions());
-            //$(FIELD_EVENT_TIME));
-
-        System.out.println("Prepared Vertices\n");
-        preparedVertices.execute().print();
-
-         */
-
-        // group by id, label, window ; select id label window
-          //.distinct();
-
-        for (CustomizedAggregationFunction caf : vertexAggregateFunctions) {
-            System.out.println(caf.getAggregatePropertyKey()  + " " + caf.getPropertyKey() + " " + caf + " "+ caf.getTableAggFunction());
-        }
-
         // 2. Group vertices by label and/or property values
         Table groupedVertices = furtherPreparedVertices
           .window(Tumble.over(lit(10).seconds()).on($(FIELD_VERTEX_EVENT_TIME)).as("eventWindow"))
           .groupBy(buildVertexGroupExpressions())
                 .select(buildVertexProjectExpressions());
 
-
-          //.groupBy($(FIELD_VERTEX_LABEL), $(FIELD_EVENT_TIME)) // here, EVENT_TIME ist the window identifier timestamp
-
-        /*
-        Table groupedVertices = preparedVertices
-                .window(Tumble.over(lit(10).seconds()).on($(FIELD_VERTEX_EVENT_TIME)).as("eventWindow"))
-                .groupBy($(FIELD_VERTEX_LABEL), $("eventWindow"))
-                //.groupBy($(FIELD_VERTEX_LABEL), $(FIELD_EVENT_TIME)) // here, EVENT_TIME ist the window identifier timestamp
-                .select(
-                        //superElementId muss auch abhängig vom event window sein?
-                        call("CreateSuperElementId", $(FIELD_VERTEX_LABEL)).as(FIELD_SUPER_VERTEX_ID),
-                        $(FIELD_VERTEX_LABEL).as(FIELD_SUPER_VERTEX_LABEL),
-                        lit(1).count().as("TMP12"),
-                        $("eventWindow").rowtime().as("vertexWindowTime")
-                        // $(FIELD_EVENT_TIME).as("vertexWindowTime")
-                );
-
-         */
         System.out.println("Grouped Vertices:\n");
         groupedVertices.execute().print();
 
@@ -240,78 +186,10 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         System.out.println("New Vertices\n");
         newVertices.execute().print();
 
-        PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
-        builder.scalarFunctionCall(new ExtractPropertyValue("Weekday"), TableSet.FIELD_VERTEX_PROPERTIES);
-
-
-        PlannerExpressionSeqBuilder selectPreparedVerticesGroupAttributes = new PlannerExpressionSeqBuilder(getTableEnv());
-        PlannerExpressionSeqBuilder selectGroupedVerticesGroupAttributes = new PlannerExpressionSeqBuilder(getTableEnv());
-        PlannerExpressionSeqBuilder joinConditions = new PlannerExpressionSeqBuilder(getTableEnv());
-
-        for (String key : vertexAfterGroupingPropertyFieldNames.keySet()) {
-            System.out.println(key + " mit dem namen danach: " + vertexAfterGroupingPropertyFieldNames.get(key));
-        }
-
-
-        for (String key : vertexGroupingPropertyFieldNames.keySet()) {
-            selectPreparedVerticesGroupAttributes.field(vertexGroupingPropertyFieldNames.get(key));
-            selectGroupedVerticesGroupAttributes.field(vertexAfterGroupingPropertyFieldNames.get(key));
-            joinConditions.expression($(vertexGroupingPropertyFieldNames.get(key)).isEqual($(vertexAfterGroupingPropertyFieldNames.get(key))));
-        }
-        if (useVertexLabels) {
-            joinConditions.expression($(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL)));
-            selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_LABEL);
-            selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_LABEL);
-        }
-        selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_EVENT_TIME).as("preparedVerticesTime");
-        selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_ID);
-        selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_ID);
-        selectGroupedVerticesGroupAttributes.field("vertexWindowTime").as("groupedVerticesTime");
-        joinConditions.expression($("preparedVerticesTime").isLessOrEqual($("groupedVerticesTime")))
-                .and($("preparedVerticesTime").isGreater($("groupedVerticesTime").minus(lit(10).seconds())));
-        Expression[] joinConditionArray = joinConditions.build();
-        ApiExpression apiExpression = (ApiExpression) joinConditionArray[0];
-        for (int i=0; i<joinConditions.build().length-1; i++) {
-            apiExpression = apiExpression.and(joinConditionArray[i+1]);
-        }
-
-
-
-        /*
-        Zu ändern: Es wird noch davon ausgegangen, dass nur auf das Label gruppiert wird. Sollten Attribute ins Spiel
-        kommen noch falsch
-         */
-        // 4. Expand a (vertex -> super vertex) mapping
-        /*
-        Table expandedVertices = preparedVertices
-          .select($(FIELD_VERTEX_ID), $(FIELD_VERTEX_LABEL), $(FIELD_VERTEX_EVENT_TIME).as("preparedVerticesTime"))
-          .join(
-            groupedVertices.select($(FIELD_SUPER_VERTEX_ID), $(FIELD_SUPER_VERTEX_LABEL), $("vertexWindowTime").as("groupedVerticesTime")),
-            $(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL))
-              .and($("preparedVerticesTime").isLessOrEqual($("groupedVerticesTime")))
-              .and($("preparedVerticesTime").isGreater($("groupedVerticesTime").minus(lit(10).seconds())))
-            //zweites and essentiell, dass IllegalState beim edgesWithSuperVerticesJoin vermieden wird
-          )
-          .select($(FIELD_VERTEX_ID), $(FIELD_SUPER_VERTEX_ID),
-            $("preparedVerticesTime").as(FIELD_EVENT_TIME));
-// todo: joining preparedvertices #m with groupedVertices #n results in #m * #n pairs, maybe is solved with distinct
-
-        System.out.println("Expanded Vertices\n");
-        expandedVertices.execute().print();
-
-         */
-
-        PlannerExpressionSeqBuilder selectFromExpandedVertices = new PlannerExpressionSeqBuilder(getTableEnv());
-        selectFromExpandedVertices.field(FIELD_VERTEX_ID);
-        selectFromExpandedVertices.field("preparedVerticesTime").as(FIELD_EVENT_TIME);
-        selectFromExpandedVertices.field(FIELD_SUPER_VERTEX_ID);
-        if (useVertexLabels){
-            selectFromExpandedVertices.field(FIELD_SUPER_VERTEX_LABEL);
-        }
-        Table expandedVertices = furtherPreparedVertices.select(selectPreparedVerticesGroupAttributes.build())
-                .join(groupedVertices.select(selectGroupedVerticesGroupAttributes.build())).where(
-                        apiExpression
-                ).select(selectFromExpandedVertices.build());
+        Table expandedVertices = furtherPreparedVertices.select(buildSelectPreparedVerticesGroupAttributes())
+                .join(groupedVertices.select(buildSelectGroupedVerticesGroupAttributes())).where(
+                        buildJoinConditionForExpandedVertices()
+                ).select(buildSelectFromExpandedVertices());
         System.out.println("NEUE EXPANDED VERTICES");
         expandedVertices.execute().print();
 
@@ -321,10 +199,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         Table enrichedEdges = enrichEdges(tableSet.getEdges(), expandedVertices);
         enrichedEdges.execute().print();
-        System.out.println("Hier sollte was stehen");
-        for (String s : edgeAggregationPropertyFieldNames.keySet()) {
-            System.out.println(s + " with value " + edgeAggregationPropertyFieldNames.get(s));
-        }
 
         // 5. Assign super vertices to edges
         Table edgesWithSuperVertices = tableSet.getEdges()
@@ -378,9 +252,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         groupedEdges.execute().print();
 
         // 7. Derive new super edges from grouped edges
-        for (Expression apiExpressionNext :  buildSuperEdgeProjectExpressions()) {
-            System.out.println(apiExpressionNext.asSummaryString());
-        }
         Table newEdges = groupedEdges
           .select(
             buildSuperEdgeProjectExpressions()
@@ -397,28 +268,12 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      *
      * @return prepared vertices table
      */
-    private Expression[] buildVertexGroupProjectExpressions(boolean flag) {
+    private Expression[] buildVertexGroupProjectExpressions() {
         PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
-        PlannerExpressionSeqBuilder createSuperElementIdEx = new PlannerExpressionSeqBuilder(getTableEnv());
-        createSuperElementIdEx.expression($(FIELD_VERTEX_LABEL));
-        Expression[] functionParameter = createSuperElementIdEx.build();
 
-        // vertex_id
-        if (flag) {
-            builder.field(TableSet.FIELD_VERTEX_ID);
-            builder.field(FIELD_VERTEX_EVENT_TIME);
-        }
-        else {
-            //builder.field(FIELD_SUPER_VERTEX_ID);
-            //builder.expression($("eventWindow").rowtime()).as("vertexWindowTime");
-            builder.field(FIELD_VERTEX_EVENT_TIME);
-            builder.expression(call("CreateSuperElementId", $(FIELD_VERTEX_LABEL)).as(FIELD_SUPER_VERTEX_ID));
-            builder.expression($(FIELD_VERTEX_LABEL).as(FIELD_SUPER_VERTEX_LABEL));
+        builder.field(TableSet.FIELD_VERTEX_ID);
+        builder.field(FIELD_VERTEX_EVENT_TIME);
 
-
-        }
-
-        // optionally: vertex_label
         if (useVertexLabels) {
             builder.field(TableSet.FIELD_VERTEX_LABEL);
         }
@@ -446,9 +301,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
                   .put(aggregateFunction.getAggregatePropertyKey(), propertyFieldAlias);
             }
         }
-
-        System.out.println("DAS IST DER BUILDER:\n " + builder.buildString());
-
         return builder.build();
     }
 
@@ -554,5 +406,66 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             builder.literal(propertyKey);
             builder.field(fieldNameMap.get(propertyKey));
         }
+    }
+
+    private Expression[] buildSelectFromExpandedVertices() {
+        PlannerExpressionSeqBuilder selectFromExpandedVertices =
+          new PlannerExpressionSeqBuilder(getTableEnv());
+        selectFromExpandedVertices.field(FIELD_VERTEX_ID);
+        selectFromExpandedVertices.field("preparedVerticesTime").as(FIELD_EVENT_TIME);
+        selectFromExpandedVertices.field(FIELD_SUPER_VERTEX_ID);
+        if (useVertexLabels) {
+            selectFromExpandedVertices.field(FIELD_SUPER_VERTEX_LABEL);
+        }
+        return selectFromExpandedVertices.build();
+    }
+
+    private Expression[] buildSelectPreparedVerticesGroupAttributes(){
+        PlannerExpressionSeqBuilder selectPreparedVerticesGroupAttributes =
+          new PlannerExpressionSeqBuilder(getTableEnv());
+
+        for (String key : vertexGroupingPropertyFieldNames.keySet()) {
+            selectPreparedVerticesGroupAttributes.field(vertexGroupingPropertyFieldNames.get(key));
+        }
+        if (useVertexLabels) {
+            selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_LABEL);
+        }
+
+        selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_EVENT_TIME).as("preparedVerticesTime");
+        selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_ID);
+        return selectPreparedVerticesGroupAttributes.build();
+    }
+
+    private Expression[] buildSelectGroupedVerticesGroupAttributes(){
+        PlannerExpressionSeqBuilder selectGroupedVerticesGroupAttributes =
+          new PlannerExpressionSeqBuilder(getTableEnv());
+
+        for (String key : vertexGroupingPropertyFieldNames.keySet()) {
+            selectGroupedVerticesGroupAttributes.field(vertexAfterGroupingPropertyFieldNames.get(key));
+        }
+        if (useVertexLabels) {
+            selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_LABEL);
+        }
+        selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_ID);
+        selectGroupedVerticesGroupAttributes.field("vertexWindowTime").as("groupedVerticesTime");
+        return selectGroupedVerticesGroupAttributes.build();
+    }
+
+    private Expression buildJoinConditionForExpandedVertices(){
+        PlannerExpressionSeqBuilder joinConditions = new PlannerExpressionSeqBuilder(getTableEnv());
+        for (String key : vertexGroupingPropertyFieldNames.keySet()) {
+            joinConditions.expression($(vertexGroupingPropertyFieldNames.get(key)).isEqual($(vertexAfterGroupingPropertyFieldNames.get(key))));
+        }
+        if (useVertexLabels) {
+            joinConditions.expression($(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL)));
+        }
+        joinConditions.expression($("preparedVerticesTime").isLessOrEqual($("groupedVerticesTime")))
+          .and($("preparedVerticesTime").isGreater($("groupedVerticesTime").minus(lit(10).seconds())));
+        Expression[] joinConditionArray = joinConditions.build();
+        ApiExpression apiExpression = (ApiExpression) joinConditionArray[0];
+        for (int i=0; i<joinConditions.build().length-1; i++) {
+            apiExpression = apiExpression.and(joinConditionArray[i+1]);
+        }
+        return apiExpression;
     }
 }
