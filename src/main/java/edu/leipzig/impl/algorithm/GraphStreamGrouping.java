@@ -1,7 +1,6 @@
 package edu.leipzig.impl.algorithm;
 
 import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
-import edu.leipzig.impl.functions.aggregation.MinProperty;
 import edu.leipzig.impl.functions.utils.CreateSuperElementId;
 import edu.leipzig.impl.functions.utils.EmptyProperties;
 import edu.leipzig.impl.functions.utils.ExtractPropertyValue;
@@ -12,13 +11,9 @@ import edu.leipzig.model.graph.GraphStreamToGraphStreamOperator;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphLayout;
 import edu.leipzig.model.table.TableSet;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.*;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.planner.expressions.ExpressionBuilder;
-import org.gradoop.common.util.GradoopConstants;
 
 import java.util.Arrays;
 import java.util.List;
@@ -126,6 +121,11 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
     /**
      * Here we must test the windowed type of our grouping before we put it in a generalized way in our algo
      * @return
+     */
+    /**
+     * Perform grouping based on stream graph layout and put result tables into new table set
+     *
+     * @return table set of result stream graph
      */
     protected TableSet testPerformGrouping() {
 
