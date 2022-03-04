@@ -1,7 +1,6 @@
 package edu.leipzig.application;
 
 import edu.leipzig.application.functions.JSONToStreamObjectMapper;
-import edu.leipzig.impl.algorithm.GraphStreamGrouping;
 import edu.leipzig.impl.algorithm.TableGroupingBase;
 import edu.leipzig.impl.functions.aggregation.*;
 import edu.leipzig.model.graph.StreamGraph;
@@ -21,10 +20,6 @@ import java.util.HashMap;
 public class GraphSummarizationJob {
 
     public static void main(String[] args) throws Exception {
-
-        /*
-        Hier noch definieren von Graphen ohne Userinput. Wie wird graph sonst eingegeben?
-         */
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 

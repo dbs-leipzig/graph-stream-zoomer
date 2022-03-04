@@ -129,13 +129,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      */
     protected TableSet testPerformGrouping() {
 
-        /*Todo: Knoten ohne zu gruppierende Eigenschaft in eigenen SuperVertex
-        Null bei Gruppieren ohne Grouping property
-        Aggregateproperties, die nicht existieren, überspringen
-        Twitteranmeldung -> Developerplattform twitter -> neue Anwendung -> 4 keys für t.e-input
-        Konfigurationsmöglichkeiten in Integrationtests einbauen
-        JoinConditions als PlannerExpressionBuilder
-         */
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
 
@@ -151,8 +144,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         System.out.println("Prepared Vertices Table: \n");
         preparedVertices.execute().print();
 
+        // 2. Write grouping or aggregating properties in owm column, extract from vertex_properties column
         Table furtherPreparedVertices = preparedVertices.select(buildVertexGroupProjectExpressions());
-        furtherPreparedVertices.execute().print();
 
         List<ScalarFunction> scalarFunctionsToRegister = Arrays.asList(
           new CreateSuperElementId(),
@@ -166,18 +159,13 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
                 getTableEnv().registerFunction(f.toString(), f);
             }
         }
-        // 2. Group vertices by label and/or property values
+        // 3. Group vertices by label and/or property values
         Table groupedVertices = furtherPreparedVertices
           .window(Tumble.over(lit(10).seconds()).on($(FIELD_VERTEX_EVENT_TIME)).as("eventWindow"))
           .groupBy(buildVertexGroupExpressions())
                 .select(buildVertexProjectExpressions());
 
-        System.out.println("Grouped Vertices:\n");
-        groupedVertices.execute().print();
-
-        //todo: check that there are no duplicates aggregated
-
-        // 3. Derive new super vertices
+        // 4. Derive new super vertices
         Table newVertices = groupedVertices
           .select(
             buildSuperVertexProjectExpressions()
@@ -186,21 +174,13 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         System.out.println("New Vertices\n");
         newVertices.execute().print();
 
+        // 5. Mapping between super-vertices and basic vertices
         Table expandedVertices = furtherPreparedVertices.select(buildSelectPreparedVerticesGroupAttributes())
                 .join(groupedVertices.select(buildSelectGroupedVerticesGroupAttributes())).where(
                         buildJoinConditionForExpandedVertices()
                 ).select(buildSelectFromExpandedVertices());
-        System.out.println("NEUE EXPANDED VERTICES");
-        expandedVertices.execute().print();
 
-
-        System.out.println("Edges Table:\n");
-        tableSet.getEdges().execute().print();
-
-        Table enrichedEdges = enrichEdges(tableSet.getEdges(), expandedVertices);
-        enrichedEdges.execute().print();
-
-        // 5. Assign super vertices to edges
+        // 6. Assign super vertices to edges
         Table edgesWithSuperVertices = tableSet.getEdges()
           .join(
             expandedVertices.select(
@@ -233,25 +213,16 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             $("edge_properties")
           );
 
-
-        System.out.println("Edges with super vertices:\n");
-        edgesWithSuperVertices.execute().print();
-
+        // 7. Write grouping or aggregating properties in owm column, extract from edge_properties column
         Table enrichedEdgesWithSuperVertices = enrichEdges(edgesWithSuperVertices, expandedVertices);
-        System.out.println("Edges enriched:\n");
-        enrichedEdgesWithSuperVertices.execute().print();
 
-
-        // 6. Group edges by label and/or property values
+        // 8. Group edges by label and/or property values
         Table groupedEdges = enrichedEdgesWithSuperVertices
           .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as("eventWindow"))
           .groupBy(buildEdgeGroupExpressions())
           .select(buildEdgeProjectExpressions());
 
-        System.out.println("Grouped edges:\n");
-        groupedEdges.execute().print();
-
-        // 7. Derive new super edges from grouped edges
+        // 9. Derive new super edges from grouped edges
         Table newEdges = groupedEdges
           .select(
             buildSuperEdgeProjectExpressions()
