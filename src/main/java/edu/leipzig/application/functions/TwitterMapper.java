@@ -41,11 +41,15 @@ public class TwitterMapper implements FlatMapFunction<String, StreamTriple> {
             return;
         }
 
+        JsonNode jsonNode = jsonParser.readValue(value, JsonNode.class);
+        Timestamp timestamp = new Timestamp(jsonNode.get("timestamp_ms").asLong());
+
         StreamVertex tweetVertex = new StreamVertex();
         Properties tweetProperties = Properties.create();
         // todo: use long or byte as id for vertex
         tweetVertex.setVertexId(String.valueOf(status.getId()));
         tweetVertex.setVertexLabel("tweet");
+        tweetVertex.setEventTime(timestamp);
         tweetProperties.set("source", status.getSource());
         tweetProperties.set("lang", status.getLang());
         if (status.getPlace() != null) {
@@ -59,6 +63,7 @@ public class TwitterMapper implements FlatMapFunction<String, StreamTriple> {
 
         userVertex.setVertexId(String.valueOf(user.getId()));
         userVertex.setVertexLabel("user");
+        userVertex.setEventTime(timestamp);
         userProperties.set("name", user.getName());
         userProperties.set("screen_name", user.getScreenName());
         userProperties.set("location", user.getLocation());
@@ -67,12 +72,15 @@ public class TwitterMapper implements FlatMapFunction<String, StreamTriple> {
         userProperties.set("statuses_count", user.getStatusesCount());
         userVertex.setVertexProperties(userProperties);
 
-        JsonNode jsonNode = jsonParser.readValue(value, JsonNode.class);
-        Timestamp timestamp = new Timestamp(jsonNode.get("timestamp_ms").asLong());
-
         Properties edgeProps = Properties.create();
         edgeProps.set("createdAt", status.getCreatedAt().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime());
-        StreamTriple edge = new StreamTriple(GradoopId.get().toString(), timestamp, "createdByUser", edgeProps, tweetVertex, userVertex);
+        StreamTriple edge = new StreamTriple(
+          GradoopId.get().toString(),
+          timestamp,
+          "createdByUser",
+          edgeProps,
+          tweetVertex,
+          userVertex);
 
         out.collect(edge);
     }

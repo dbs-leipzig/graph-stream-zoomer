@@ -64,13 +64,14 @@ public class JSONToStreamObjectMapper implements MapFunction<String, StreamTripl
     Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
     // new instance of StreamVertex as source object
-    source = new StreamVertex(root.getAsJsonObject().get(SOURCE).getAsJsonObject().get(ID).getAsString(),
-      root.getAsJsonObject().get(SOURCE).getAsJsonObject().get(LABEL).getAsString(), Properties.createFromMap(
-      g.fromJson(root.getAsJsonObject().get(SOURCE).getAsJsonObject().get(PROPERTIES),
-        new TypeToken<HashMap<String, Object>>() {
-        }.getType()))
-      ,timestamp
-    );
+    source = new StreamVertex(
+      root.getAsJsonObject().get(SOURCE).getAsJsonObject().get(ID).getAsString(),
+      root.getAsJsonObject().get(SOURCE).getAsJsonObject().get(LABEL).getAsString(),
+      Properties.createFromMap(
+        g.fromJson(
+          root.getAsJsonObject().get(SOURCE).getAsJsonObject().get(PROPERTIES),
+          new TypeToken<HashMap<String, Object>>() {}.getType()))
+      ,timestamp);
 
     // new instance of StreamVertex as target object
     target = new StreamVertex(root.getAsJsonObject().get(TARGET).getAsJsonObject().get(ID).getAsString(),

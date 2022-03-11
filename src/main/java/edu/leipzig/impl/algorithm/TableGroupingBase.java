@@ -51,6 +51,12 @@ public abstract class TableGroupingBase {
      * Field name for super edge
      */
     static final String FIELD_SUPER_EDGE_ID = "super_edge_id";
+
+    static final String FIELD_SUPER_VERTEX_EVENT_WINDOW = "super_vertex_event_window";
+
+    static final String FIELD_SUPER_VERTEX_ROWTIME = "super_vertex_rowtime";
+
+    static final String FIELD_EDGE_EVENT_WINDOW = "edge_event_window";
     /**
      * True if vertices shall be grouped using their label.
      */
@@ -241,7 +247,7 @@ public abstract class TableGroupingBase {
             expressions.add($(TableSet.FIELD_VERTEX_ID));
         }
 
-        expressions.add($("eventWindow"));
+        expressions.add($(FIELD_SUPER_VERTEX_EVENT_WINDOW));
 
         return expressions.toArray(new Expression[0]);
     }
@@ -325,7 +331,7 @@ public abstract class TableGroupingBase {
             builder.as(fieldNameAfterAggregation);
         }
 
-        builder.expression($("eventWindow").rowtime()).as("vertexWindowTime");
+        builder.expression($(FIELD_SUPER_VERTEX_EVENT_WINDOW).rowtime()).as(FIELD_SUPER_VERTEX_ROWTIME);
         return builder.build();
     }
 
@@ -462,6 +468,47 @@ public abstract class TableGroupingBase {
         return enrichEdges.select(projectExpressionsBuilder.build());
     }
 
+    Expression[] buildEdgeGroupProjectExpressions() {
+        // 1. Set needed project expressions (edge_id, timestamp, source_id, target_id)
+        PlannerExpressionSeqBuilder projectExpressionsBuilder = new PlannerExpressionSeqBuilder(getTableEnv())
+          .field(FIELD_EDGE_ID)
+          .field(FIELD_EVENT_TIME)
+          .field(FIELD_SOURCE_ID)
+          .field(FIELD_TARGET_ID);
+
+        // 2. optionally: edge_label
+        if (useEdgeLabels) {
+            projectExpressionsBuilder.field(TableSet.FIELD_EDGE_LABEL);
+        }
+
+        // 3. Add properties (key and aggregate)
+
+        // grouping_property_1 AS tmp_e1, ... , grouping_property_k AS tmp_ek
+        for (String propertyKey : edgeGroupingPropertyKeys) {
+            String propertyColumnName = getConfig().createUniqueAttributeName();
+            projectExpressionsBuilder
+              .scalarFunctionCall(new ExtractPropertyValue(propertyKey),
+                TableSet.FIELD_EDGE_PROPERTIES)
+              .as(propertyColumnName);
+            edgeGroupingPropertyFieldNames.put(propertyKey, propertyColumnName);
+        }
+
+        // property_to_aggregate_1 AS tmp_f1, ... , property_to_aggregate_l AS tmp_fl
+        for (CustomizedAggregationFunction aggregateFunction : edgeAggregateFunctions) {
+            if (null != aggregateFunction.getPropertyKey()) {
+                String propertyColumnName = getConfig().createUniqueAttributeName();
+                projectExpressionsBuilder
+                  .scalarFunctionCall(new ExtractPropertyValue(aggregateFunction.getPropertyKey()),
+                    TableSet.FIELD_EDGE_PROPERTIES)
+                  .as(propertyColumnName);
+                edgeAggregationPropertyFieldNames.put(aggregateFunction.getAggregatePropertyKey(),
+                  propertyColumnName);
+            }
+        }
+
+        return projectExpressionsBuilder.build();
+    }
+
     /**
      * Collects all field names the edge relation gets grouped by
      * <p>
@@ -489,7 +536,7 @@ public abstract class TableGroupingBase {
             builder.field(TableSet.FIELD_EDGE_ID);
         }
 
-        builder.field("eventWindow");
+        builder.field(FIELD_EDGE_EVENT_WINDOW);
 
         return builder.build();
     }
@@ -582,7 +629,7 @@ public abstract class TableGroupingBase {
         }
 
         // handle timestamp
-        //builder.expression($(FIELD_EVENT_TIME).max()).as(FIELD_EVENT_TIME);
+        builder.expression($(FIELD_EDGE_EVENT_WINDOW).rowtime()).as(FIELD_EVENT_TIME);
 
         return builder.build();
     }

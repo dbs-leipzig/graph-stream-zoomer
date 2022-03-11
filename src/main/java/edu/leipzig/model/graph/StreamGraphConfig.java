@@ -1,12 +1,12 @@
 package edu.leipzig.model.graph;
 
 import edu.leipzig.model.table.TableSetFactory;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -20,6 +20,11 @@ public class StreamGraphConfig {
     private final StreamTableEnvironment tableEnvironment;
 
     /**
+     * Flink stream execution environment.
+     */
+    private final StreamExecutionEnvironment streamEnvironment;
+
+    /**
      * The table set factory.
      */
     private final TableSetFactory tableSetFactory;
@@ -28,12 +33,6 @@ public class StreamGraphConfig {
      * The maximum out of orderness duration for wartermark configuration.
      */
     private Duration maxOutOfOrdernessDuration = Duration.ofSeconds(10);
-
-    /**
-     * The idle state retention time. It defines how long the state of an inactive key is at least kept
-     * before it is removed.
-     */
-    private Duration idleStateRetentionTime = Duration.ofHours(12);
 
     /**
      * A counter for unique attribute names.
@@ -46,10 +45,15 @@ public class StreamGraphConfig {
      * @param env Flink stream execution environment
      */
     public StreamGraphConfig(StreamExecutionEnvironment env) {
-        EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+        this.streamEnvironment = Objects.requireNonNull(env);
+        EnvironmentSettings bsSettings = EnvironmentSettings
+          .newInstance()
+          .inStreamingMode()
+          .build();
         this.tableEnvironment = StreamTableEnvironment.create(env, bsSettings);
+        //this.tableEnvironment = StreamTableEnvironment.create(env);
         // access flink configuration
-        Configuration configuration = this.tableEnvironment.getConfig().getConfiguration();
+        //Configuration configuration = this.tableEnvironment.getConfig().getConfiguration();
         // set low-level key-value options
         //configuration.setString("table.exec.mini-batch.enabled", "true");  // enable mini-batch optimization
         //configuration.setString("table.exec.mini-batch.allow-latency", "5s"); // use 5 seconds to buffer input records
@@ -59,10 +63,15 @@ public class StreamGraphConfig {
          * obtain query configuration from TableEnvironment
          * and providing a query configuration with valid retention interval to prevent excessive state size
          * */
-        this.tableEnvironment.getConfig().setIdleStateRetention(this.idleStateRetentionTime);
+        //this.tableEnvironment.getConfig().setIdleStateRetention(this.idleStateRetentionTime);
         this.tableSetFactory = new TableSetFactory();
     }
 
+    /**
+     * Get the configured out-of-orderness duration.
+     *
+     * @return the duration used as out-of-orderness configuration
+     */
     public Duration getMaxOutOfOrdernessDuration() {
         return maxOutOfOrdernessDuration;
     }
@@ -71,16 +80,11 @@ public class StreamGraphConfig {
         this.maxOutOfOrdernessDuration = maxOutOfOrdernessDuration;
     }
 
-    public Duration getIdleStateRetentionTime() {
-        return idleStateRetentionTime;
-    }
-
-    public void setAndApplyIdleStateRetentionTime(Duration idleStateRetentionTime) {
-        this.idleStateRetentionTime = idleStateRetentionTime;
-        this.tableEnvironment.getConfig().setIdleStateRetention(this.idleStateRetentionTime);
-    }
-
-    /** Returns a unique temporary attribute name. */
+    /**
+     * Returns a unique temporary attribute name.
+     *
+     * @return a unique temporary attribute name as String.
+     */
     public String createUniqueAttributeName() {
         return "TMP_" + attrNameCtr.getAndIncrement();
     }
@@ -103,4 +107,12 @@ public class StreamGraphConfig {
         return tableEnvironment;
     }
 
+    /**
+     * Returns the Flink stream environment.
+     *
+     * @return Flink stream environment
+     */
+    public StreamExecutionEnvironment getStreamEnvironment() {
+        return streamEnvironment;
+    }
 }

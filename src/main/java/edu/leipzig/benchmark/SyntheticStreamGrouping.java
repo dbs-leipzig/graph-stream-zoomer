@@ -86,7 +86,6 @@ public class SyntheticStreamGrouping {
             .withTimestampAssigner((event, timestamp) -> event.getTimestamp().getTime()));
 
     StreamGraphConfig streamGraphConfig = new StreamGraphConfig(env);
-    streamGraphConfig.setAndApplyIdleStateRetentionTime(Duration.ofHours(MIN_RETENTION_TIME));
     // get the stream graph from the incoming socket stream via stream graph source
     StreamGraph streamGraph = StreamGraph.fromFlinkStream(socketStream, streamGraphConfig);
 

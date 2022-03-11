@@ -5,23 +5,13 @@ import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
 import edu.leipzig.impl.functions.utils.PlannerExpressionBuilder;
 import edu.leipzig.impl.functions.utils.PlannerExpressionSeqBuilder;
 import edu.leipzig.model.table.TableSet;
-import edu.leipzig.model.table.TableSetFactory;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
-import org.gradoop.common.model.impl.properties.Properties;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
-import static org.apache.flink.table.api.Expressions.$;
-
 /**
- * layout of the stream graph
  * A stream graph layout is wrapping a {@link TableSet} which defines, how the layout is
  * represented in Apache Flink table API.
  * here we three tables (edges, vertices , graph)
@@ -38,38 +28,39 @@ public class StreamGraphLayout {
    */
   private final TableSet tableSet;
 
-  public StreamGraphLayout(DataStream<StreamVertex> vertices, DataStream<StreamEdge> edges,
+  /**
+   * Constructor used for input data stream.
+   *
+   * @param vertices stream of vertices
+   * @param edges stream of edges
+   * @param config the graph stream configuration
+   */
+  public StreamGraphLayout(
+    DataStream<StreamVertex> vertices,
+    DataStream<StreamEdge> edges,
     StreamGraphConfig config) {
+
     TableSet tableSet = new TableSet();
 
+    tableSet.put(TableSet.TABLE_VERTICES,
+      config.getTableEnvironment().fromDataStream(vertices, TableSet.getVertexSchema()));
 
-    tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices,
-      TableSet.getVertexSchema()));
-    System.out.println("HIER IST SCHEMA");
-    tableSet.getVertices().printSchema();
-    Table testTableVertices = tableSet.getVertices();
-    testTableVertices.execute().print();
-    tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges, TableSet.getEdgeSchema()));
+    tableSet.put(TableSet.TABLE_EDGES,
+      config.getTableEnvironment().fromDataStream(edges, TableSet.getEdgeSchema()));
 
-/*
-    tableSet.put(TableSet.TABLE_VERTICES, config.getTableEnvironment().fromDataStream(vertices,
-      TableSet.getVertexSchema()));
-    tableSet.put(TableSet.TABLE_EDGES, config.getTableEnvironment().fromDataStream(edges));
-
- */
     this.tableSet = tableSet;
     this.config = Objects.requireNonNull(config);
   }
 
   /**
-   * Constructor
+   * Constructor used after grouping is applied
    *
    * @param tableSet table set
    * @param config   graph stream configuration
    */
   public StreamGraphLayout(TableSet tableSet, StreamGraphConfig config) {
-    this.tableSet = tableSet;
-    this.config = config;
+    this.tableSet = Objects.requireNonNull(tableSet);
+    this.config = Objects.requireNonNull(config);
   }
 
   /**

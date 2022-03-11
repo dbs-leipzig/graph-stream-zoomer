@@ -38,6 +38,9 @@ under the License.
 		<developer>
 			<name>Elias Saalmann</name>
 		</developer>
+		<developer>
+			<name>Max Zimmer</name>
+		</developer>
 	</developers>
 
 	<properties>
@@ -98,20 +101,20 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_2.11</artifactId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-runtime_${scala.binary.version}</artifactId>
-			<version>1.14.0</version>
+			<version>${flink.version}</version>
 			<scope>test</scope>
 			<classifier>tests</classifier>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java_2.11</artifactId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
 			<scope>test</scope>
 			<classifier>tests</classifier>
@@ -171,8 +174,8 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-twitter_2.11</artifactId>
-			<version>1.9.0</version>
+			<artifactId>flink-connector-twitter_${scala.binary.version}</artifactId>
+			<version>${flink.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>

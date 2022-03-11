@@ -47,7 +47,7 @@ class TableSetSchema {
     }
 
     /**
-     * Returns the {@link TableSchema} for table with given table name
+     * Returns the {@link Schema} for table with given table name
      *
      * @param tableName name of table to get schema for
      * @return table schema for table with given table name
@@ -69,9 +69,5 @@ class TableSetSchema {
     Expression[] buildProjectExpressions(String tableName) {
         return Arrays.stream((String[])getTable(tableName).getColumns().toArray()).map(Expressions::$)
           .toArray(Expression[]::new);
-
-
     }
-    //Vorher: getFieldNames. Logik verändert?
-
 }

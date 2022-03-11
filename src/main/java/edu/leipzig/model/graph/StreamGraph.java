@@ -1,36 +1,18 @@
 package edu.leipzig.model.graph;
 
-import edu.leipzig.impl.algorithm.TableGroupingBase;
 import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
 import edu.leipzig.impl.functions.utils.Extractor;
-import edu.leipzig.impl.functions.utils.PlannerExpressionBuilder;
 import edu.leipzig.model.table.TableSet;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.factories.DynamicTableFactory;
-import org.apache.flink.table.factories.DynamicTableSourceFactory;
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink;
-import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
-import org.gradoop.common.model.impl.properties.Properties;
 
-import javax.xml.crypto.Data;
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Objects;
 
@@ -49,24 +31,26 @@ import java.util.Objects;
 public class StreamGraph extends StreamGraphLayout {
 
     /**
-     * Creates a new stream graph based on the given parameters.
+     * Creates a new stream graph based on a vertex and edge stream.
      *
      * @param vertices the vertex stream
      * @param edges  the edge stream
      * @param config the the stream graph configuration
      */
-    public StreamGraph(DataStream<StreamVertex> vertices, DataStream<StreamEdge> edges, StreamGraphConfig config) {
-        super(Objects.requireNonNull(vertices), Objects.requireNonNull(edges), config);
+    public StreamGraph(DataStream<StreamVertex> vertices, DataStream<StreamEdge> edges,
+      StreamGraphConfig config) {
+        super(Objects.requireNonNull(vertices), Objects.requireNonNull(edges),
+          Objects.requireNonNull(config));
     }
 
     /**
-     * Creates a new stream graph based on the given parameters.
+     * Creates a new stream graph based on a tableset.
      *
      * @param tableSet representation of the stream graph as tables
      * @param config the the stream graph configuration
      */
     public StreamGraph(TableSet tableSet, StreamGraphConfig config) {
-        super(tableSet, config);
+        super(Objects.requireNonNull(tableSet), Objects.requireNonNull(config));
     }
 
     /**
@@ -105,7 +89,12 @@ public class StreamGraph extends StreamGraphLayout {
     }
 
     /**
-     * prints the resulting summary graph from its super edges and vertices.
+     * TODO: All the following print and write functions are not working properly atm.
+     */
+
+
+    /**
+     * Prints the vertices and edges of this {@link StreamGraph} instance as triples on stdout.
      */
     public void printTriples() {
         TableSet tableSet = getConfig().getTableSetFactory().fromTable(
@@ -116,41 +105,39 @@ public class StreamGraph extends StreamGraphLayout {
         getConfig().getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).print();
     }
 
-    /**
-     * Prints the resulting super edges and vertices in parallel to stdout.
-     */
-    public void print() throws Exception{
-        final StreamingFileSink<Tuple2<Boolean, Row>> vertexSink =
-          StreamingFileSink.forRowFormat(new Path("."), new SimpleStringEncoder<Tuple2<Boolean, Row>>("UTF" +
-            "-8"))
-            .build();
-        Schema edgeSchema = Schema.newBuilder()
-          .column("edge_id", DataTypes.STRING())
-          .column("edge_label", DataTypes.STRING())
-          //.column("edge_properties", DataTypes.RAW(TypeInformation.of(Properties.class)))
-          .column("source_id", DataTypes.STRING())
-          .column("target_id", DataTypes.STRING())
-          //.column("event_time", DataTypes.TIMESTAMP(6))
-        .build();
+    public void print() {
+        //Todo: We have to clarify what should be the result of a 'print' on a two-tabled layout
+    }
 
+    /**
+     * Prints the vertices of this {@link StreamGraph} instance on stdout as table.
+     */
+    public void printVertices() {
         Schema vertexSchema = Schema.newBuilder()
           .fromResolvedSchema(getTableSet().getVertices().getResolvedSchema())
-          //.column("event_time", DataTypes.TIMESTAMP(6)).
           .build();
 
-        final StreamTableEnvironment streamTableEnvironment =
-          StreamTableEnvironment.create(StreamExecutionEnvironment.getExecutionEnvironment());
-
-        System.out.println(vertexSchema.toString());
-        getTableSet().get("vertices").printSchema();
-        getTableSet().getVertices().execute().print();
         getConfig().getTableEnvironment()
-          //.toRetractStream(getTableSet().getVertices(), StreamVertex.class)
-         .toChangelogStream(getTableSet().get("vertices"), vertexSchema)
+          //.toDataStream(getTableSet().getVertices(), StreamVertex.class)
+          .toChangelogStream(getTableSet().getVertices(), vertexSchema)
+          /*.toDataStream(getTableSet().getVertices(), DataTypes.STRUCTURED(
+            StreamVertex.class,
+            DataTypes.FIELD("vertex_id", DataTypes.STRING()),
+            DataTypes.FIELD("vertex_label", DataTypes.STRING()),
+            //DataTypes.FIELD("vertex_properties", DataTypes.RAW())),
+            DataTypes.FIELD("event_time", DataTypes.TIMESTAMP_LTZ(3))))*/
           .print();
+    }
+
+    /**
+     * Prints the edges of this {@link StreamGraph} instance on stdout as table.
+     */
+    public void printEdges() throws Exception {
+        Schema edgeSchema = Schema.newBuilder()
+          .fromResolvedSchema(getTableSet().getEdges().getResolvedSchema())
+          .build();
 
         getConfig().getTableEnvironment()
-          //.toRetractStream(getTableSet().getEdges(), StreamEdge.class)
           .toChangelogStream(getTableSet().getEdges(), edgeSchema)
           .print();
     }
@@ -187,16 +174,6 @@ public class StreamGraph extends StreamGraphLayout {
           getConfig().getTableEnvironment());
 
         getConfig().getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).addSink(graphSink);
-    }
-
-    public void addVertexSink(SinkFunction<Tuple2<Boolean, StreamVertex>> sinkFunction) {
-        getConfig().getTableEnvironment().toRetractStream(getTableSet().getVertices(), StreamVertex.class)
-            .addSink(sinkFunction);
-    }
-
-    public void addEdgeSink(SinkFunction<Tuple2<Boolean, StreamEdge>> sinkFunction) {
-        getConfig().getTableEnvironment().toRetractStream(getTableSet().getEdges(), StreamEdge.class)
-          .addSink(sinkFunction);
     }
 
     /*

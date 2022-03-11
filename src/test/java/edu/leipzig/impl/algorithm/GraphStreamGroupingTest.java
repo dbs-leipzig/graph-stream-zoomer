@@ -1,7 +1,6 @@
 package edu.leipzig.impl.algorithm;
 
 import edu.leipzig.impl.functions.aggregation.AvgProperty;
-import edu.leipzig.impl.functions.aggregation.MaxProperty;
 import edu.leipzig.impl.functions.aggregation.MinProperty;
 import edu.leipzig.impl.functions.aggregation.SumProperty;
 import edu.leipzig.impl.functions.utils.CreateSuperElementId;
@@ -10,7 +9,6 @@ import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
 import edu.leipzig.model.graph.StreamTriple;
 import edu.leipzig.model.graph.StreamVertex;
-import edu.leipzig.model.table.TableSet;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -18,9 +16,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.Tumble;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -36,10 +32,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static edu.leipzig.model.table.TableSet.*;
-import static org.apache.flink.table.api.Expressions.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.lit;
 
+/**
+ * TODO: These unit/integration tests are messy
+ */
 public class GraphStreamGroupingTest {
 
   @ClassRule
@@ -317,7 +315,7 @@ public class GraphStreamGroupingTest {
   }
 
   @Test
-  public void testPerformGroupingMethod() throws Exception{
+  public void testPerformGroupingMethod() {
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     //Difference between timestamps: 10 seconds
     Timestamp t1 = new Timestamp(1619511661000L);
@@ -377,7 +375,7 @@ public class GraphStreamGroupingTest {
       .build();
 
     streamGraph = groupingOperator.execute(streamGraph);
-    streamGraph.print();
+    streamGraph.printVertices();
 
   }
 }

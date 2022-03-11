@@ -23,10 +23,10 @@ public class StreamVertex implements Serializable {
     /**
      * constructor with all fields
      */
-    public StreamVertex(String id, String label, Properties properties,Timestamp event_time) {
-        this.vertex_id = id;
-        this.vertex_label = label;
-        this.vertex_properties = properties;
+    public StreamVertex(String vertex_id, String vertex_label, Properties vertex_properties,Timestamp event_time) {
+        this.vertex_id = vertex_id;
+        this.vertex_label = vertex_label;
+        this.vertex_properties = vertex_properties;
         this.event_time = event_time;
     }
 
@@ -95,15 +95,11 @@ public class StreamVertex implements Serializable {
     public boolean equalsWithoutId(StreamVertex other) {
         return this.getVertexLabel().equals(other.getVertexLabel())
           && this.getVertexProperties().equals(other.getVertexProperties())
-          && this.getEventTime() == other.getEventTime()
-         ;
+          && this.getEventTime() == other.getEventTime();
     }
 
     public String toString() {
-        return String.format("(" +
-          "t:%s" +
-          "%s:%s{%s})",
-          this.event_time,
-          this.vertex_id, this.vertex_label, this.vertex_properties == null ? "" : this.vertex_properties);
+        return String.format("(%s(t:%s):%s{%s})",
+          this.vertex_id, this.event_time, this.vertex_label, this.vertex_properties == null ? "" : this.vertex_properties);
     }
 }

@@ -24,15 +24,18 @@ public class GraphSummarizationJob {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         Timestamp t1 = new Timestamp(1619511661000L);
-        Timestamp t2 = new Timestamp(1619511672000L);
-        Timestamp t3 = new Timestamp(1619511683000L);
-        Timestamp t4 = new Timestamp(1619511694000L);
+        Timestamp t2 = new Timestamp(1619511662000L);
+        Timestamp t3 = new Timestamp(1619511673000L);
+        Timestamp t4 = new Timestamp(1619511674000L);
         StreamVertex v1 = new StreamVertex("v1", "A", Properties.create(), t1);
         StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t1);
-        StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t1);
-        StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t1);
+        StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t2);
+        StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t2);
+        StreamVertex v5 = new StreamVertex("v5", "A", Properties.create(), t3);
+        StreamVertex v6 = new StreamVertex("v6", "B", Properties.create(), t3);
+        StreamVertex v7 = new StreamVertex("v7", "A", Properties.create(), t4);
+        StreamVertex v8 = new StreamVertex("v8", "B", Properties.create(), t4);
 
-        System.out.println(v1.getEventTime() + " " + v2.getEventTime() + " " + v3.getEventTime() + " " + v4.getEventTime());
         HashMap<String, Object> propertiesVertexV1 = new HashMap<>();
         propertiesVertexV1.put("Relevance", 1);
         propertiesVertexV1.put("Size", 15);
@@ -61,6 +64,11 @@ public class GraphSummarizationJob {
         Properties propertiesV4 = Properties.createFromMap(propertiesVertexV4);
         v4.setVertexProperties(propertiesV4);
 
+        v5.setVertexProperties(propertiesV1);
+        v6.setVertexProperties(propertiesV2);
+        v7.setVertexProperties(propertiesV3);
+        v8.setVertexProperties(propertiesV4);
+
         HashMap<String, Object> propertiesEdge1 = new HashMap<>();
         propertiesEdge1.put("Weight", 5);
         propertiesEdge1.put("Weekday", "Thursday");
@@ -71,81 +79,31 @@ public class GraphSummarizationJob {
         propertiesEdge2.put("Weekday", "Wednesday");
         Properties propertiesE2 = Properties.createFromMap(propertiesEdge2);
 
-        StreamTriple edge1 = new StreamTriple("1", t1, "impacts",  propertiesE1, v1, v2);
-        StreamTriple edge2 = new StreamTriple("2", t1, "impacts", propertiesE2, v3, v4);
-        StreamTriple edge3 = new StreamTriple("3", t1, "calculates", propertiesE1, v3, v4);
+        StreamTriple edge1 = new StreamTriple("e1", t1, "impacts",  propertiesE1, v1, v2);
+        StreamTriple edge2 = new StreamTriple("e2", t2, "impacts", propertiesE2, v3, v4);
+        StreamTriple edge3 = new StreamTriple("e3", t2, "calculates", propertiesE1, v3, v4);
+        StreamTriple edge4 = new StreamTriple("e4", t1, "impacts",  propertiesE1, v1, v2);
+        StreamTriple edge5 = new StreamTriple("e5", t3, "impacts", propertiesE2, v5, v6);
+        StreamTriple edge6 = new StreamTriple("e6", t3, "calculates", propertiesE1, v5, v6);
+        StreamTriple edge7 = new StreamTriple("e7", t4, "impacts",  propertiesE1, v7, v8);
+        StreamTriple edge8 = new StreamTriple("e8", t4, "impacts", propertiesE2, v7, v8);
+        StreamTriple edge9 = new StreamTriple("e9", t4, "calculates", propertiesE1, v7, v8);
 
-        DataStream<StreamTriple> testStream = env.fromElements(edge1, edge2, edge3);
-
-        /*
-        args: 1: windowsize
-              2: vertexGroupingKeys
-              3: vertexAggregateFunctions
-              4: edgeGroupingKeys
-              5: edgeAggregateFunctions
-         */
-        int windowSize = 0;
-        String[] vertexGroupingKeys = null;
-        String[] vertexAggregateFunctions = null;
-        String[] edgeGroupingKeys = null;
-        String[] edgeAggregateFunctions = null;
-        if (args.length == 5) {
-            windowSize = Integer.parseInt(args[0]);
-            vertexGroupingKeys = args[1].replace(" ", "").split(",");
-            vertexAggregateFunctions = args[2].replace(" ", "").split(",");
-            edgeGroupingKeys = args[3].replace(" ", "").split(",");
-            edgeAggregateFunctions = args[4].replace(" ", "").split(",");
-        }
-        else {
-            System.out.println("Wrong amount of input parameters");
-        }
-
-        DataStream<StreamTriple> socketStream = env.socketTextStream("localhost", 6666)
-                .map(new JSONToStreamObjectMapper()).assignTimestampsAndWatermarks(
-                        WatermarkStrategy.<StreamTriple>forBoundedOutOfOrderness(Duration.ofSeconds(windowSize))
-                                .withTimestampAssigner((event,timestamp) -> event.getTimestamp().getTime()));
+        DataStream<StreamTriple> testStream = env.fromElements(edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9);
 
         StreamGraph streamGraph = StreamGraph.fromFlinkStream(testStream, new StreamGraphConfig(env));
 
         TableGroupingBase.GroupingBuilder groupingBuilder = new TableGroupingBase.GroupingBuilder();
-        for (String vertexGroupingKey : vertexGroupingKeys) {
-            groupingBuilder.addVertexGroupingKey(vertexGroupingKey);
-        }
-        for (String edgeGroupingKey : edgeGroupingKeys) {
-            groupingBuilder.addEdgeGroupingKey(edgeGroupingKey);
-        }
-        for (CustomizedAggregationFunction customizedAggregationFunction : inputToCustomizedAggFunction(vertexAggregateFunctions)) {
-            groupingBuilder.addVertexAggregateFunction(customizedAggregationFunction);
-        }
-        for (CustomizedAggregationFunction customizedAggregationFunction : inputToCustomizedAggFunction(edgeAggregateFunctions)) {
-            groupingBuilder.addEdgeAggregateFunction(customizedAggregationFunction);
-        }
+
+        //groupingBuilder.addVertexGroupingKey("Weekday");
+        groupingBuilder.addVertexGroupingKey(":label");
+        groupingBuilder.addEdgeGroupingKey(":label");
+        groupingBuilder.addVertexAggregateFunction(new Count());
+        groupingBuilder.addEdgeAggregateFunction(new Count());
+        groupingBuilder.addEdgeGroupingKey("Weekday");
 
         streamGraph = groupingBuilder.build().execute(streamGraph);
-        //streamGraph.print();
 
-
-    }
-
-    private static ArrayList<CustomizedAggregationFunction> inputToCustomizedAggFunction(String[] stringFunctions) {
-        ArrayList<CustomizedAggregationFunction> customizedAggregationFunctions = new ArrayList<>();
-        for (String s : stringFunctions) {
-            String[] split = s.split("-");
-            String argument = split[1];
-            String function = split[0];
-            if (function.trim().equalsIgnoreCase("minproperty")) {
-                customizedAggregationFunctions.add(new MinProperty(argument.trim()));
-            }
-            if (function.trim().equalsIgnoreCase("avgProperty")) {
-                customizedAggregationFunctions.add(new AvgProperty(argument.trim()));
-            }
-            if (function.trim().equalsIgnoreCase("maxproperty")) {
-                customizedAggregationFunctions.add(new MaxProperty(argument.trim()));
-            }
-            if (function.trim().equalsIgnoreCase("sumproperty")) {
-                customizedAggregationFunctions.add(new SumProperty(argument.trim()));
-            }
-        }
-        return customizedAggregationFunctions;
+        env.execute();
     }
 }
