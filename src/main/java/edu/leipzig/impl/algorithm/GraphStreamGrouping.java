@@ -12,7 +12,11 @@ import edu.leipzig.model.graph.StreamGraphLayout;
 import edu.leipzig.model.table.TableSet;
 import org.apache.flink.table.api.*;
 import org.apache.flink.table.expressions.Expression;
+import org.gradoop.common.model.impl.properties.Property;
+import org.gradoop.common.model.impl.properties.PropertyValue;
+import scala.sys.Prop;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -425,19 +429,36 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      * @return Join conditions connected via conjunctions
      */
     private Expression buildJoinConditionForExpandedVertices(){
-        PlannerExpressionSeqBuilder joinConditions = new PlannerExpressionSeqBuilder(getTableEnv());
+        PlannerExpressionSeqBuilder attributeJoinConditions = new PlannerExpressionSeqBuilder(getTableEnv());
+        PlannerExpressionSeqBuilder temporalJoinConditions = new PlannerExpressionSeqBuilder(getTableEnv());
         for (String key : vertexGroupingPropertyFieldNames.keySet()) {
-            joinConditions.expression($(vertexGroupingPropertyFieldNames.get(key)).isEqual($(vertexAfterGroupingPropertyFieldNames.get(key))));
+            attributeJoinConditions.expression($(vertexGroupingPropertyFieldNames.get(key))
+              .isEqual($(vertexAfterGroupingPropertyFieldNames.get(key))));
+            attributeJoinConditions.expression($(vertexGroupingPropertyFieldNames.get(key)).isNull()
+              .and($(vertexAfterGroupingPropertyFieldNames.get(key)).isNull()));
         }
         if (useVertexLabels) {
-            joinConditions.expression($(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL)));
+            attributeJoinConditions.expression($(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL)));
+            attributeJoinConditions.expression($(FIELD_VERTEX_LABEL).isNull().and($(FIELD_SUPER_VERTEX_LABEL)
+            .isNull()));
         }
-        joinConditions.expression($("preparedVerticesTime").isLessOrEqual($(FIELD_SUPER_VERTEX_ROWTIME)))
+        temporalJoinConditions.expression($("preparedVerticesTime").isLessOrEqual($(FIELD_SUPER_VERTEX_ROWTIME)))
           .and($("preparedVerticesTime").isGreater($(FIELD_SUPER_VERTEX_ROWTIME).minus(lit(10).seconds())));
-        Expression[] joinConditionArray = joinConditions.build();
-        ApiExpression apiExpression = (ApiExpression) joinConditionArray[0];
-        for (int i=0; i<joinConditions.build().length-1; i++) {
-            apiExpression = apiExpression.and(joinConditionArray[i+1]);
+        Expression[] joinConditionArray = attributeJoinConditions.build();
+        ArrayList<ApiExpression> orConnectedConditions = new ArrayList<>();
+
+        for (int i=0; i<attributeJoinConditions.build().length-1; i+=2) {
+            orConnectedConditions.add(((ApiExpression) joinConditionArray[0]).or(joinConditionArray[1]));
+        }
+        ApiExpression apiExpression = orConnectedConditions.get(0);
+
+        for (int j=1; j<orConnectedConditions.size()-1;j++) {
+            apiExpression = apiExpression.and(orConnectedConditions.get(j+1));
+        }
+        Expression[] temporalConditions = temporalJoinConditions.build();
+
+        for (int k=0;k<temporalConditions.length;k++){
+            apiExpression = apiExpression.and(temporalConditions[k]);
         }
         return apiExpression;
     }

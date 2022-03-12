@@ -25,7 +25,7 @@ public class EmptyPropertyValueIfNull extends ScalarFunction {
      */
     public PropertyValue eval(PropertyValue pv) {
         if (null == pv) {
-            return PropertyValue.NULL_VALUE;
+            return null;
         }
         return pv;
     }

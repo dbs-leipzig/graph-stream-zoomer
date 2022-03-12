@@ -41,29 +41,29 @@ public class GraphSummarizationJob {
         propertiesVertexV1.put("Size", 15);
         propertiesVertexV1.put("Weekday", "Monday");
         Properties propertiesV1 = Properties.createFromMap(propertiesVertexV1);
-        v1.setVertexProperties(propertiesV1);
 
         HashMap<String, Object> propertiesVertexV2 = new HashMap<>();
         propertiesVertexV2.put("Relevance", 3);
         propertiesVertexV2.put("Size", 10);
-        propertiesVertexV2.put("Weekday", "Tuesday");
+       //propertiesVertexV2.put("Weekday", "Tuesday");
         Properties propertiesV2 = Properties.createFromMap(propertiesVertexV2);
-        v2.setVertexProperties(propertiesV2);
 
         HashMap<String, Object> propertiesVertexV3 = new HashMap<>();
         propertiesVertexV3.put("Relevance", 2);
         propertiesVertexV3.put("Size", 30);
         propertiesVertexV3.put("Weekday", "Monday");
         Properties propertiesV3 = Properties.createFromMap(propertiesVertexV3);
-        v3.setVertexProperties(propertiesV3);
 
         HashMap<String, Object> propertiesVertexV4 = new HashMap<>();
         propertiesVertexV4.put("Relevance", 5);
         propertiesVertexV4.put("Size", 5);
         propertiesVertexV4.put("Weekday", "Thursday");
         Properties propertiesV4 = Properties.createFromMap(propertiesVertexV4);
-        v4.setVertexProperties(propertiesV4);
 
+        v1.setVertexProperties(propertiesV1);
+        v2.setVertexProperties(propertiesV2);
+        v3.setVertexProperties(propertiesV3);
+        v4.setVertexProperties(propertiesV4);
         v5.setVertexProperties(propertiesV1);
         v6.setVertexProperties(propertiesV2);
         v7.setVertexProperties(propertiesV3);
@@ -76,7 +76,7 @@ public class GraphSummarizationJob {
 
         HashMap<String, Object> propertiesEdge2 = new HashMap<>();
         propertiesEdge2.put("Weight", 6);
-        propertiesEdge2.put("Weekday", "Wednesday");
+        //propertiesEdge2.put("Weekday", "Wednesday");
         Properties propertiesE2 = Properties.createFromMap(propertiesEdge2);
 
         StreamTriple edge1 = new StreamTriple("e1", t1, "impacts",  propertiesE1, v1, v2);
@@ -95,9 +95,9 @@ public class GraphSummarizationJob {
 
         TableGroupingBase.GroupingBuilder groupingBuilder = new TableGroupingBase.GroupingBuilder();
 
-        //groupingBuilder.addVertexGroupingKey("Weekday");
+        groupingBuilder.addVertexGroupingKey("Weekday");
         groupingBuilder.addVertexGroupingKey(":label");
-        groupingBuilder.addEdgeGroupingKey(":label");
+        //groupingBuilder.addEdgeGroupingKey(":label");
         groupingBuilder.addVertexAggregateFunction(new Count());
         groupingBuilder.addEdgeAggregateFunction(new Count());
         groupingBuilder.addEdgeGroupingKey("Weekday");
