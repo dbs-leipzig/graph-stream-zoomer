@@ -11,6 +11,7 @@ import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphLayout;
 import edu.leipzig.model.table.TableSet;
 import org.apache.flink.table.api.*;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.expressions.Expression;
 import org.gradoop.common.model.impl.properties.Property;
 import org.gradoop.common.model.impl.properties.PropertyValue;
@@ -126,22 +127,13 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      */
     protected TableSet testPerformGrouping() {
 
-        getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
+
+
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
 
         // 1. Prepare distinct vertices
         // Returns: | vertex_event_time | vertex_id | vertex_label | vertex_properties |
-        Table preparedVertices = getTableEnv().sqlQuery(
-          "SELECT " +
-                FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID + ", " +
-                FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL + ", " +
-                FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES + ", " +
-                "window_time as " + FIELD_VERTEX_EVENT_TIME + " " +
-            "FROM TABLE ( TUMBLE ( TABLE  " + TABLE_VERTICES + ", " +
-                "DESCRIPTOR(" + FIELD_EVENT_TIME + "), INTERVAL '10' SECONDS)) " +
-            "GROUP BY window_time, " + FIELD_VERTEX_ID + ", " + FIELD_VERTEX_LABEL + ", " +
-                FIELD_VERTEX_PROPERTIES + ", window_start, window_end"
-        );
+        Table preparedVertices = prepareVertices(this.tableSet, this.getTableEnv());
 
         // 2. Write grouping or aggregating properties in own column, extract from vertex_properties column
         // returns: | vertex_id | vertex_event_time | [vertex_label] | [prop_grouping | ...] [prop_agg | ...]
@@ -225,7 +217,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      *
      * @return prepared vertices table
      */
-    private Expression[] buildVertexGroupProjectExpressions() {
+    public Expression[] buildVertexGroupProjectExpressions() {
         PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
 
         builder.field(TableSet.FIELD_VERTEX_ID);
@@ -344,6 +336,21 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         builder.as(TableSet.FIELD_EDGE_PROPERTIES);
 
         return builder.build();
+    }
+
+    public Table prepareVertices(TableSet tableSet, StreamTableEnvironment streamTableEnvironment){
+        //getTableEnv().createTemporaryView(tableName, tableSet.getVertices());
+        return streamTableEnvironment.sqlQuery(
+          "SELECT " +
+            FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID + ", " +
+            FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL + ", " +
+            FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES + ", " +
+            "window_time as " + FIELD_VERTEX_EVENT_TIME + " " +
+            "FROM TABLE ( TUMBLE ( TABLE  " + tableSet.getVertices() + ", " +
+            "DESCRIPTOR(" + FIELD_EVENT_TIME + "), INTERVAL '10' SECONDS)) " +
+            "GROUP BY window_time, " + FIELD_VERTEX_ID + ", " + FIELD_VERTEX_LABEL + ", " +
+            FIELD_VERTEX_PROPERTIES + ", window_start, window_end"
+        );
     }
 
     /**

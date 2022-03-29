@@ -9,36 +9,89 @@ import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
 import edu.leipzig.model.graph.StreamTriple;
 import edu.leipzig.model.graph.StreamVertex;
+import edu.leipzig.model.table.TableSet;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.InputGroup;
+import org.apache.flink.table.api.ApiExpression;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableDescriptor;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.Tumble;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.sinks.CsvTableSink;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Collector;
 import org.gradoop.common.model.impl.properties.Properties;
+import edu.leipzig.impl.algorithm.TableGroupingBase;
+import org.gradoop.common.model.impl.properties.Property;
+import org.gradoop.flink.model.impl.operators.aggregation.functions.average.Average;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import scala.Dynamic;
+import scala.Serializable;
 
+import javax.xml.crypto.Data;
+import java.sql.Date;
+import java.sql.Time;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static edu.leipzig.model.table.TableSet.*;
-import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.*;
+import static org.junit.Assert.assertTrue;
 
 /**
  * TODO: These unit/integration tests are messy
+ * Edges with same source and target vertex but different labels lead to double vertex entry in vertices
+ * table
  */
 public class GraphStreamGroupingTest {
+
+  private StreamVertex v1, v2, v3, v4, v5, v6, v7, v8;
+  private StreamTriple edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9;
+  private Timestamp t1, t2, t3, t4;
+  private HashMap<String, Object> propertiesVertexV1, propertiesVertexV2, propertiesVertexV3,
+    propertiesVertexV4;
+  HashMap<String, Object> propertiesEdge1,propertiesEdge2, propertiesEdge3;
+  private Properties propertiesV1, propertiesV2, propertiesV3, propertiesV4;
+  private Properties propertiesE1, propertiesE2, propertiesE3;
+  private DataStream<StreamTriple> testStream;
+  private StreamGraph streamGraph;
+  TableEnvironment tEnv;
+  Table vertices, edges;
+  int windowSize;
+  TableGroupingBase.GroupingBuilder groupingBuilder;
+  GraphStreamGrouping graphStreamGrouping;
+  StreamTableEnvironment streamTableEnvironment;
+  final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
   @ClassRule
   public static MiniClusterWithClientResource flinkCluster =
@@ -48,38 +101,230 @@ public class GraphStreamGroupingTest {
         .setNumberTaskManagers(1)
         .build());
 
+  @Before
+  public void init(){
+    EnvironmentSettings settings = EnvironmentSettings
+      .newInstance()
+      .inStreamingMode()
+      .build();
+    tEnv = TableEnvironment.create(settings);
 
-  private static class CollectVertexSink implements SinkFunction<Tuple2<Boolean, StreamVertex>> {
+    windowSize = 10;
 
-    // must be static
-    public static final Map<String, StreamVertex> values = Collections.synchronizedMap(new HashMap<>());
+    t1 = new Timestamp(1619511661000L);
+    t2 = new Timestamp(1619511662000L);
+    t3 = new Timestamp(1619511673000L);
+    t4 = new Timestamp(1619511674000L);
 
-    @Override
-    public void invoke(Tuple2<Boolean, StreamVertex> value, SinkFunction.Context context) throws Exception {
-      if (value.f0) {
-        values.put(value.f1.getVertexId(), value.f1);
-      } else {
-        values.remove(value.f1.getVertexId());
-      }
+    v1 = new StreamVertex("v1", "A", Properties.create(), t1);
+    v2 = new StreamVertex("v2", "B", Properties.create(), t2);
+    v3 = new StreamVertex("v3", "A", Properties.create(), t3);
+    v4 = new StreamVertex("v4", "B", Properties.create(), t4);
+    v5 = new StreamVertex("v5", "A", Properties.create(), t1);
+    v6 = new StreamVertex("v6", "B", Properties.create(), t2);
+    v7 = new StreamVertex("v7", "A", Properties.create(), t3);
+    v8 = new StreamVertex("v8", "B", Properties.create(), t4);
 
-    }
+    propertiesVertexV1 = new HashMap<>();
+    propertiesVertexV1.put("Relevance", 1);
+    propertiesVertexV1.put("Size", 15);
+    propertiesVertexV1.put("Weekday", "Monday");
+    propertiesV1 = Properties.createFromMap(propertiesVertexV1);
+
+    propertiesVertexV2 = new HashMap<>();
+    propertiesVertexV2.put("Relevance", 3);
+    propertiesVertexV2.put("Size", 15);
+    propertiesVertexV2.put("Weekday", "Tuesday");
+    propertiesV2 = Properties.createFromMap(propertiesVertexV2);
+
+
+    propertiesVertexV3 = new HashMap<>();
+    propertiesVertexV3.put("Relevance", 2);
+    propertiesVertexV3.put("Size", 30);
+    propertiesVertexV3.put("Weekday", "Monday");
+    propertiesV3 = Properties.createFromMap(propertiesVertexV3);
+
+    propertiesVertexV4 = new HashMap<>();
+    propertiesVertexV4.put("Relevance", 5);
+    propertiesVertexV4.put("Size", 5);
+    propertiesVertexV4.put("Weekday", "Thursday");
+    propertiesV4 = Properties.createFromMap(propertiesVertexV4);
+
+    v1.setVertexProperties(propertiesV1);
+    v2.setVertexProperties(propertiesV2);
+    v3.setVertexProperties(propertiesV3);
+    v4.setVertexProperties(propertiesV4);
+    v5.setVertexProperties(propertiesV1);
+    v6.setVertexProperties(propertiesV2);
+    v7.setVertexProperties(propertiesV3);
+    v8.setVertexProperties(propertiesV4);
+
+    propertiesEdge1 = new HashMap<>();
+    propertiesEdge1.put("Weight", 5);
+    propertiesEdge1.put("Weekday", "Thursday");
+    propertiesE1 = Properties.createFromMap(propertiesEdge1);
+
+    propertiesEdge2 = new HashMap<>();
+    propertiesEdge2.put("Weight", 6);
+    propertiesEdge2.put("Weekday", "Wednesday");
+    propertiesE2 = Properties.createFromMap(propertiesEdge2);
+
+    propertiesEdge3 = new HashMap<>();
+    propertiesEdge3.put("Weekday", "Thursday");
+    propertiesEdge3.put("Weight", 3);
+    propertiesE3 = Properties.createFromMap(propertiesEdge3);
+
+    edge1 = new StreamTriple("e1", t1, "impacts",  propertiesE1, v1, v2);
+    edge2 = new StreamTriple("e2", t1, "impacts", propertiesE2, v3, v4);
+    edge3 = new StreamTriple("e3", t1, "calculates", propertiesE3, v3, v4);
+    edge4 = new StreamTriple("e4", t1, "impacts",  propertiesE1, v1, v2);
+    edge5 = new StreamTriple("e5", t1, "impacts", propertiesE2, v5, v6);
+    edge6 = new StreamTriple("e6", t1, "calculates", propertiesE3, v5, v6);
+    edge7 = new StreamTriple("e7", t1, "impacts",  propertiesE1, v7, v8);
+    edge8 = new StreamTriple("e8", t1, "impacts", propertiesE2, v7, v8);
+    edge9 = new StreamTriple("e9", t1, "calculates", propertiesE3, v7, v8);
+
+    testStream = env.fromElements(edge1, edge2, edge3,  edge5, edge6, edge7, edge8, edge9);
+
+    streamGraph = StreamGraph.fromFlinkStream(testStream, new StreamGraphConfig(env));
+
+    vertices = streamGraph.getTableSet().getVertices();
+    edges = streamGraph.getTableSet().getEdges();
+
+    groupingBuilder = new TableGroupingBase.GroupingBuilder();
+    groupingBuilder.addVertexGroupingKey(":label");
+    groupingBuilder.addVertexGroupingKey("Weekday");
+    groupingBuilder.addVertexAggregateFunction(new SumProperty("Relevance"));
+    groupingBuilder.addVertexAggregateFunction(new AvgProperty("Size"));
+    groupingBuilder.addEdgeGroupingKey(":label");
+    groupingBuilder.addEdgeGroupingKey("Weekday");
+    groupingBuilder.addEdgeAggregateFunction(new MinProperty("Weight"));
+    graphStreamGrouping = groupingBuilder.build();
+
+    //Wichtig, da sonst graphStreamGrouping.getTableEnv() und .getConfig() null sind
+    streamGraph = graphStreamGrouping.execute(streamGraph);
+    streamTableEnvironment = graphStreamGrouping.getTableEnv();
+
+
   }
 
-  private static class CollectEdgeSink implements SinkFunction<Tuple2<Boolean, StreamEdge>> {
-
-    // must be static
-    public static final Map<String, StreamEdge> values = Collections.synchronizedMap(new HashMap<>());
-
-    @Override
-    public void invoke(Tuple2<Boolean, StreamEdge> value, SinkFunction.Context context) throws Exception {
-      if (value.f0) {
-        values.put(value.f1.getEdgeId(), value.f1);
-      } else {
-        values.remove(value.f1.getEdgeId());
-      }
-
+ class StreamToHashMap implements  MapFunction<Row, HashMap<String, String>>  {
+    List<String> localVertexGroupingPropertyKeys;
+    boolean localUseVertexLabel;
+    StreamToHashMap(boolean localUseVertexLabel, List<String> localVertexGroupingPropertyKeys){
+      //Create local instance of variables of outer class so inner method is serializable
+      this.localVertexGroupingPropertyKeys = localVertexGroupingPropertyKeys;
+      this.localUseVertexLabel = localUseVertexLabel;
     }
+    public HashMap<String,String> map(Row row){
+      HashMap<String, String> toReturn = new HashMap<>();
+
+      /*
+      Create keys from values of vertex grouping properties
+      E.g. label, weekday -> key: A, Monday, timestamp
+       */
+      String key = "";
+      Properties vertexPropertyContent = (Properties) row.getField("vertex_properties");
+      if (localUseVertexLabel) {
+        key += row.getField("vertex_label").toString();
+      }
+      for (String s : localVertexGroupingPropertyKeys) {
+        if (key.equals("")) {
+          key = vertexPropertyContent.get("\""+s+"\"").toString();
+        }
+        else {
+          key += ", " + vertexPropertyContent.get("\""+s+"\"").toString();
+        }
+      }
+      key += ", " +  row.getField("vertex_event_time").toString().replaceAll("T", " ");
+
+      /*
+      Value of the generated key is every property of the vertex that is not contained in the key already
+       */
+      String value = "";
+      if (!localUseVertexLabel){
+        value = row.getField("vertex_properties").toString();
+      }
+      for (Property p : vertexPropertyContent) {
+        if (!localVertexGroupingPropertyKeys.contains(p.getKey().replaceAll("\"", ""))) {
+          if (value.equals("")) {
+            value = p.getKey() + ":" + p.getValue();
+          }
+          else {
+            value += "; " + p.getKey() + ":" + p.getValue();
+          }
+        }
+      }
+      toReturn.put(key, value);
+      return toReturn;
+    }
+  };
+
+
+  @Test
+  public void testPrepareVerticesMethod() throws Exception{
+    Table prepareVertices = graphStreamGrouping.prepareVertices(streamGraph.getTableSet(),
+      streamTableEnvironment);
+    DataStream<Row> rowStream = streamTableEnvironment.toDataStream(prepareVertices);
+    final HashMap<String, String> hashMapVertices = new HashMap<>();
+    List<HashMap<String,String>> resultingMaps =
+      rowStream.map(new StreamToHashMap(graphStreamGrouping.useVertexLabels,
+      graphStreamGrouping.vertexGroupingPropertyKeys)).executeAndCollect(10);
+    for (HashMap<String, String> result : resultingMaps) {
+      for (String key : result.keySet()) {
+        hashMapVertices.put(key, result.get(key));
+      }
+    }
+
+    Timestamp TsTot1 = new Timestamp(t1.getTime());
+    Timestamp TsTot2 = new Timestamp(t2.getTime());
+    Timestamp TsTot3 = new Timestamp(t3.getTime());
+    Timestamp TsTot4 = new Timestamp(t4.getTime());
+
+    TsTot1.setSeconds((TsTot1.getSeconds()/10+1) * 10);
+    TsTot2.setSeconds((TsTot2.getSeconds()/10+1) * 10);
+    TsTot3.setSeconds((TsTot3.getSeconds()/10+1) * 10);
+    TsTot4.setSeconds((TsTot4.getSeconds()/10+1) * 10);
+
+    Timestamp windowOfT1 = new Timestamp(TsTot1.getTime() - 1);
+    Timestamp windowOfT2 = new Timestamp(TsTot2.getTime() - 1);
+    Timestamp windowOfT3 = new Timestamp(TsTot3.getTime() - 1);
+    Timestamp windowOfT4 = new Timestamp(TsTot4.getTime() - 1);
+
+    String propertiesV1ToCompare = hashMapVertices.get(v1.getVertexLabel() + ", Monday, " + windowOfT1);
+    String propertiesV2ToCompare = hashMapVertices.get(v2.getVertexLabel() + ", Tuesday, "+ windowOfT2);
+    String propertiesV3ToCompare = hashMapVertices.get(v3.getVertexLabel() + ", Monday, " + windowOfT3);
+    String propertiesV4ToCompare = hashMapVertices.get(v4.getVertexLabel() + ", Thursday, " + windowOfT4);
+
+    assertTrue(propertiesV1ToCompare.contains("\"sum_Relevance\":2") &&
+      propertiesV1ToCompare.contains("\"avg_Size\":15"));
+    assertTrue(propertiesV2ToCompare.contains("\"sum_Relevance\":6") &&
+      propertiesV2ToCompare.contains("\"avg_Size\":15"));
+    assertTrue(propertiesV3ToCompare.contains("\"sum_Relevance\":4") &&
+      propertiesV3ToCompare.contains("\"avg_Size\":30"));
+    assertTrue(propertiesV4ToCompare.contains("\"sum_Relevance\":10") &&
+      propertiesV4ToCompare.contains("\"avg_Size\":5"));
   }
+
+@Test
+public void testBuildVertexGroupProjectExpressions(){
+  Expression[] toCompare = graphStreamGrouping.buildVertexGroupProjectExpressions();
+  Object[] toOutput = Arrays.stream(toCompare).toArray();
+  for (Object o : toOutput) {
+    System.out.println(((ApiExpression )o).asSummaryString());
+  }
+
+  /*
+  vertex_id
+vertex_event_time
+vertex_label
+as(ExtractPropertyValue0(vertex_properties), 'TMP_10')
+as(ExtractPropertyValue1(vertex_properties), 'TMP_11')
+as(ExtractPropertyValue2(vertex_properties), 'TMP_12')
+   */
+}
+
+
   @Test
   public void testDoubleAliasingOnlyWithSqlQuery() {
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -377,5 +622,37 @@ public class GraphStreamGroupingTest {
     streamGraph = groupingOperator.execute(streamGraph);
     streamGraph.printVertices();
 
+  }
+
+  private static class CollectVertexSink implements SinkFunction<Tuple2<Boolean, StreamVertex>> {
+
+    // must be static
+    public static final Map<String, StreamVertex> values = Collections.synchronizedMap(new HashMap<>());
+
+    @Override
+    public void invoke(Tuple2<Boolean, StreamVertex> value, SinkFunction.Context context) throws Exception {
+      if (value.f0) {
+        values.put(value.f1.getVertexId(), value.f1);
+      } else {
+        values.remove(value.f1.getVertexId());
+      }
+
+    }
+  }
+
+  private static class CollectEdgeSink implements SinkFunction<Tuple2<Boolean, StreamEdge>> {
+
+    // must be static
+    public static final Map<String, StreamEdge> values = Collections.synchronizedMap(new HashMap<>());
+
+    @Override
+    public void invoke(Tuple2<Boolean, StreamEdge> value, SinkFunction.Context context) throws Exception {
+      if (value.f0) {
+        values.put(value.f1.getEdgeId(), value.f1);
+      } else {
+        values.remove(value.f1.getEdgeId());
+      }
+
+    }
   }
 }

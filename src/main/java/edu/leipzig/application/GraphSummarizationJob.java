@@ -28,12 +28,12 @@ public class GraphSummarizationJob {
         Timestamp t3 = new Timestamp(1619511673000L);
         Timestamp t4 = new Timestamp(1619511674000L);
         StreamVertex v1 = new StreamVertex("v1", "A", Properties.create(), t1);
-        StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t1);
-        StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t2);
-        StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t2);
-        StreamVertex v5 = new StreamVertex("v5", "A", Properties.create(), t3);
-        StreamVertex v6 = new StreamVertex("v6", "B", Properties.create(), t3);
-        StreamVertex v7 = new StreamVertex("v7", "A", Properties.create(), t4);
+        StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t2);
+        StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t3);
+        StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t4);
+        StreamVertex v5 = new StreamVertex("v5", "A", Properties.create(), t1);
+        StreamVertex v6 = new StreamVertex("v6", "B", Properties.create(), t2);
+        StreamVertex v7 = new StreamVertex("v7", "A", Properties.create(), t3);
         StreamVertex v8 = new StreamVertex("v8", "B", Properties.create(), t4);
 
         HashMap<String, Object> propertiesVertexV1 = new HashMap<>();
@@ -47,6 +47,11 @@ public class GraphSummarizationJob {
         propertiesVertexV2.put("Size", 10);
        //propertiesVertexV2.put("Weekday", "Tuesday");
         Properties propertiesV2 = Properties.createFromMap(propertiesVertexV2);
+
+        HashMap<String,Object> propertiesWithoutSize = new HashMap<>();
+        propertiesWithoutSize.put("Relevance", 2);
+        propertiesWithoutSize.put("Weekday","Monday");
+        Properties propertiesCustom = Properties.createFromMap(propertiesWithoutSize);
 
         HashMap<String, Object> propertiesVertexV3 = new HashMap<>();
         propertiesVertexV3.put("Relevance", 2);
@@ -64,13 +69,13 @@ public class GraphSummarizationJob {
         v2.setVertexProperties(propertiesV2);
         v3.setVertexProperties(propertiesV3);
         v4.setVertexProperties(propertiesV4);
-        v5.setVertexProperties(propertiesV1);
+        v5.setVertexProperties(propertiesCustom);
         v6.setVertexProperties(propertiesV2);
         v7.setVertexProperties(propertiesV3);
         v8.setVertexProperties(propertiesV4);
 
         HashMap<String, Object> propertiesEdge1 = new HashMap<>();
-        propertiesEdge1.put("Weight", 5);
+        //propertiesEdge1.put("Weight", 5);
         propertiesEdge1.put("Weekday", "Thursday");
         Properties propertiesE1 = Properties.createFromMap(propertiesEdge1);
 
@@ -79,15 +84,20 @@ public class GraphSummarizationJob {
         //propertiesEdge2.put("Weekday", "Wednesday");
         Properties propertiesE2 = Properties.createFromMap(propertiesEdge2);
 
+        HashMap<String,Object> propertiesEdge3 = new HashMap<>();
+        propertiesEdge3.put("Weekday", "Thursday");
+        propertiesEdge3.put("Weight", 3);
+        Properties propertiesE3 = Properties.createFromMap(propertiesEdge3);
+
         StreamTriple edge1 = new StreamTriple("e1", t1, "impacts",  propertiesE1, v1, v2);
-        StreamTriple edge2 = new StreamTriple("e2", t2, "impacts", propertiesE2, v3, v4);
-        StreamTriple edge3 = new StreamTriple("e3", t2, "calculates", propertiesE1, v3, v4);
+        StreamTriple edge2 = new StreamTriple("e2", t1, "impacts", propertiesE2, v3, v4);
+        StreamTriple edge3 = new StreamTriple("e3", t1, "calculates", propertiesE3, v3, v4);
         StreamTriple edge4 = new StreamTriple("e4", t1, "impacts",  propertiesE1, v1, v2);
-        StreamTriple edge5 = new StreamTriple("e5", t3, "impacts", propertiesE2, v5, v6);
-        StreamTriple edge6 = new StreamTriple("e6", t3, "calculates", propertiesE1, v5, v6);
-        StreamTriple edge7 = new StreamTriple("e7", t4, "impacts",  propertiesE1, v7, v8);
-        StreamTriple edge8 = new StreamTriple("e8", t4, "impacts", propertiesE2, v7, v8);
-        StreamTriple edge9 = new StreamTriple("e9", t4, "calculates", propertiesE1, v7, v8);
+        StreamTriple edge5 = new StreamTriple("e5", t1, "impacts", propertiesE2, v5, v6);
+        StreamTriple edge6 = new StreamTriple("e6", t1, "calculates", propertiesE3, v5, v6);
+        StreamTriple edge7 = new StreamTriple("e7", t1, "impacts",  propertiesE1, v7, v8);
+        StreamTriple edge8 = new StreamTriple("e8", t1, "impacts", propertiesE2, v7, v8);
+        StreamTriple edge9 = new StreamTriple("e9", t1, "calculates", propertiesE3, v7, v8);
 
         DataStream<StreamTriple> testStream = env.fromElements(edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9);
 
@@ -98,8 +108,11 @@ public class GraphSummarizationJob {
         groupingBuilder.addVertexGroupingKey("Weekday");
         groupingBuilder.addVertexGroupingKey(":label");
         //groupingBuilder.addEdgeGroupingKey(":label");
+        groupingBuilder.addVertexAggregateFunction(new AvgProperty("Size"));
+        groupingBuilder.addVertexAggregateFunction(new MinProperty("Size"));
         groupingBuilder.addVertexAggregateFunction(new Count());
         groupingBuilder.addEdgeAggregateFunction(new Count());
+        groupingBuilder.addEdgeAggregateFunction(new AvgProperty("Weight"));
         groupingBuilder.addEdgeGroupingKey("Weekday");
 
         streamGraph = groupingBuilder.build().execute(streamGraph);
