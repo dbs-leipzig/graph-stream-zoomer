@@ -9,6 +9,7 @@ import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
 import edu.leipzig.model.graph.StreamTriple;
 import edu.leipzig.model.graph.StreamVertex;
+import org.apache.avro.reflect.MapEntry;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -32,10 +33,7 @@ import org.junit.Test;
 
 import java.sql.Timestamp;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static edu.leipzig.model.table.TableSet.*;
 import static org.apache.flink.table.api.Expressions.*;
@@ -63,9 +61,11 @@ public class GraphStreamGroupingTest {
   TableGroupingBase.GroupingBuilder groupingBuilder;
   GraphStreamGrouping graphStreamGrouping;
   StreamTableEnvironment streamTableEnvironment;
-  Table preparedVertices, furtherPreparedVertices, groupedVertices, newVertices;
+  Table preparedVertices, furtherPreparedVertices, groupedVertices, newVertices, expandedVertices,
+          edgesWithSuperVertices, enrichedEdges, groupedEdges, newEdges;
   Timestamp TsTot1, TsTot2, TsTot3, TsTot4,  windowOfT1, windowOfT2, windowOfT3, windowOfT4;
   final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+  HashMap<String, String> vertexIdWithSuperVertexId;
 
   @ClassRule
   public static MiniClusterWithClientResource flinkCluster =
@@ -146,15 +146,15 @@ public class GraphStreamGroupingTest {
     propertiesEdge3.put("Weight", 3);
     propertiesE3 = Properties.createFromMap(propertiesEdge3);
 
-    edge1 = new StreamTriple("e1", t1, "impacts",  propertiesE1, v1, v2);
-    edge2 = new StreamTriple("e2", t1, "impacts", propertiesE2, v3, v4);
-    edge3 = new StreamTriple("e3", t1, "calculates", propertiesE3, v3, v4);
-    edge4 = new StreamTriple("e4", t1, "impacts",  propertiesE1, v1, v2);
-    edge5 = new StreamTriple("e5", t1, "impacts", propertiesE2, v5, v6);
-    edge6 = new StreamTriple("e6", t1, "calculates", propertiesE3, v5, v6);
-    edge7 = new StreamTriple("e7", t1, "impacts",  propertiesE1, v7, v8);
-    edge8 = new StreamTriple("e8", t1, "impacts", propertiesE2, v7, v8);
-    edge9 = new StreamTriple("e9", t1, "calculates", propertiesE3, v7, v8);
+    edge1 = new StreamTriple("e1", t2, "impacts",  propertiesE1, v1, v2);
+    edge2 = new StreamTriple("e2", t4, "impacts", propertiesE2, v3, v4);
+    edge3 = new StreamTriple("e3", t4, "calculates", propertiesE3, v3, v4);
+    edge4 = new StreamTriple("e4", t2, "impacts",  propertiesE1, v1, v2);
+    edge5 = new StreamTriple("e5", t2, "impacts", propertiesE2, v5, v6);
+    edge6 = new StreamTriple("e6", t2, "calculates", propertiesE3, v5, v6);
+    edge7 = new StreamTriple("e7", t4, "impacts",  propertiesE1, v7, v8);
+    edge8 = new StreamTriple("e8", t4, "impacts", propertiesE2, v7, v8);
+    edge9 = new StreamTriple("e9", t4, "calculates", propertiesE3, v7, v8);
 
     TsTot1 = new Timestamp(t1.getTime());
     TsTot2 = new Timestamp(t2.getTime());
@@ -171,7 +171,7 @@ public class GraphStreamGroupingTest {
     windowOfT3 = new Timestamp(TsTot3.getTime() - 1);
     windowOfT4 = new Timestamp(TsTot4.getTime() - 1);
 
-    testStream = env.fromElements(edge1, edge2, edge3,  edge5, edge6, edge7, edge8, edge9);
+    testStream = env.fromElements(edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9);
     streamGraph = StreamGraph.fromFlinkStream(testStream, new StreamGraphConfig(env));
 
     vertices = streamGraph.getTableSet().getVertices();
@@ -196,13 +196,32 @@ public class GraphStreamGroupingTest {
       graphStreamGrouping.convertLegacyToRawType(
         graphStreamGrouping.prepareVerticesFurther(preparedVertices));
     groupedVertices =
-      graphStreamGrouping.convertLegacyToRawType(
-        graphStreamGrouping.groupVertices(furtherPreparedVertices));
-    newVertices = graphStreamGrouping.convertLegacyToRawType(
-      graphStreamGrouping.createNewVertices(groupedVertices));
+        graphStreamGrouping.groupVertices(furtherPreparedVertices);
+    newVertices =
+      graphStreamGrouping.createNewVertices(groupedVertices);
+    expandedVertices =
+            graphStreamGrouping.createExpandedVertices(furtherPreparedVertices, groupedVertices);
+    edgesWithSuperVertices = graphStreamGrouping.createEdgesWithExpandedVertices(edges, expandedVertices);
 
+    DataStream<Row> expandedVerticesRowStream = streamTableEnvironment.toDataStream(expandedVertices);
+    ArrayList<HashMap<String, String>> resultingMaps = new ArrayList<>();
+    vertexIdWithSuperVertexId = new HashMap<>();
 
+    try {
+      resultingMaps =
+              (ArrayList<HashMap<String, String>>) expandedVerticesRowStream
+                      .map(new GetSuperVertexIdOfVertexId()).executeAndCollect(10);
+    } catch(Exception e) {e.printStackTrace();}
 
+    for (HashMap<String, String> map : resultingMaps) {
+      for (String key : map.keySet()) {
+        vertexIdWithSuperVertexId.put(key, map.get(key));
+      }
+    }
+
+    enrichedEdges = graphStreamGrouping.enrichEdgesWithSuperVertices(edgesWithSuperVertices);
+    groupedEdges = graphStreamGrouping.groupEdges(enrichedEdges);
+    newEdges = graphStreamGrouping.createNewEdges(groupedEdges);
   }
 
  class StreamToHashMapPreparedVertices implements  MapFunction<Row, HashMap<String, String>>  {
@@ -303,7 +322,91 @@ public class GraphStreamGroupingTest {
     }
   }
 
+  class StreamToHashMapExpandedVertices implements  MapFunction<Row, HashMap<String, ArrayList<String>>> {
+    public HashMap<String, ArrayList<String>> map(Row row){
+      HashMap<String, ArrayList<String>> toReturn = new HashMap<>();
+      String key = row.getField(FIELD_VERTEX_ID).toString();
+      String super_vertex_id = row.getField("super_vertex_id").toString();
+      String event_time = row.getField("event_time").toString().replaceAll("T", " ");
+      String super_vertex_label = row.getField("super_vertex_label").toString();
+      ArrayList<String> value = new ArrayList<>();
+      value.add(super_vertex_id);
+      value.add(event_time);
+      value.add(super_vertex_label);
 
+      toReturn.put(key, value);
+      return  toReturn;
+    }
+  }
+
+  class GetSuperVertexIdOfVertexId implements MapFunction<Row, HashMap<String, String>> {
+    public HashMap<String, String> map (Row row) {
+      HashMap<String, String> toReturn = new HashMap<>();
+      String key = row.getField(FIELD_VERTEX_ID).toString();
+      String value = row.getField("super_vertex_id").toString();
+      toReturn.put(key, value);
+      return toReturn;
+    }
+  }
+
+  class StreamToHashMapEdgesWithSuperVertices implements MapFunction<Row, HashMap<String, ArrayList<String>>> {
+    public HashMap<String, ArrayList<String>> map (Row row) {
+      HashMap<String, ArrayList<String>> toReturn = new HashMap<>();
+      String key = row.getField("edge_id").toString();
+      String source_id = row.getField("source_id").toString();
+      String target_id = row.getField("target_id").toString();
+      ArrayList<String> value = new ArrayList<>();
+      value.add(source_id);
+      value.add(target_id);
+      toReturn.put(key, value);
+      return toReturn;
+    }
+  }
+
+  class StreamToHashMapEnrichedEdges implements  MapFunction<Row, HashMap<String, ArrayList<String>>> {
+    public HashMap<String, ArrayList<String>> map(Row row) {
+      HashMap<String, ArrayList<String>> toReturn = new HashMap<>();
+      String key = row.getField("edge_id").toString();
+      String label = row.getField("edge_label").toString();
+      String weekday = row.getField("TMP_6").toString();
+      String weight = row.getField("TMP_7").toString();
+      ArrayList<String> value = new ArrayList<>();
+      value.add(label);
+      value.add(weekday);
+      value.add(weight);
+      toReturn.put(key, value);
+      return toReturn;
+    }
+  }
+
+  class StreamToHashMapGroupedEdges implements  MapFunction<Row, HashMap<String, String>> {
+    public HashMap<String, String> map(Row row){
+      //TMP_8 -> Weekday, TMP_9 -> MinValue(Weight)
+      HashMap<String, String> toReturn = new HashMap<>();
+      String key = row.getField("edge_label").toString();
+      key += ", " + row.getField("TMP_8");
+      key += ", " + row.getField("event_time").toString().replaceAll("T", " ");
+      String value = row.getField("TMP_9").toString();
+
+      toReturn.put(key, value);
+      return toReturn;
+    }
+  }
+
+  class StreamToHashMapNewEdges implements  MapFunction<Row, HashMap<String, String>>  {
+    public HashMap<String,String> map(Row row){
+      HashMap<String, String> toReturn = new HashMap<>();
+      String key = row.getField("edge_label").toString();
+      Properties vertexPropertyContent = (Properties) row.getField("edge_properties");
+      key += ", " + vertexPropertyContent.get("\"Weekday\"");
+      key += ", " + row.getField("event_time").toString().replaceAll("T", " ");
+
+      String value = vertexPropertyContent.get("\"min_Weight\"").toString();
+
+      toReturn.put(key, value);
+      return toReturn;
+    }
+  }
 
 
   @Test
@@ -419,7 +522,7 @@ public class GraphStreamGroupingTest {
 
   @Test
   public void testGroupVerticesMethod() throws Exception{
-    groupedVertices.execute().print();
+    groupedVertices = graphStreamGrouping.convertLegacyToRawType(groupedVertices);
     DataStream<Row> rowStream = streamTableEnvironment.toDataStream(groupedVertices);
     List<HashMap<String,String>> resultingMaps =
       rowStream.map(new StreamToHashMapGroupedVertices()).executeAndCollect(10);
@@ -448,6 +551,7 @@ public class GraphStreamGroupingTest {
 
   @Test
   public void testCreateNewVerticesMethod() throws Exception{
+    newVertices = graphStreamGrouping.convertLegacyToRawType(newVertices);
     DataStream<Row> rowStream = streamTableEnvironment.toDataStream(newVertices);
     List<HashMap<String,String>> resultingMaps =
       rowStream.map(new StreamToHashMapNewVertices(graphStreamGrouping.useVertexLabels,
@@ -473,5 +577,195 @@ public class GraphStreamGroupingTest {
       propertiesV3ToCompare.contains("\"avg_Size\":30"));
     assertTrue(propertiesV4ToCompare.contains("\"sum_Relevance\":10") &&
       propertiesV4ToCompare.contains("\"avg_Size\":5"));
+  }
+
+  @Test
+  public void testExpandedVerticesMethod() throws Exception {
+    expandedVertices = graphStreamGrouping.convertLegacyToRawType(expandedVertices);
+    DataStream<Row> rowStream = streamTableEnvironment.toDataStream(expandedVertices);
+    List<HashMap<String,ArrayList<String>>> resultingMaps =
+            rowStream.map(new StreamToHashMapExpandedVertices()).executeAndCollect(10);
+
+    HashMap<String,ArrayList<String>> hashMapVertices = new HashMap<>();
+    for (HashMap<String,ArrayList<String>> result : resultingMaps) {
+      for (String key : result.keySet()) {
+        hashMapVertices.put(key, result.get(key));
+      }
+    }
+
+    //super_vertex_id || event_time || super_vertex_label
+    ArrayList<String> propertiesV1 = hashMapVertices.get("v1");
+    ArrayList<String> propertiesV2 = hashMapVertices.get("v2");
+    ArrayList<String> propertiesV3 = hashMapVertices.get("v3");
+    ArrayList<String> propertiesV4 = hashMapVertices.get("v4");
+    ArrayList<String> propertiesV5 = hashMapVertices.get("v5");
+    ArrayList<String> propertiesV6 = hashMapVertices.get("v6");
+    ArrayList<String> propertiesV7 = hashMapVertices.get("v7");
+    ArrayList<String> propertiesV8 = hashMapVertices.get("v8");
+
+
+    assertTrue( propertiesV1.get(1).equals(windowOfT1.toString()) && propertiesV1.get(2).equals("A") &&
+            propertiesV1.get(0).equals(propertiesV5.get(0)));
+    assertTrue(propertiesV2.get(1).equals(windowOfT2.toString()) && propertiesV2.get(2).equals("B") &&
+            propertiesV2.get(0).equals(propertiesV6.get(0)));
+    assertTrue(propertiesV3.get(1).equals(windowOfT3.toString()) && propertiesV3.get(2).equals("A") &&
+            propertiesV3.get(0).equals(propertiesV7.get(0)));
+    assertTrue(propertiesV4.get(1).equals(windowOfT4.toString()) && propertiesV4.get(2).equals("B") &&
+            propertiesV4.get(0).equals(propertiesV8.get(0)));
+    assertTrue(propertiesV5.get(1).equals(windowOfT1.toString()) && propertiesV5.get(2).equals("A") &&
+            propertiesV5.get(0).equals(propertiesV1.get(0)));
+    assertTrue(propertiesV6.get(1).equals(windowOfT2.toString()) && propertiesV6.get(2).equals("B") &&
+            propertiesV6.get(0).equals(propertiesV2.get(0)));
+    assertTrue(propertiesV7.get(1).equals(windowOfT3.toString()) && propertiesV7.get(2).equals("A") &&
+            propertiesV7.get(0).equals(propertiesV3.get(0)));
+    assertTrue(propertiesV8.get(1).equals(windowOfT4.toString()) && propertiesV8.get(2).equals("B") &&
+            propertiesV8.get(0).equals(propertiesV4.get(0)));
+  }
+
+  @Test
+  public void testEdgesWithSuperVerticesMethod() throws Exception {
+    edgesWithSuperVertices = graphStreamGrouping.convertLegacyToRawType(edgesWithSuperVertices);
+    DataStream<Row> rowStream = streamTableEnvironment.toDataStream(edgesWithSuperVertices);
+    List<HashMap<String,ArrayList<String>>> resultingMaps =
+            rowStream.map(new StreamToHashMapEdgesWithSuperVertices()).executeAndCollect(10);
+
+    HashMap<String,ArrayList<String>> hashMapEdges = new HashMap<>();
+    for (HashMap<String,ArrayList<String>> result : resultingMaps) {
+      for (String key : result.keySet()) {
+        hashMapEdges.put(key, result.get(key));
+      }
+    }
+
+    ArrayList<String> verticesE1 = hashMapEdges.get("e1");
+    ArrayList<String> verticesE2 = hashMapEdges.get("e2");
+    ArrayList<String> verticesE3 = hashMapEdges.get("e3");
+    ArrayList<String> verticesE4 = hashMapEdges.get("e4");
+    ArrayList<String> verticesE5 = hashMapEdges.get("e5");
+    ArrayList<String> verticesE6 = hashMapEdges.get("e6");
+    ArrayList<String> verticesE7 = hashMapEdges.get("e7");
+    ArrayList<String> verticesE8 = hashMapEdges.get("e8");
+    ArrayList<String> verticesE9 = hashMapEdges.get("e9");
+
+    assertTrue(verticesE1.get(1).equals(vertexIdWithSuperVertexId.get("v1"))
+            && verticesE1.get(0).equals(vertexIdWithSuperVertexId.get("v2")));
+    assertTrue(verticesE2.get(1).equals(vertexIdWithSuperVertexId.get("v3"))
+            && verticesE2.get(0).equals(vertexIdWithSuperVertexId.get("v4")));
+    assertTrue(verticesE3.get(1).equals(vertexIdWithSuperVertexId.get("v3"))
+            && verticesE3.get(0).equals(vertexIdWithSuperVertexId.get("v4")));
+    assertTrue(verticesE4.get(1).equals(vertexIdWithSuperVertexId.get("v1"))
+            && verticesE4.get(0).equals(vertexIdWithSuperVertexId.get("v2")));
+    assertTrue(verticesE5.get(1).equals(vertexIdWithSuperVertexId.get("v5"))
+            && verticesE5.get(0).equals(vertexIdWithSuperVertexId.get("v6")));
+    assertTrue(verticesE6.get(1).equals(vertexIdWithSuperVertexId.get("v5"))
+            && verticesE6.get(0).equals(vertexIdWithSuperVertexId.get("v6")));
+    assertTrue(verticesE7.get(1).equals(vertexIdWithSuperVertexId.get("v7"))
+            && verticesE7.get(0).equals(vertexIdWithSuperVertexId.get("v8")));
+    assertTrue(verticesE8.get(1).equals(vertexIdWithSuperVertexId.get("v7"))
+            && verticesE8.get(0).equals(vertexIdWithSuperVertexId.get("v8")));
+    assertTrue(verticesE9.get(1).equals(vertexIdWithSuperVertexId.get("v7"))
+            && verticesE9.get(0).equals(vertexIdWithSuperVertexId.get("v8")));
+  }
+
+  @Test
+  public void testEnrichEdgesMethod() throws Exception {
+    groupedEdges.execute().print();
+    enrichedEdges = graphStreamGrouping.convertLegacyToRawType(enrichedEdges);
+    DataStream<Row> rowStream = streamTableEnvironment.toDataStream(enrichedEdges);
+    List<HashMap<String,ArrayList<String>>> resultingMaps =
+            rowStream.map(new StreamToHashMapEnrichedEdges()).executeAndCollect(10);
+
+    HashMap<String,ArrayList<String>> hashMapEdges = new HashMap<>();
+    for (HashMap<String,ArrayList<String>> result : resultingMaps) {
+      for (String key : result.keySet()) {
+        hashMapEdges.put(key, result.get(key));
+      }
+    }
+
+    ArrayList<String> propertiesE1 = hashMapEdges.get("e1");
+    ArrayList<String> propertiesE2 = hashMapEdges.get("e2");
+    ArrayList<String> propertiesE3 = hashMapEdges.get("e3");
+    ArrayList<String> propertiesE4 = hashMapEdges.get("e4");
+    ArrayList<String> propertiesE5 = hashMapEdges.get("e5");
+    ArrayList<String> propertiesE6 = hashMapEdges.get("e6");
+    ArrayList<String> propertiesE7 = hashMapEdges.get("e7");
+    ArrayList<String> propertiesE8 = hashMapEdges.get("e8");
+    ArrayList<String> propertiesE9 = hashMapEdges.get("e9");
+
+    assertTrue(propertiesE1.get(0).equals("impacts") && propertiesE1.get(1).equals("Thursday") &&
+            propertiesE1.get(2).equals("5"));
+    assertTrue(propertiesE2.get(0).equals("impacts") && propertiesE2.get(1).equals("Wednesday") &&
+            propertiesE2.get(2).equals("6"));
+    assertTrue(propertiesE3.get(0).equals("calculates") && propertiesE3.get(1).equals("Thursday") &&
+            propertiesE3.get(2).equals("3"));
+    assertTrue(propertiesE4.get(0).equals("impacts") && propertiesE4.get(1).equals("Thursday") &&
+            propertiesE4.get(2).equals("5"));
+    assertTrue(propertiesE5.get(0).equals("impacts") && propertiesE5.get(1).equals("Wednesday") &&
+            propertiesE5.get(2).equals("6"));
+    assertTrue(propertiesE6.get(0).equals("calculates") && propertiesE6.get(1).equals("Thursday") &&
+            propertiesE6.get(2).equals("3"));
+    assertTrue(propertiesE7.get(0).equals("impacts") && propertiesE7.get(1).equals("Thursday") &&
+            propertiesE7.get(2).equals("5"));
+    assertTrue(propertiesE8.get(0).equals("impacts") && propertiesE8.get(1).equals("Wednesday") &&
+            propertiesE8.get(2).equals("6"));
+    assertTrue(propertiesE9.get(0).equals("calculates") && propertiesE9.get(1).equals("Thursday") &&
+            propertiesE9.get(2).equals("3"));
+  }
+
+  @Test
+  public void testEdgeGroupingMethod() throws Exception {
+    groupedEdges = graphStreamGrouping.convertLegacyToRawType(groupedEdges);
+    DataStream<Row> rowStream = streamTableEnvironment.toDataStream(groupedEdges);
+    HashMap<String, String> hashMapGroupedEdges = new HashMap<>();
+    List<HashMap<String,String>> resultingMaps =
+            rowStream.map(new StreamToHashMapGroupedEdges()).executeAndCollect(10);
+    for (HashMap<String, String> result : resultingMaps) {
+      for (String key : result.keySet()) {
+        hashMapGroupedEdges.put(key, result.get(key));
+      }
+    }
+
+    String propertyGroupedEdge1 = hashMapGroupedEdges.get("impacts, Thursday, " + windowOfT2);
+    String propertyGroupedEdge2 = hashMapGroupedEdges.get("impacts, Wednesday, " + windowOfT1);
+    String propertyGroupedEdge3 = hashMapGroupedEdges.get("calculates, Thursday, "+ windowOfT1);
+    String propertyGroupedEdge4 = hashMapGroupedEdges.get("calculates, Thursday, " + windowOfT2);
+    String propertyGroupedEdge5 = hashMapGroupedEdges.get("impacts, Thursday, " + windowOfT1);
+    String propertyGroupedEdge6 = hashMapGroupedEdges.get("impacts, Wednesday, " + windowOfT2);
+
+    assertTrue(propertyGroupedEdge1.equals("5"));
+    assertTrue(propertyGroupedEdge2.equals("6"));
+    assertTrue(propertyGroupedEdge3.equals("3"));
+    assertTrue(propertyGroupedEdge4.equals("3"));
+    assertTrue(propertyGroupedEdge5.equals("5"));
+    assertTrue(propertyGroupedEdge6.equals("6"));
+  }
+
+  @Test
+  public void testCreateNewEdgesMethod() throws Exception{
+    newEdges = graphStreamGrouping.convertLegacyToRawType(newEdges);
+    DataStream<Row> rowStream = streamTableEnvironment.toDataStream(newEdges);
+    List<HashMap<String,String>> resultingMaps =
+            rowStream.map(new StreamToHashMapNewEdges()).executeAndCollect(10);
+
+    HashMap<String, String> hashMapNewEdges = new HashMap<>();
+    for (HashMap<String, String> result : resultingMaps) {
+      for (String key : result.keySet()) {
+        hashMapNewEdges.put(key, result.get(key));
+      }
+    }
+
+    String propertyGroupedEdge1 = hashMapNewEdges.get("impacts, Thursday, " + windowOfT2);
+    String propertyGroupedEdge2 = hashMapNewEdges.get("impacts, Wednesday, " + windowOfT1);
+    String propertyGroupedEdge3 = hashMapNewEdges.get("calculates, Thursday, "+ windowOfT1);
+    String propertyGroupedEdge4 = hashMapNewEdges.get("calculates, Thursday, " + windowOfT2);
+    String propertyGroupedEdge5 = hashMapNewEdges.get("impacts, Thursday, " + windowOfT1);
+    String propertyGroupedEdge6 = hashMapNewEdges.get("impacts, Wednesday, " + windowOfT2);
+
+    assertTrue(propertyGroupedEdge1.equals("5"));
+    assertTrue(propertyGroupedEdge2.equals("6"));
+    assertTrue(propertyGroupedEdge3.equals("3"));
+    assertTrue(propertyGroupedEdge4.equals("3"));
+    assertTrue(propertyGroupedEdge5.equals("5"));
+    assertTrue(propertyGroupedEdge6.equals("6"));
+
   }
 }

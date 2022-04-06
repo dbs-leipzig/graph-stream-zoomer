@@ -90,14 +90,14 @@ public class GraphSummarizationJob {
         Properties propertiesE3 = Properties.createFromMap(propertiesEdge3);
 
         StreamTriple edge1 = new StreamTriple("e1", t1, "impacts",  propertiesE1, v1, v2);
-        StreamTriple edge2 = new StreamTriple("e2", t1, "impacts", propertiesE2, v3, v4);
-        StreamTriple edge3 = new StreamTriple("e3", t1, "calculates", propertiesE3, v3, v4);
-        StreamTriple edge4 = new StreamTriple("e4", t1, "impacts",  propertiesE1, v1, v2);
+        StreamTriple edge2 = new StreamTriple("e2", t4, "impacts", propertiesE2, v3, v4);
+        StreamTriple edge3 = new StreamTriple("e3", t4, "calculates", propertiesE3, v3, v4);
+        StreamTriple edge4 = new StreamTriple("e4", t2, "impacts",  propertiesE1, v1, v2);
         StreamTriple edge5 = new StreamTriple("e5", t1, "impacts", propertiesE2, v5, v6);
-        StreamTriple edge6 = new StreamTriple("e6", t1, "calculates", propertiesE3, v5, v6);
-        StreamTriple edge7 = new StreamTriple("e7", t1, "impacts",  propertiesE1, v7, v8);
-        StreamTriple edge8 = new StreamTriple("e8", t1, "impacts", propertiesE2, v7, v8);
-        StreamTriple edge9 = new StreamTriple("e9", t1, "calculates", propertiesE3, v7, v8);
+        StreamTriple edge6 = new StreamTriple("e6", t2, "calculates", propertiesE3, v5, v6);
+        StreamTriple edge7 = new StreamTriple("e7", t4, "impacts",  propertiesE1, v7, v8);
+        StreamTriple edge8 = new StreamTriple("e8", t3, "impacts", propertiesE2, v7, v8);
+        StreamTriple edge9 = new StreamTriple("e9", t4, "calculates", propertiesE3, v7, v8);
 
         DataStream<StreamTriple> testStream = env.fromElements(edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9);
 

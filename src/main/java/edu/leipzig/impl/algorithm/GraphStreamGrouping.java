@@ -118,6 +118,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         Table newEdges = groupedEdges
           .select(buildSuperEdgeProjectExpressions());
 
+        newEdges.execute().print();
+
         return getConfig().getTableSetFactory().fromTables(newVertices, newEdges);
     }
 
@@ -139,10 +141,13 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // 2. Write grouping or aggregating properties in own column, extract from vertex_properties column
         // returns: | vertex_id | vertex_event_time | [vertex_label] | [prop_grouping | ...] [prop_agg | ...]
         Table furtherPreparedVertices = prepareVerticesFurther(preparedVertices);
+        furtherPreparedVertices.execute().print();
 
         // 3. Group vertices by label and/or property values
         // returns: | super_vertex_id | super_vertex_label | [prop_grouping | ...] [prop_agg | ...] | super_vertex_rowtime
         Table groupedVertices = groupVertices(furtherPreparedVertices);
+
+        groupedVertices.execute().print();
 
         // 4. Derive new super vertices
         // returns: | vertex_id | vertex_label | vertex_properties |
@@ -150,55 +155,19 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         // 5. Mapping between super-vertices and basic vertices
         // returns: | vertex_id | event_time | super_vertex_id | super_vertex_label |
-        Table expandedVertices = furtherPreparedVertices
-          .select(buildSelectPreparedVerticesGroupAttributes())
-          .join(groupedVertices.select(buildSelectGroupedVerticesGroupAttributes()))
-          .where(buildJoinConditionForExpandedVertices())
-          .select(buildSelectFromExpandedVertices());
+        Table expandedVertices = createExpandedVertices(furtherPreparedVertices, groupedVertices);
 
         // 6. Assign super vertices to edges and replace source_id and target_id with the ids of the super vertices
         // returns: | edge_id | event_time | source_id | target_id | edge_label | edge_properties
-        Table edgesWithSuperVertices = tableSet.getEdges()
-          .join(
-            expandedVertices.select(
-              $(FIELD_VERTEX_ID).as("vTargetId"),
-              $(FIELD_SUPER_VERTEX_ID).as("supVTargetId"),
-              $(FIELD_EVENT_TIME).as("vTargetEventTime")))
-          .where(
-            $(FIELD_TARGET_ID).isEqual($("vTargetId"))
-              .and($(FIELD_EVENT_TIME).isLessOrEqual($("vTargetEventTime")))
-              .and($(FIELD_EVENT_TIME).isGreater($("vTargetEventTime").minus(lit(10).seconds()))))
-
-          .join(
-            expandedVertices.select(
-              $(FIELD_VERTEX_ID).as("vSourceId"),
-              $(FIELD_SUPER_VERTEX_ID).as("supVSourceId"),
-              $(FIELD_EVENT_TIME).as("vSourceEventTime")))
-          .where(
-            $(FIELD_SOURCE_ID).isEqual($("vSourceId"))
-                .and($(FIELD_EVENT_TIME).isLessOrEqual($("vSourceEventTime")))
-                .and($(FIELD_EVENT_TIME).isGreater($("vSourceEventTime").minus(lit(10).seconds()))))
-
-          .select(
-            $(FIELD_EDGE_ID),
-            $(FIELD_EVENT_TIME),
-            $("supVSourceId").as(FIELD_SOURCE_ID),
-            $("supVTargetId").as(FIELD_TARGET_ID),
-            $(FIELD_EDGE_LABEL),
-            $("edge_properties")
-          );
+        Table edgesWithSuperVertices = createEdgesWithExpandedVertices(tableSet.getEdges(), expandedVertices);
 
         // 7. Write grouping or aggregating properties in own column, extract from edge_properties column
         // return: | edge_id | event_time | source_id | target_id | [edge_label] | [prop_grouping | ..] [prop_agg | ... ]
-        Table enrichedEdgesWithSuperVertices = edgesWithSuperVertices
-          .select(buildEdgeGroupProjectExpressions());
+        Table enrichedEdgesWithSuperVertices = enrichEdgesWithSuperVertices(edgesWithSuperVertices);
 
         // 8. Group edges by label and/or property values
         // return: | super_edge_id | source_id | target_id | [edge_label] | [prop_grouping | ..] [prop_agg | ... ]
-        Table groupedEdges = enrichedEdgesWithSuperVertices
-          .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as(FIELD_EDGE_EVENT_WINDOW))
-          .groupBy(buildEdgeGroupExpressions())
-          .select(buildEdgeProjectExpressions());
+        Table groupedEdges = groupEdges(enrichedEdgesWithSuperVertices);
 
         // 9. Derive new super edges from grouped edges
         // return: | edge_id | source_id | target_id | edge_label | edge_properties
@@ -367,6 +336,63 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         return groupedVertices
           .select(buildSuperVertexProjectExpressions());
 
+    }
+
+    public Table createExpandedVertices(Table furtherPreparedVertices, Table groupedVertices) {
+        return furtherPreparedVertices
+                .select(buildSelectPreparedVerticesGroupAttributes())
+                .join(groupedVertices.select(buildSelectGroupedVerticesGroupAttributes()))
+                .where(buildJoinConditionForExpandedVertices())
+                .select(buildSelectFromExpandedVertices());
+    }
+
+    public Table createEdgesWithExpandedVertices(Table edges, Table expandedVertices) {
+        return edges
+                .join(
+                        expandedVertices.select(
+                                $(FIELD_VERTEX_ID).as("vTargetId"),
+                                $(FIELD_SUPER_VERTEX_ID).as("supVTargetId"),
+                                $(FIELD_EVENT_TIME).as("vTargetEventTime")))
+                .where(
+                        $(FIELD_TARGET_ID).isEqual($("vTargetId"))
+                                .and($(FIELD_EVENT_TIME).isLessOrEqual($("vTargetEventTime")))
+                                .and($(FIELD_EVENT_TIME).isGreater($("vTargetEventTime").minus(lit(10).seconds()))))
+
+                .join(
+                        expandedVertices.select(
+                                $(FIELD_VERTEX_ID).as("vSourceId"),
+                                $(FIELD_SUPER_VERTEX_ID).as("supVSourceId"),
+                                $(FIELD_EVENT_TIME).as("vSourceEventTime")))
+                .where(
+                        $(FIELD_SOURCE_ID).isEqual($("vSourceId"))
+                                .and($(FIELD_EVENT_TIME).isLessOrEqual($("vSourceEventTime")))
+                                .and($(FIELD_EVENT_TIME).isGreater($("vSourceEventTime").minus(lit(10).seconds()))))
+
+                .select(
+                        $(FIELD_EDGE_ID),
+                        $(FIELD_EVENT_TIME),
+                        $("supVSourceId").as(FIELD_SOURCE_ID),
+                        $("supVTargetId").as(FIELD_TARGET_ID),
+                        $(FIELD_EDGE_LABEL),
+                        $("edge_properties")
+                );
+    }
+
+    public Table enrichEdgesWithSuperVertices(Table edgesWithSuperVertices) {
+        return edgesWithSuperVertices
+                .select(buildEdgeGroupProjectExpressions());
+    }
+
+    public Table groupEdges(Table enrichedEdgesWithSuperVertices) {
+        return enrichedEdgesWithSuperVertices
+                .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as(FIELD_EDGE_EVENT_WINDOW))
+                .groupBy(buildEdgeGroupExpressions())
+                .select(buildEdgeProjectExpressions());
+    }
+
+    public Table createNewEdges(Table groupedEdges) {
+        return groupedEdges
+                .select(buildSuperEdgeProjectExpressions());
     }
 
     /**

@@ -264,26 +264,28 @@ public abstract class TableGroupingBase {
      */
     Expression[] buildVertexProjectExpressions() {
         PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
-        String[] fields;
+        Expression[] fields;
         // computes super_vertex_id as the hash value of vertex grouping fields values
+        builder.expression($(FIELD_SUPER_VERTEX_EVENT_WINDOW).rowtime().as(FIELD_SUPER_VERTEX_ROWTIME));
         if (useVertexLabels && vertexGroupingPropertyKeys.size() > 0) {
-            fields = new String[vertexGroupingPropertyFieldNames.size() + 1];
-            fields[0] = FIELD_VERTEX_LABEL;
+            fields = new Expression[vertexGroupingPropertyFieldNames.size() + 2];
+            fields[0] = $(FIELD_VERTEX_LABEL);
             for (int i = 1; i <= vertexGroupingPropertyFieldNames.size(); i++)
-                fields[i] = vertexGroupingPropertyFieldNames.get(vertexGroupingPropertyKeys.get(i - 1));
+                fields[i] = $(vertexGroupingPropertyFieldNames.get(vertexGroupingPropertyKeys.get(i - 1)));
 
         } else if (useVertexLabels) {
-            fields = new String[1];
-            fields[0] = FIELD_VERTEX_LABEL;
+            fields = new Expression[2];
+            fields[0] = $(FIELD_VERTEX_LABEL);
         } else if (vertexGroupingPropertyKeys.size() > 0) {
-            fields = new String[vertexGroupingPropertyFieldNames.size()];
+            fields = new Expression[vertexGroupingPropertyFieldNames.size() + 1];
             for (int i = 0; i < vertexGroupingPropertyFieldNames.size(); i++)
-                fields[i] = vertexGroupingPropertyFieldNames.get(vertexGroupingPropertyKeys.get(i));
+                fields[i] = $(vertexGroupingPropertyFieldNames.get(vertexGroupingPropertyKeys.get(i)));
         } // no vertex grouping criteria specified
         else {
-            fields = new String[1];
-            fields[0] = TableSet.FIELD_VERTEX_ID;
+            fields = new Expression[2];
+            fields[0] = $(TableSet.FIELD_VERTEX_ID);
         }
+        fields[fields.length-1] = $(FIELD_SUPER_VERTEX_EVENT_WINDOW).rowtime();
         builder
           .scalarFunctionCall(new CreateSuperElementId(), fields)
           .as(FIELD_SUPER_VERTEX_ID);
@@ -330,8 +332,6 @@ public abstract class TableGroupingBase {
 
             builder.as(fieldNameAfterAggregation);
         }
-
-        builder.expression($(FIELD_SUPER_VERTEX_EVENT_WINDOW).rowtime()).as(FIELD_SUPER_VERTEX_ROWTIME);
         return builder.build();
     }
 
@@ -555,32 +555,27 @@ public abstract class TableGroupingBase {
      */
     Expression[] buildEdgeProjectExpressions() {
         PlannerExpressionSeqBuilder builder = new PlannerExpressionSeqBuilder(getTableEnv());
-        String[] fields;
+        Expression[] fields;
         // computes super_edge_id as the hash value of edge grouping fields values
         if (useEdgeLabels && edgeGroupingPropertyKeys.size() > 0) {
-            fields = new String[edgeGroupingPropertyFieldNames.size() + 1];
-            fields[0] = TableSet.FIELD_EDGE_LABEL;
+            fields = new Expression[edgeGroupingPropertyFieldNames.size() + 2];
+            fields[0] = $(TableSet.FIELD_EDGE_LABEL);
             for (int i = 1; i <= edgeGroupingPropertyKeys.size(); i++)
-                fields[i] = edgeGroupingPropertyFieldNames.get(edgeGroupingPropertyKeys.get(i - 1));
+                fields[i] = $(edgeGroupingPropertyFieldNames.get(edgeGroupingPropertyKeys.get(i - 1)));
 
         } else if (useEdgeLabels) {
-            fields = new String[1];
-            fields[0] = TableSet.FIELD_EDGE_LABEL;
+            fields = new Expression[2];
+            fields[0] = $(TableSet.FIELD_EDGE_LABEL);
         } else if (edgeGroupingPropertyKeys.size() > 0) {
-            fields = new String[edgeGroupingPropertyFieldNames.size()];
+            fields = new Expression[edgeGroupingPropertyFieldNames.size()];
             for (int i = 0; i < edgeGroupingPropertyKeys.size(); i++)
-                fields[i] = edgeGroupingPropertyFieldNames.get(edgeGroupingPropertyKeys.get(i));
-            /*
-            builder
-                    .scalarFunctionCall(new CreateSuperElementId(), fields)
-                    .as(FIELD_SUPER_EDGE_ID);
-
-             */
+                fields[i] = $(edgeGroupingPropertyFieldNames.get(edgeGroupingPropertyKeys.get(i)));
         } // no edge grouping criteria specified
         else {
-            fields = new String[1];
-            fields[0] = TableSet.FIELD_EDGE_ID;
+            fields = new Expression[2];
+            fields[0] = $(TableSet.FIELD_EDGE_ID);
         }
+        fields[fields.length-1] = $(FIELD_EDGE_EVENT_WINDOW).rowtime();
         builder
                 .scalarFunctionCall(new CreateSuperElementId(), fields)
                 .as(FIELD_SUPER_EDGE_ID);
