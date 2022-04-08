@@ -668,7 +668,6 @@ public class GraphStreamGroupingTest {
 
   @Test
   public void testEnrichEdgesMethod() throws Exception {
-    groupedEdges.execute().print();
     enrichedEdges = graphStreamGrouping.convertLegacyToRawType(enrichedEdges);
     DataStream<Row> rowStream = streamTableEnvironment.toDataStream(enrichedEdges);
     List<HashMap<String,ArrayList<String>>> resultingMaps =
