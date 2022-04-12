@@ -31,13 +31,11 @@ public class TableSumProperty extends BaseTablePropertyValueAggregateFunction {
         }
     }
 
-
     public void accumulate(PropertyValue acc, PropertyValue val) {
         if (null != val) {
             acc.setObject(PropertyValueUtils.Numeric.add(acc, val).getObject());
         }
     }
-
 
     public void retract(PropertyValue acc, PropertyValue val) {
         if (null != val) {
@@ -51,7 +49,6 @@ public class TableSumProperty extends BaseTablePropertyValueAggregateFunction {
 
         }
     }
-
 
     public void merge(PropertyValue acc, Iterable<PropertyValue> it) {
         for (PropertyValue val : it) {

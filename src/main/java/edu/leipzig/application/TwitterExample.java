@@ -4,7 +4,6 @@ import edu.leipzig.application.functions.FilterEndpointInitializer;
 import edu.leipzig.application.functions.TwitterMapper;
 import edu.leipzig.impl.algorithm.GraphStreamGrouping;
 import edu.leipzig.impl.algorithm.TableGroupingBase;
-import edu.leipzig.impl.functions.aggregation.AvgFreqStreamEdge;
 import edu.leipzig.impl.functions.aggregation.AvgProperty;
 import edu.leipzig.impl.functions.aggregation.Count;
 import edu.leipzig.impl.functions.aggregation.MaxProperty;
@@ -67,8 +66,7 @@ public class TwitterExample {
           .addVertexAggregateFunction(new MinProperty("followers_count"))
           .addVertexAggregateFunction(new MaxProperty("followers_count"))
           .addEdgeGroupingKey(":label")
-          .addEdgeAggregateFunction(new Count())
-          .addEdgeAggregateFunction(new AvgFreqStreamEdge()).build();
+          .addEdgeAggregateFunction(new Count()).build();
 
         // execute grouping
         streamGraph = streamGraph.apply(groupingOperator);

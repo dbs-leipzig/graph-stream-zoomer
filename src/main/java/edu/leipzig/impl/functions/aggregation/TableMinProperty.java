@@ -32,24 +32,20 @@ public class TableMinProperty  extends BaseTablePropertyValueAggregateFunction {
         }
     }
 
-
     public void accumulate(PropertyValue acc, PropertyValue val) {
         if (null != val) {
             acc.setObject(PropertyValueUtils.Numeric.min(acc, val).getObject());
         }
     }
 
-
-    public void retract (PropertyValue acc, PropertyValue val) {
+    public void retract(PropertyValue acc, PropertyValue val) {
     }
-
 
     public void merge(PropertyValue acc, Iterable<PropertyValue> it) {
         for (PropertyValue val : it) {
             acc.setObject(PropertyValueUtils.Numeric.min(acc, val).getObject());
         }
     }
-
 
     public void resetAccumulator(PropertyValue acc) {
         acc.setDouble(Double.MAX_VALUE);

@@ -1,20 +1,18 @@
 package edu.leipzig.application;
 
-import edu.leipzig.application.functions.JSONToStreamObjectMapper;
 import edu.leipzig.impl.algorithm.TableGroupingBase;
-import edu.leipzig.impl.functions.aggregation.*;
+import edu.leipzig.impl.functions.aggregation.AvgProperty;
+import edu.leipzig.impl.functions.aggregation.Count;
+import edu.leipzig.impl.functions.aggregation.MinProperty;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
 import edu.leipzig.model.graph.StreamTriple;
 import edu.leipzig.model.graph.StreamVertex;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.gradoop.common.model.impl.properties.Properties;
 
 import java.sql.Timestamp;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
 
 public class GraphSummarizationJob {

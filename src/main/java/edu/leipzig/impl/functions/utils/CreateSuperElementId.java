@@ -28,5 +28,4 @@ public class CreateSuperElementId extends ScalarFunction {
                 groupingKey.toString()
         );
     }
-
 }

@@ -3,25 +3,17 @@ package edu.leipzig.impl.algorithm;
 import edu.leipzig.impl.functions.aggregation.AvgProperty;
 import edu.leipzig.impl.functions.aggregation.MinProperty;
 import edu.leipzig.impl.functions.aggregation.SumProperty;
-import edu.leipzig.impl.functions.utils.CreateSuperElementId;
-import edu.leipzig.model.graph.StreamEdge;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
 import edu.leipzig.model.graph.StreamTriple;
 import edu.leipzig.model.graph.StreamVertex;
-import org.apache.avro.reflect.MapEntry;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.Tumble;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Row;
@@ -32,11 +24,11 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.sql.Timestamp;
-import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
-import static edu.leipzig.model.table.TableSet.*;
-import static org.apache.flink.table.api.Expressions.*;
+import static edu.leipzig.model.table.TableSet.FIELD_VERTEX_ID;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -81,7 +73,6 @@ public class GraphStreamGroupingTest {
       .newInstance()
       .inStreamingMode()
       .build();
-    tEnv = TableEnvironment.create(settings);
 
     t1 = new Timestamp(1619511661000L);
     t2 = new Timestamp(1619511662000L);
@@ -193,7 +184,7 @@ public class GraphStreamGroupingTest {
 
     preparedVertices = graphStreamGrouping.prepareVertices();
     furtherPreparedVertices =
-      graphStreamGrouping.convertLegacyToRawType(
+      convertLegacyToRawType(
         graphStreamGrouping.prepareVerticesFurther(preparedVertices));
     groupedVertices =
         graphStreamGrouping.groupVertices(furtherPreparedVertices);
@@ -368,8 +359,8 @@ public class GraphStreamGroupingTest {
       HashMap<String, ArrayList<String>> toReturn = new HashMap<>();
       String key = row.getField("edge_id").toString();
       String label = row.getField("edge_label").toString();
-      String weekday = row.getField("TMP_6").toString();
-      String weight = row.getField("TMP_7").toString();
+      String weekday = row.getField(5).toString();
+      String weight = row.getField(6).toString();
       ArrayList<String> value = new ArrayList<>();
       value.add(label);
       value.add(weekday);
@@ -384,9 +375,9 @@ public class GraphStreamGroupingTest {
       //TMP_8 -> Weekday, TMP_9 -> MinValue(Weight)
       HashMap<String, String> toReturn = new HashMap<>();
       String key = row.getField("edge_label").toString();
-      key += ", " + row.getField("TMP_8");
+      key += ", " + row.getField(4);
       key += ", " + row.getField("event_time").toString().replaceAll("T", " ");
-      String value = row.getField("TMP_9").toString();
+      String value = row.getField(5).toString();
 
       toReturn.put(key, value);
       return toReturn;
@@ -522,7 +513,7 @@ public class GraphStreamGroupingTest {
 
   @Test
   public void testGroupVerticesMethod() throws Exception{
-    groupedVertices = graphStreamGrouping.convertLegacyToRawType(groupedVertices);
+    groupedVertices = convertLegacyToRawType(groupedVertices);
     DataStream<Row> rowStream = streamTableEnvironment.toDataStream(groupedVertices);
     List<HashMap<String,String>> resultingMaps =
       rowStream.map(new StreamToHashMapGroupedVertices()).executeAndCollect(10);
@@ -551,7 +542,7 @@ public class GraphStreamGroupingTest {
 
   @Test
   public void testCreateNewVerticesMethod() throws Exception{
-    newVertices = graphStreamGrouping.convertLegacyToRawType(newVertices);
+    newVertices = convertLegacyToRawType(newVertices);
     DataStream<Row> rowStream = streamTableEnvironment.toDataStream(newVertices);
     List<HashMap<String,String>> resultingMaps =
       rowStream.map(new StreamToHashMapNewVertices(graphStreamGrouping.useVertexLabels,
@@ -581,7 +572,7 @@ public class GraphStreamGroupingTest {
 
   @Test
   public void testExpandedVerticesMethod() throws Exception {
-    expandedVertices = graphStreamGrouping.convertLegacyToRawType(expandedVertices);
+    expandedVertices = convertLegacyToRawType(expandedVertices);
     DataStream<Row> rowStream = streamTableEnvironment.toDataStream(expandedVertices);
     List<HashMap<String,ArrayList<String>>> resultingMaps =
             rowStream.map(new StreamToHashMapExpandedVertices()).executeAndCollect(10);
@@ -624,7 +615,7 @@ public class GraphStreamGroupingTest {
 
   @Test
   public void testEdgesWithSuperVerticesMethod() throws Exception {
-    edgesWithSuperVertices = graphStreamGrouping.convertLegacyToRawType(edgesWithSuperVertices);
+    edgesWithSuperVertices = convertLegacyToRawType(edgesWithSuperVertices);
     DataStream<Row> rowStream = streamTableEnvironment.toDataStream(edgesWithSuperVertices);
     List<HashMap<String,ArrayList<String>>> resultingMaps =
             rowStream.map(new StreamToHashMapEdgesWithSuperVertices()).executeAndCollect(10);
@@ -668,7 +659,7 @@ public class GraphStreamGroupingTest {
 
   @Test
   public void testEnrichEdgesMethod() throws Exception {
-    enrichedEdges = graphStreamGrouping.convertLegacyToRawType(enrichedEdges);
+    enrichedEdges = convertLegacyToRawType(enrichedEdges);
     DataStream<Row> rowStream = streamTableEnvironment.toDataStream(enrichedEdges);
     List<HashMap<String,ArrayList<String>>> resultingMaps =
             rowStream.map(new StreamToHashMapEnrichedEdges()).executeAndCollect(10);
@@ -712,7 +703,7 @@ public class GraphStreamGroupingTest {
 
   @Test
   public void testEdgeGroupingMethod() throws Exception {
-    groupedEdges = graphStreamGrouping.convertLegacyToRawType(groupedEdges);
+    groupedEdges = convertLegacyToRawType(groupedEdges);
     DataStream<Row> rowStream = streamTableEnvironment.toDataStream(groupedEdges);
     HashMap<String, String> hashMapGroupedEdges = new HashMap<>();
     List<HashMap<String,String>> resultingMaps =
@@ -740,7 +731,7 @@ public class GraphStreamGroupingTest {
 
   @Test
   public void testCreateNewEdgesMethod() throws Exception{
-    newEdges = graphStreamGrouping.convertLegacyToRawType(newEdges);
+    newEdges = convertLegacyToRawType(newEdges);
     DataStream<Row> rowStream = streamTableEnvironment.toDataStream(newEdges);
     List<HashMap<String,String>> resultingMaps =
             rowStream.map(new StreamToHashMapNewEdges()).executeAndCollect(10);
@@ -767,4 +758,9 @@ public class GraphStreamGroupingTest {
     assertTrue(propertyGroupedEdge6.equals("6"));
 
   }
+
+  public Table convertLegacyToRawType(Table table) {
+    return streamTableEnvironment.sqlQuery("SELECT * FROM " +table);
+  }
+
 }

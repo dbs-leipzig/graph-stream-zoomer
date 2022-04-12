@@ -98,7 +98,6 @@ public class TableSet extends HashMap<String, Table> {
     /**
      * Initial table set schema of stream graph layout
      */
-
     private static final TableSetSchema SCHEMA = new TableSetSchema(
       ImmutableMap.<String, Schema>builder()
         .put(TABLE_VERTICES,
@@ -117,7 +116,6 @@ public class TableSet extends HashMap<String, Table> {
             .column(FIELD_EVENT_TIME, DataTypes.TIMESTAMP(3))
             .build())
         .build());
-
 
     /**
      * Constructor
@@ -152,7 +150,6 @@ public class TableSet extends HashMap<String, Table> {
         return get(TABLE_GRAPH);
     }
 
-
     /**
      * Projects a given table with a super set of edges and vertices fields to those fields
      *
@@ -163,18 +160,26 @@ public class TableSet extends HashMap<String, Table> {
         return table.select(SCHEMA.buildProjectExpressions(TABLE_GRAPH));
     }
 
+    /**
+     * Get the vertex table schema as {@link Schema} object.
+     *
+     * @return the vertex table schema
+     */
     public static Schema getVertexSchema() {
         return Schema.newBuilder()
           .column(FIELD_VERTEX_ID, DataTypes.STRING())
           .column(FIELD_VERTEX_LABEL, DataTypes.STRING())
           .column(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
           .column(FIELD_EVENT_TIME, DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class))
-          // todo: Check why watermarking can not be inherited from stream source
-          //.watermark(FIELD_EVENT_TIME, "SOURCE_WATERMARK()")
           .watermark(FIELD_EVENT_TIME, $(FIELD_EVENT_TIME).minus(lit(10).seconds()))
           .build();
     }
 
+    /**
+     * Get the edge table schema as {@link Schema} object.
+     *
+     * @return the edge table schema
+     */
     public static Schema getEdgeSchema() {
         return Schema.newBuilder()
           .column(FIELD_EDGE_ID, DataTypes.STRING())
@@ -183,8 +188,6 @@ public class TableSet extends HashMap<String, Table> {
           .column(FIELD_TARGET_ID, DataTypes.STRING())
           .column(FIELD_SOURCE_ID, DataTypes.STRING())
           .column(FIELD_EVENT_TIME, DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class))
-          // todo: Check why watermarking can not be inherited from stream source
-          //.watermark(FIELD_EVENT_TIME, "SOURCE_WATERMARK()")
           .watermark(FIELD_EVENT_TIME, $(FIELD_EVENT_TIME).minus(lit(10).seconds()))
           .build();
     }
