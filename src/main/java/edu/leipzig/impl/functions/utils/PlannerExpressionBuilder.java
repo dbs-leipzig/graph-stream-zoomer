@@ -150,7 +150,7 @@ public class PlannerExpressionBuilder {
         if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
             // Here we use the deprecated api since the PropertyValue type is not a pojo and thus can not be
             // used in the new Flink type system
-            tableEnv.registerFunction(functionName, function);
+            registerScalarFunction(tableEnv, function, functionName);
         }
         currentExpressionString = functionName + "(" + String.join(",", parameters) + ")";
 
@@ -172,7 +172,7 @@ public class PlannerExpressionBuilder {
         if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
             // Here we use the deprecated api since the PropertyValue type is not a pojo and thus can not be
             // used in the new Flink type system
-            tableEnv.registerFunction(functionName, function);
+            registerScalarFunction(tableEnv, function, functionName);
         }
         currentExpression = call(functionName);
         return this;
@@ -186,10 +186,18 @@ public class PlannerExpressionBuilder {
         if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
             // Here we use the deprecated api since the PropertyValue type is not a pojo and thus can not be
             // used in the new Flink type system
-            tableEnv.registerFunction(functionName, function);
+            registerScalarFunction(tableEnv, function, functionName);
         }
         currentExpression = call(functionName, parameters);
         return this;
+    }
+
+    private void registerScalarFunction(StreamTableEnvironment tableEnv, ScalarFunction function, String functionName) {
+        tableEnv.createTemporaryFunction(functionName, function);
+    }
+
+    private void registerAggregateFunction(StreamTableEnvironment tableEnv, AggregateFunction function, String functionName) {
+        tableEnv.createTemporaryFunction(functionName, function);
     }
 
 
@@ -207,7 +215,7 @@ public class PlannerExpressionBuilder {
         if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
             // Here we use the deprecated api since the PropertyValue type is not a pojo and thus can not be
             // used in the new Flink type system
-            tableEnv.registerFunction(functionName, function);
+            registerAggregateFunction(tableEnv, function, functionName);
         }
         currentExpressionString = functionName + "(" + String.join(",", parameters) + ")";
         Expression[] paramExpressions = Arrays.stream(parameters).map(Expressions::$).toArray(Expression[]::new);
@@ -220,7 +228,7 @@ public class PlannerExpressionBuilder {
         if (!Arrays.asList(tableEnv.listUserDefinedFunctions()).contains(functionName)) {
             // Here we use the deprecated api since the PropertyValue type is not a pojo and thus can not be
             // used in the new Flink type system
-            tableEnv.registerFunction(functionName, function);
+            registerAggregateFunction(tableEnv, function, functionName);
         }
         currentExpression = call(functionName, parameters);
         return this;

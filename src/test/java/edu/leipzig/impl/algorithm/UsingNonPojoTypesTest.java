@@ -34,7 +34,6 @@ public class UsingNonPojoTypesTest {
 
   @Before
   public void init() {
-
     t1 = new Timestamp(1619511661000L);
     t2 = new Timestamp(1619511662000L);
 
@@ -71,16 +70,18 @@ public class UsingNonPojoTypesTest {
 
   @Test
   public void testNonPojoStream() throws Exception{
-    usersTable.select($("*")).execute().print();
+    usersTable.select($("f0")).execute().print();
   }
 
 
 }
 
 class User {
-  String name;
-  Properties userProperties;
-  Timestamp event_time;
+  private String name;
+  private Properties userProperties;
+  private Timestamp event_time;
+
+  public User(){}
 
   public User(String name, Properties userProperties, Timestamp event_time) {
     this.name = name;
@@ -88,9 +89,23 @@ class User {
     this.event_time = event_time;
   }
 
+
+  public Properties getUserProperties() {
+    return userProperties;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
   public void setUserProperties(Properties userProperties) {
     this.userProperties = userProperties;
   }
+
 
   public static org.apache.flink.table.api.Schema getUserSchema() {
     return org.apache.flink.table.api.Schema.newBuilder()
@@ -100,6 +115,7 @@ class User {
       .watermark("event_time", $("event_time").minus(lit(10).seconds()))
       .build();
   }
+
 }
 
 class Properties {

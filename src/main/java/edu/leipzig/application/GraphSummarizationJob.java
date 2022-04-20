@@ -115,6 +115,8 @@ public class GraphSummarizationJob {
 
         streamGraph = groupingBuilder.build().execute(streamGraph);
 
+        streamGraph.printVertices();
+
         env.execute();
     }
 }
