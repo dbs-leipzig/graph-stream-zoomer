@@ -37,7 +37,7 @@ public class ExtractPropertyValue extends ScalarFunction {
      * @param p properties object
      * @return property value belonging to specified key
      */
-    @DataTypeHint(bridgedTo = PropertyValue.class)
+    @DataTypeHint(bridgedTo = PropertyValue.class, value = "")
     public PropertyValue eval(@DataTypeHint(bridgedTo = Properties.class,
             allowRawPattern = "org.gradoop.common.model.impl.properties") Properties p) {
         return p.get(propertyKey);

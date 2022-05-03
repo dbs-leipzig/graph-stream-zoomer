@@ -657,7 +657,7 @@ public abstract class TableGroupingBase {
                 String propertyFieldAlias = getConfig().createUniqueAttributeName();
                 builder
                   .scalarFunctionCall(
-                    new ExtractPropertyValue(aggregateFunction.getPropertyKey()),
+                     new ExtractPropertyValue(aggregateFunction.getPropertyKey()),
                     TableSet.FIELD_VERTEX_PROPERTIES)
                   .as(propertyFieldAlias);
                 vertexAggregationPropertyFieldNames
