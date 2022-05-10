@@ -2,6 +2,8 @@ package edu.leipzig.impl.functions.utils;
 
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.annotation.HintFlag;
+import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -11,9 +13,6 @@ import org.gradoop.common.model.impl.properties.PropertyValue;
 /**
  * Takes a properties object and returns property value belonging to specified key
  */
-@FunctionHint(
-        input = @DataTypeHint(bridgedTo = Properties.class, allowRawPattern = "TRUE"),
-        output = @DataTypeHint(bridgedTo = PropertyValue.class))
 public class ExtractPropertyValue extends ScalarFunction {
 
     /**
@@ -37,9 +36,9 @@ public class ExtractPropertyValue extends ScalarFunction {
      * @param p properties object
      * @return property value belonging to specified key
      */
-    @DataTypeHint(bridgedTo = PropertyValue.class, value = "")
-    public PropertyValue eval(@DataTypeHint(bridgedTo = Properties.class,
-            allowRawPattern = "org.gradoop.common.model.impl.properties") Properties p) {
+    public @DataTypeHint(allowRawGlobally = HintFlag.TRUE, inputGroup = InputGroup.ANY) PropertyValue eval(
+      @DataTypeHint(allowRawGlobally = HintFlag.TRUE, inputGroup = InputGroup.ANY)Object test) {
+        Properties p  = (Properties) test;
         return p.get(propertyKey);
     }
 
