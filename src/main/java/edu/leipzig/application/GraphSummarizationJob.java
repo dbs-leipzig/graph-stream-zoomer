@@ -10,6 +10,7 @@ import edu.leipzig.model.graph.StreamTriple;
 import edu.leipzig.model.graph.StreamVertex;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.CloseableIterator;
 import org.gradoop.common.model.impl.properties.Properties;
 
 import java.sql.Timestamp;
@@ -105,7 +106,7 @@ public class GraphSummarizationJob {
 
         groupingBuilder.addVertexGroupingKey("Weekday");
         groupingBuilder.addVertexGroupingKey(":label");
-        //groupingBuilder.addEdgeGroupingKey(":label");
+        groupingBuilder.addEdgeGroupingKey(":label");
         groupingBuilder.addVertexAggregateFunction(new AvgProperty("Size"));
         groupingBuilder.addVertexAggregateFunction(new MinProperty("Size"));
         groupingBuilder.addVertexAggregateFunction(new Count());
@@ -114,6 +115,16 @@ public class GraphSummarizationJob {
         groupingBuilder.addEdgeGroupingKey("Weekday");
 
         streamGraph = groupingBuilder.build().execute(streamGraph);
+
+        DataStream<StreamTriple> graphTriples = streamGraph.createStreamTripleFromGraph();
+        CloseableIterator it = graphTriples.executeAndCollect();
+        while(it.hasNext()) {
+            StreamTriple triple = (StreamTriple) it.next();
+            System.out.println(triple.toString());
+
+        }
+
+
 
         env.execute();
     }

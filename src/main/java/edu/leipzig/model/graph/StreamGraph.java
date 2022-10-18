@@ -4,15 +4,22 @@ import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
 import edu.leipzig.impl.functions.utils.Extractor;
 import edu.leipzig.model.table.TableSet;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.JoinedStreams;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 
+import javax.xml.crypto.KeySelector;
 import java.util.List;
 import java.util.Objects;
 
@@ -174,6 +181,35 @@ public class StreamGraph extends StreamGraphLayout {
           getConfig().getTableEnvironment());
 
         getConfig().getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).addSink(graphSink);
+    }
+
+    public DataStream<StreamTriple> createStreamTripleFromGraph() {
+        Table edges = this.getTableSet().getEdges();
+        Table vertices = this.getTableSet().getVertices();
+        StreamTableEnvironment tEnv = getConfig().getTableEnvironment();
+        DataStream<Tuple2<Boolean, StreamVertex>> vertexDataStream = tEnv.toRetractStream(vertices, StreamVertex.class);
+        DataStream<Tuple2<Boolean, StreamEdge>> edgeDataStream = tEnv.toRetractStream(edges, StreamEdge.class);
+        DataStream<StreamTriple> edgesWithSourceVertex =
+                edgeDataStream.join(vertexDataStream).where(edge -> edge.f1.getSourceId()).equalTo(vertex -> vertex.f1.getVertexId())
+                .window(TumblingEventTimeWindows.of(Time.seconds(10)))
+                .apply((JoinFunction<Tuple2<Boolean,StreamEdge>, Tuple2<Boolean,StreamVertex>, StreamTriple>) (streamEdge, streamVertex) -> {
+                    StreamTriple streamTriple = new StreamTriple(streamEdge.f1.getEdgeId(), streamEdge.f1.getEventTime(),
+                            streamEdge.f1.getEdgeLabel(), streamEdge.f1.getEdgeProperties(), streamVertex.f1, null);
+                    return streamTriple;
+                });
+        DataStream<StreamTriple> joinedEdgesAndVertices =
+                edgesWithSourceVertex.join(vertexDataStream).where(triple -> triple.getEdge().getTargetId()).equalTo(vertex -> vertex.f1.getVertexId())
+                        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
+                        .apply((JoinFunction<StreamTriple, Tuple2<Boolean,StreamVertex>, StreamTriple>) (streamTriple, streamVertex) -> {
+                            StreamTriple streamTripleFinal = new StreamTriple(streamTriple.f0, streamTriple.f1,
+                                    streamTriple.f2, streamTriple.f3, streamTriple.f4, streamVertex.f1);
+                            return streamTripleFinal;
+        });
+        joinedEdgesAndVertices.assignTimestampsAndWatermarks(
+                WatermarkStrategy
+                        .<StreamTriple>forBoundedOutOfOrderness(getConfig().getMaxOutOfOrdernessDuration())
+                        .withTimestampAssigner((event, timestamp) -> event.getTimestamp().getTime()));
+        return joinedEdgesAndVertices;
     }
 
     /*
