@@ -1,16 +1,21 @@
 package edu.leipzig.model.graph;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import edu.leipzig.impl.functions.aggregation.CustomizedAggregationFunction;
 import edu.leipzig.impl.functions.utils.Extractor;
 import edu.leipzig.model.table.TableSet;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.JoinedStreams;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -19,9 +24,9 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 
-import javax.xml.crypto.KeySelector;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * stream graph class one of the base concepts of the stream of objects as edge stream.
@@ -183,32 +188,64 @@ public class StreamGraph extends StreamGraphLayout {
         getConfig().getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).addSink(graphSink);
     }
 
-    public DataStream<StreamTriple> createStreamTripleFromGraph() {
+    public DataStream<StreamTriple> createStreamTripleFromGraph() throws Exception {
         Table edges = this.getTableSet().getEdges();
+        edges.execute().print();
         Table vertices = this.getTableSet().getVertices();
+        vertices.execute().print();
         StreamTableEnvironment tEnv = getConfig().getTableEnvironment();
-        DataStream<Tuple2<Boolean, StreamVertex>> vertexDataStream = tEnv.toRetractStream(vertices, StreamVertex.class);
+        DataStream<Tuple2<Boolean, StreamVertex>> vertexDataStream = tEnv.toRetractStream(vertices,
+          StreamVertex.class);
+        List<Tuple2<Boolean, StreamVertex>> listVertex = vertexDataStream.executeAndCollect(100);
+        System.out.println("Erste Größe: "  + listVertex.size());
+        vertexDataStream = vertexDataStream.assignTimestampsAndWatermarks(
+          WatermarkStrategy
+            .<Tuple2<Boolean, StreamVertex>>forBoundedOutOfOrderness(getConfig().getMaxOutOfOrdernessDuration())
+            .withTimestampAssigner((event, timestamp) -> event.f1.getEventTime().getTime()));
         DataStream<Tuple2<Boolean, StreamEdge>> edgeDataStream = tEnv.toRetractStream(edges, StreamEdge.class);
+
+        edgeDataStream = edgeDataStream.assignTimestampsAndWatermarks(WatermarkStrategy
+          .<Tuple2<Boolean, StreamEdge>>forBoundedOutOfOrderness(getConfig().getMaxOutOfOrdernessDuration())
+          .withTimestampAssigner((event, timestamp) -> event.f1.getEventTime().getTime()));
+        System.out.println("Nächste Größe: " + edgeDataStream.executeAndCollect(100).size());
+
+        List<Tuple2<Boolean, StreamEdge>> listEdges = edgeDataStream.executeAndCollect(100);
+        edgeDataStream.print();
+        for (Tuple2<Boolean, StreamEdge> edge : listEdges) {
+
+            for (Tuple2<Boolean, StreamVertex> vertex : listVertex) {
+                if (edge.f1.getSourceId().equals(vertex.f1.getVertexId())) {
+                    System.out.println("JA");
+                }
+            }
+        }
+
         DataStream<StreamTriple> edgesWithSourceVertex =
-                edgeDataStream.join(vertexDataStream).where(edge -> edge.f1.getSourceId()).equalTo(vertex -> vertex.f1.getVertexId())
-                .window(TumblingEventTimeWindows.of(Time.seconds(10)))
+                edgeDataStream.join(vertexDataStream)
+                  .where((KeySelector<Tuple2<Boolean, StreamEdge>, String>) getEdgeKey -> getEdgeKey.f1.getSourceId())
+                  .equalTo((KeySelector<Tuple2<Boolean, StreamVertex>, String>) getVertexKey -> getVertexKey.f1.getVertexId())
+                .window(TumblingEventTimeWindows.of(Time.seconds(100)))
                 .apply((JoinFunction<Tuple2<Boolean,StreamEdge>, Tuple2<Boolean,StreamVertex>, StreamTriple>) (streamEdge, streamVertex) -> {
                     StreamTriple streamTriple = new StreamTriple(streamEdge.f1.getEdgeId(), streamEdge.f1.getEventTime(),
-                            streamEdge.f1.getEdgeLabel(), streamEdge.f1.getEdgeProperties(), streamVertex.f1, null);
-                    return streamTriple;
+                    streamEdge.f1.getEdgeLabel(), streamEdge.f1.getEdgeProperties(),
+                    streamVertex.f1, null);
+                return streamTriple;
                 });
+        edgesWithSourceVertex.print();
+
+
         DataStream<StreamTriple> joinedEdgesAndVertices =
                 edgesWithSourceVertex.join(vertexDataStream).where(triple -> triple.getEdge().getTargetId()).equalTo(vertex -> vertex.f1.getVertexId())
                         .window(TumblingEventTimeWindows.of(Time.seconds(10)))
                         .apply((JoinFunction<StreamTriple, Tuple2<Boolean,StreamVertex>, StreamTriple>) (streamTriple, streamVertex) -> {
+                            System.out.println("Hier ich komme hier rein");
                             StreamTriple streamTripleFinal = new StreamTriple(streamTriple.f0, streamTriple.f1,
                                     streamTriple.f2, streamTriple.f3, streamTriple.f4, streamVertex.f1);
                             return streamTripleFinal;
         });
-        joinedEdgesAndVertices.assignTimestampsAndWatermarks(
-                WatermarkStrategy
-                        .<StreamTriple>forBoundedOutOfOrderness(getConfig().getMaxOutOfOrdernessDuration())
-                        .withTimestampAssigner((event, timestamp) -> event.getTimestamp().getTime()));
+
+        System.out.println("Letzte Größe: " + joinedEdgesAndVertices.executeAndCollect(100).size());
+
         return joinedEdgesAndVertices;
     }
 
