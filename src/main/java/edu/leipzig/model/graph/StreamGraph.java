@@ -19,14 +19,20 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
+
+import static edu.leipzig.model.table.TableSet.*;
+import static edu.leipzig.model.table.TableSet.FIELD_EDGE_ID;
+import static org.apache.flink.table.api.Expressions.$;
 
 /**
  * stream graph class one of the base concepts of the stream of objects as edge stream.
@@ -188,65 +194,36 @@ public class StreamGraph extends StreamGraphLayout {
         getConfig().getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).addSink(graphSink);
     }
 
-    public DataStream<StreamTriple> createStreamTripleFromGraph() throws Exception {
-        Table edges = this.getTableSet().getEdges();
-        edges.execute().print();
-        Table vertices = this.getTableSet().getVertices();
-        vertices.execute().print();
-        StreamTableEnvironment tEnv = getConfig().getTableEnvironment();
-        DataStream<Tuple2<Boolean, StreamVertex>> vertexDataStream = tEnv.toRetractStream(vertices,
-          StreamVertex.class);
-        List<Tuple2<Boolean, StreamVertex>> listVertex = vertexDataStream.executeAndCollect(100);
-        System.out.println("Erste Größe: "  + listVertex.size());
-        vertexDataStream = vertexDataStream.assignTimestampsAndWatermarks(
-          WatermarkStrategy
-            .<Tuple2<Boolean, StreamVertex>>forBoundedOutOfOrderness(getConfig().getMaxOutOfOrdernessDuration())
-            .withTimestampAssigner((event, timestamp) -> event.f1.getEventTime().getTime()));
-        DataStream<Tuple2<Boolean, StreamEdge>> edgeDataStream = tEnv.toRetractStream(edges, StreamEdge.class);
+    public Table createStreamTriple(Table vertices, Table edges) {
+        String edgeEventTime = getConfig().createUniqueAttributeName();
+        String sourceVertexEventTime = getConfig().createUniqueAttributeName();
+        String targetVertexEventTime = getConfig().createUniqueAttributeName();
 
-        edgeDataStream = edgeDataStream.assignTimestampsAndWatermarks(WatermarkStrategy
-          .<Tuple2<Boolean, StreamEdge>>forBoundedOutOfOrderness(getConfig().getMaxOutOfOrdernessDuration())
-          .withTimestampAssigner((event, timestamp) -> event.f1.getEventTime().getTime()));
-        System.out.println("Nächste Größe: " + edgeDataStream.executeAndCollect(100).size());
-
-        List<Tuple2<Boolean, StreamEdge>> listEdges = edgeDataStream.executeAndCollect(100);
-        edgeDataStream.print();
-        for (Tuple2<Boolean, StreamEdge> edge : listEdges) {
-
-            for (Tuple2<Boolean, StreamVertex> vertex : listVertex) {
-                if (edge.f1.getSourceId().equals(vertex.f1.getVertexId())) {
-                    System.out.println("JA");
-                }
-            }
-        }
-
-        DataStream<StreamTriple> edgesWithSourceVertex =
-                edgeDataStream.join(vertexDataStream)
-                  .where((KeySelector<Tuple2<Boolean, StreamEdge>, String>) getEdgeKey -> getEdgeKey.f1.getSourceId())
-                  .equalTo((KeySelector<Tuple2<Boolean, StreamVertex>, String>) getVertexKey -> getVertexKey.f1.getVertexId())
-                .window(TumblingEventTimeWindows.of(Time.seconds(100)))
-                .apply((JoinFunction<Tuple2<Boolean,StreamEdge>, Tuple2<Boolean,StreamVertex>, StreamTriple>) (streamEdge, streamVertex) -> {
-                    StreamTriple streamTriple = new StreamTriple(streamEdge.f1.getEdgeId(), streamEdge.f1.getEventTime(),
-                    streamEdge.f1.getEdgeLabel(), streamEdge.f1.getEdgeProperties(),
-                    streamVertex.f1, null);
-                return streamTriple;
-                });
-        edgesWithSourceVertex.print();
+        Table joinedEdgesWithSourceVertices =
+          vertices.select($(FIELD_VERTEX_ID),
+            $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class)).as(sourceVertexEventTime),
+            $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_SOURCE_LABEL), $(FIELD_VERTEX_PROPERTIES).as(FIELD_VERTEX_SOURCE_PROPERTIES))
+            .join(
+              edges.select($(FIELD_EDGE_ID),
+                $(FIELD_EVENT_TIME).as(edgeEventTime),
+                $(FIELD_SOURCE_ID), $(FIELD_TARGET_ID), $(FIELD_EDGE_LABEL), $(FIELD_EDGE_PROPERTIES)))
+            .where($(FIELD_VERTEX_ID).isEqual($(FIELD_SOURCE_ID)).and($(sourceVertexEventTime).isEqual($(edgeEventTime))))
+            .select($(FIELD_SOURCE_ID), $(FIELD_VERTEX_SOURCE_LABEL), $(FIELD_VERTEX_SOURCE_PROPERTIES),
+              $(FIELD_EDGE_ID), $(edgeEventTime), $(FIELD_EDGE_LABEL), $(FIELD_EDGE_PROPERTIES),
+              $(FIELD_TARGET_ID));
 
 
-        DataStream<StreamTriple> joinedEdgesAndVertices =
-                edgesWithSourceVertex.join(vertexDataStream).where(triple -> triple.getEdge().getTargetId()).equalTo(vertex -> vertex.f1.getVertexId())
-                        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
-                        .apply((JoinFunction<StreamTriple, Tuple2<Boolean,StreamVertex>, StreamTriple>) (streamTriple, streamVertex) -> {
-                            System.out.println("Hier ich komme hier rein");
-                            StreamTriple streamTripleFinal = new StreamTriple(streamTriple.f0, streamTriple.f1,
-                                    streamTriple.f2, streamTriple.f3, streamTriple.f4, streamVertex.f1);
-                            return streamTripleFinal;
-        });
+        Table fullyJoinedEdgesAndVertices = joinedEdgesWithSourceVertices.join(vertices.select($(FIELD_VERTEX_ID),
+          $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class)).as(targetVertexEventTime),
+          $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_TARGET_LABEL),
+          $(FIELD_VERTEX_PROPERTIES).as(FIELD_VERTEX_TARGET_PROPERTIES))
+        ).where($(FIELD_TARGET_ID).isEqual($(FIELD_VERTEX_ID)).and($(edgeEventTime).isEqual($(targetVertexEventTime))))
+          .select($(FIELD_SOURCE_ID), $(FIELD_VERTEX_SOURCE_LABEL), $(FIELD_VERTEX_SOURCE_PROPERTIES),
+            $(FIELD_EDGE_ID), $(edgeEventTime).as(FIELD_EVENT_TIME), $(FIELD_EDGE_LABEL),
+            $(FIELD_EDGE_PROPERTIES),
+            $(FIELD_TARGET_ID), $(FIELD_VERTEX_TARGET_LABEL), $(FIELD_VERTEX_TARGET_PROPERTIES));
 
-        System.out.println("Letzte Größe: " + joinedEdgesAndVertices.executeAndCollect(100).size());
-
-        return joinedEdgesAndVertices;
+        return fullyJoinedEdgesAndVertices;
     }
 
     /*
