@@ -194,11 +194,21 @@ public class StreamGraph extends StreamGraphLayout {
         getConfig().getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).addSink(graphSink);
     }
 
+    /**
+     * Returns joined table for edges and vertices.
+     *
+     * @param vertices Grouped vertices-table of the StreamGraph
+     * @param edges Grouped edges-table of the StreamGraph
+     * @return twice-joined table for edges, source- and target-vertices
+     */
     public Table createStreamTriple(Table vertices, Table edges) {
         String edgeEventTime = getConfig().createUniqueAttributeName();
         String sourceVertexEventTime = getConfig().createUniqueAttributeName();
         String targetVertexEventTime = getConfig().createUniqueAttributeName();
 
+        /*
+        Join source-vertices and edges based on IDs and window-time
+         */
         Table joinedEdgesWithSourceVertices =
           vertices.select($(FIELD_VERTEX_ID),
             $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class)).as(sourceVertexEventTime),
@@ -212,7 +222,9 @@ public class StreamGraph extends StreamGraphLayout {
               $(FIELD_EDGE_ID), $(edgeEventTime), $(FIELD_EDGE_LABEL), $(FIELD_EDGE_PROPERTIES),
               $(FIELD_TARGET_ID));
 
-
+        /*
+        Second join to join the edges with the target-vertices based on IDs and window-time
+         */
         Table fullyJoinedEdgesAndVertices = joinedEdgesWithSourceVertices.join(vertices.select($(FIELD_VERTEX_ID),
           $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class)).as(targetVertexEventTime),
           $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_TARGET_LABEL),
