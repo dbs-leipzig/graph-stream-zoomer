@@ -142,7 +142,7 @@ public class GraphSummarizationJob {
 
         tripleDataStream.print();
 
-        minimalisticExample(env, streamGraph, graphStreamTriples);
+        //minimalisticExample(env, streamGraph, graphStreamTriples);
         env.execute();
     }
 
@@ -309,7 +309,7 @@ public class GraphSummarizationJob {
                 public Integer join(Tuple4<String, String, Properties, Timestamp> stringStringPropertiesTimestampTuple4,
                   Tuple6<String, String, Properties, String, String, Timestamp> stringStringPropertiesStringStringTimestampTuple6) throws
                   Exception {
-                    return 4;
+                    return 6;
                 }
             });
 

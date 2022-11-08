@@ -217,7 +217,8 @@ public class StreamGraph extends StreamGraphLayout {
           $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class)).as(targetVertexEventTime),
           $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_TARGET_LABEL),
           $(FIELD_VERTEX_PROPERTIES).as(FIELD_VERTEX_TARGET_PROPERTIES))
-        ).where($(FIELD_TARGET_ID).isEqual($(FIELD_VERTEX_ID)).and($(edgeEventTime).isEqual($(targetVertexEventTime))))
+        ).where($(FIELD_TARGET_ID).isEqual($(FIELD_VERTEX_ID)).and($(edgeEventTime).isLessOrEqual($(targetVertexEventTime)))
+                        .and(($(edgeEventTime).isGreaterOrEqual($(targetVertexEventTime)))))
           .select($(FIELD_SOURCE_ID), $(FIELD_VERTEX_SOURCE_LABEL), $(FIELD_VERTEX_SOURCE_PROPERTIES),
             $(FIELD_EDGE_ID), $(edgeEventTime).as(FIELD_EVENT_TIME), $(FIELD_EDGE_LABEL),
             $(FIELD_EDGE_PROPERTIES),
