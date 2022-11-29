@@ -2,24 +2,14 @@ package edu.leipzig.application;
 
 import edu.leipzig.impl.algorithm.TableGroupingBase;
 import edu.leipzig.impl.functions.aggregation.Count;
-import edu.leipzig.model.graph.StreamEdge;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
 import edu.leipzig.model.graph.StreamTriple;
 import edu.leipzig.model.graph.StreamVertex;
-
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
@@ -33,7 +23,7 @@ public class GraphSummarizationJob {
 
     public static void main(String[] args) throws Exception {
 
-        // Increase number of network buffers
+        // Increase number of network buffers to prevent IOException
         Configuration cfg = new Configuration();
         cfg.setString("taskmanager.memory.network.max", "1gb");
 
@@ -107,10 +97,17 @@ public class GraphSummarizationJob {
      */
     public static DataStream<StreamTriple> createStreamTriples(StreamExecutionEnvironment env) {
 
+        /*
+        t(i+1) = t(i) + 10s
+         */
         Timestamp t1 = new Timestamp(1619511661000L);
         Timestamp t2 = new Timestamp(1619511662000L);
         Timestamp t3 = new Timestamp(1619511673000L);
         Timestamp t4 = new Timestamp(1619511674000L);
+
+        /*
+        Create vertices with empty properties
+         */
         StreamVertex v1 = new StreamVertex("v1", "A", Properties.create(), t1);
         StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t1);
         StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t2);
@@ -120,6 +117,9 @@ public class GraphSummarizationJob {
         StreamVertex v7 = new StreamVertex("v7", "A", Properties.create(), t4);
         StreamVertex v8 = new StreamVertex("v8", "B", Properties.create(), t4);
 
+        /*
+        Define custom vertex properties
+         */
         HashMap<String, Object> propertiesVertexV1 = new HashMap<>();
         propertiesVertexV1.put("Relevance", 1);
         propertiesVertexV1.put("Size", 15);
@@ -149,6 +149,9 @@ public class GraphSummarizationJob {
         propertiesVertexV4.put("Weekday", "Thursday");
         Properties propertiesV4 = Properties.createFromMap(propertiesVertexV4);
 
+        /*
+        Assign vertex properties
+         */
         v1.setVertexProperties(propertiesV1);
         v2.setVertexProperties(propertiesV2);
         v3.setVertexProperties(propertiesV3);
@@ -158,6 +161,9 @@ public class GraphSummarizationJob {
         v7.setVertexProperties(propertiesV3);
         v8.setVertexProperties(propertiesV4);
 
+        /*
+        Create custom edge properties
+         */
         HashMap<String, Object> propertiesEdge1 = new HashMap<>();
         propertiesEdge1.put("Weekday", "Thursday");
         Properties propertiesE1 = Properties.createFromMap(propertiesEdge1);
