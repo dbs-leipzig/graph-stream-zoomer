@@ -65,6 +65,8 @@ public class GraphSummarizationJob {
         Table vertices = streamGraph.getTableSet().getVertices();
 
         Table joinedTableEdgesVertices = streamGraph.createStreamTriple(vertices, edges);
+
+        //Use .sqlQuery to avoid ClassCastException for LegacyTypeInformation -> RawType
         DataStream<Row> rowStreamEdgesVertices = tEnv.toDataStream(tEnv.sqlQuery("SELECT * FROM " + joinedTableEdgesVertices));
 
         DataStream<StreamTriple> tripleDataStream = rowStreamEdgesVertices.map(new MapFunction<Row, StreamTriple>() {
@@ -85,7 +87,6 @@ public class GraphSummarizationJob {
                 return new StreamTriple(edgeId, eventTime, edgeLabel, edgeProps, sourceVertex, targetVertex);
             }
         });
-
         return tripleDataStream;
     }
 
