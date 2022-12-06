@@ -206,9 +206,7 @@ public class StreamGraph extends StreamGraphLayout {
         String sourceVertexEventTime = getConfig().createUniqueAttributeName();
         String targetVertexEventTime = getConfig().createUniqueAttributeName();
 
-        /*
-        Join source-vertices and edges based on IDs and window-time
-         */
+        // Join source-vertices and edges based on IDs and window-time
         Table joinedEdgesWithSourceVertices =
           vertices.select($(FIELD_VERTEX_ID),
             $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class)).as(sourceVertexEventTime),
@@ -224,6 +222,9 @@ public class StreamGraph extends StreamGraphLayout {
 
         /*
         Second join to join the edges with the target-vertices based on IDs and window-time
+
+        Note: Compare edgeEventTime and targetVertexEventTime with .isLessOrEqual and .isGreaterOrEqual since
+            .isEqual throws IllegalStateException for unknown reason
          */
         Table fullyJoinedEdgesAndVertices = joinedEdgesWithSourceVertices.join(vertices.select($(FIELD_VERTEX_ID),
           $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class)).as(targetVertexEventTime),
