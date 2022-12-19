@@ -106,7 +106,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // returns: | edge_id | event_time | source_id | target_id | edge_label | edge_properties
         Table edgesWithSuperVertices = createEdgesWithExpandedVertices(tableSet.getEdges(), expandedVertices);
 
-
         // 7. Write grouping or aggregating properties in own column, extract from edge_properties column
         // return: | edge_id | event_time | source_id | target_id | [edge_label] | [prop_grouping | ..] [prop_agg | ... ]
         Table enrichedEdgesWithSuperVertices = enrichEdgesWithSuperVertices(edgesWithSuperVertices);
