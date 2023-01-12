@@ -20,8 +20,8 @@ under the License.
 		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>edu.leipzig</groupId>
-	<artifactId>GraphStreamGrouping</artifactId>
+	<groupId>edu.dbsleipzig</groupId>
+	<artifactId>graph-stream-grouping</artifactId>
 	<version>0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
@@ -116,6 +116,7 @@ under the License.
 			<version>${flink.version}</version>
 			<scope>test</scope>
 		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-runtime_${scala.binary.version}</artifactId>
@@ -123,6 +124,7 @@ under the License.
 			<scope>test</scope>
 			<classifier>tests</classifier>
 		</dependency>
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
@@ -176,6 +178,7 @@ under the License.
 			<artifactId>flink-connector-twitter_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
+
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
@@ -195,6 +198,13 @@ under the License.
 			<artifactId>log4j</artifactId>
 			<version>1.2.17</version>
 			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Added to prevent slf4j log errors. -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-nop</artifactId>
+			<version>1.7.15</version>
 		</dependency>
 
 	</dependencies>
@@ -289,5 +299,4 @@ under the License.
 			</dependencies>
 		</profile>
 	</profiles>
-
 </project>
