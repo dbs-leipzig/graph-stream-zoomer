@@ -1,5 +1,6 @@
 package edu.leipzig.impl.functions.aggregation;
 
+import org.apache.flink.table.annotation.*;
 import org.gradoop.common.model.impl.properties.PropertyValue;
 import org.gradoop.common.model.impl.properties.PropertyValueUtils;
 
@@ -15,6 +16,8 @@ import org.gradoop.common.model.impl.properties.PropertyValueUtils;
  * references to: org.gradoop.flink.model.impl.layouts.table.common.functions.table.aggregate;
  */
 
+@FunctionHint(
+        output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
 public class TableMaxProperty extends BaseTablePropertyValueAggregateFunction {
 
     @Override
@@ -32,8 +35,15 @@ public class TableMaxProperty extends BaseTablePropertyValueAggregateFunction {
         }
     }
 
+    @FunctionHint(
+            accumulator = @DataTypeHint(value = "RAW", bridgedTo = PropertyValue.class),
+            input = @DataTypeHint(inputGroup = InputGroup.ANY)
+    )
+    public void accumulate(Object accO,
+                            Object valO) {
+        PropertyValue acc = (PropertyValue) accO;
+        PropertyValue val = (PropertyValue) valO;
 
-    public void accumulate(PropertyValue acc, PropertyValue val) {
         if (null != val) {
             acc.setObject(PropertyValueUtils.Numeric.max(acc, val).getObject());
         }
