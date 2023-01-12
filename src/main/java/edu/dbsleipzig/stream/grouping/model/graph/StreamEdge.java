@@ -16,7 +16,6 @@
 package edu.dbsleipzig.stream.grouping.model.graph;
 
 import org.apache.flink.table.annotation.DataTypeHint;
-import org.apache.flink.table.annotation.HintFlag;
 import org.gradoop.common.model.impl.properties.Properties;
 
 import java.io.Serializable;
@@ -29,7 +28,8 @@ import java.sql.Timestamp;
 public class StreamEdge implements Serializable {
     private String edge_id;
     private String edge_label;
-    private @DataTypeHint(allowRawGlobally = HintFlag.TRUE) Properties edge_properties;
+    @DataTypeHint(value = "RAW", bridgedTo = Properties.class)
+    private Properties edge_properties;
     private String source_id;
     private String target_id;
     private Timestamp event_time;

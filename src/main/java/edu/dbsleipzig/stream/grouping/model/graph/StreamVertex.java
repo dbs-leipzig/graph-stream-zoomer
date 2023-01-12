@@ -15,6 +15,7 @@
  */
 package edu.dbsleipzig.stream.grouping.model.graph;
 
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.gradoop.common.model.impl.properties.Properties;
 
 import java.io.Serializable;
@@ -26,6 +27,7 @@ import java.sql.Timestamp;
 public class StreamVertex implements Serializable {
     private String vertex_id;
     private String vertex_label;
+    @DataTypeHint(value = "RAW", bridgedTo = Properties.class)
     private Properties vertex_properties;
     private Timestamp event_time;
 

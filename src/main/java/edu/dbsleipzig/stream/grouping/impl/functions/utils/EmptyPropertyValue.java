@@ -15,6 +15,8 @@
  */
 package edu.dbsleipzig.stream.grouping.impl.functions.utils;
 
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.gradoop.common.model.impl.properties.PropertyValue;
 
@@ -28,9 +30,9 @@ import org.gradoop.common.model.impl.properties.PropertyValue;
  * <p>
  * references to: org.gradoop.flink.model.impl.layouts.table.common.functions.table.scalar;
  */
-/*@FunctionHint(
-  output = @DataTypeHint(value = "LEGACY", bridgedTo = PropertyValue.class, allowRawGlobally = TRUE)
-)*/
+@FunctionHint(
+        output = @DataTypeHint(value = "RAW", bridgedTo = PropertyValue.class)
+)
 public class EmptyPropertyValue extends ScalarFunction {
     /**
      * Returns {@link PropertyValue#NULL_VALUE}

@@ -135,30 +135,20 @@ public class StreamGraph extends StreamGraphLayout {
      * Prints the vertices of this {@link StreamGraph} instance on stdout as table.
      */
     public void printVertices() {
-        // This workaround solution prints from the TableAPI
-        getTableSet().getVertices().execute().print();
-
-
-        // Here we tried to create a stream but failed during type system reasons. We keep the code for future
-        // tries
-        /*
         Schema vertexSchema = Schema.newBuilder()
           .fromResolvedSchema(getTableSet().getVertices().getResolvedSchema())
           .build();
 
         getConfig().getTableEnvironment()
-          //.toDataStream(getTableSet().getVertices(), StreamVertex.class)
-          .toChangelogStream(getConfig().getTableEnvironment().sqlQuery("SELECT * FROM vertices"),
-          TableSet.getVertexSchema())
-          .toDataStream(getTableSet().getVertices(), DataTypes.STRUCTURED(
+          .toDataStream(getTableSet().getVertices(), StreamVertex.class)
+          //.toChangelogStream(getTableSet().getVertices(), vertexSchema)
+          /*.toDataStream(getTableSet().getVertices(), DataTypes.STRUCTURED(
             StreamVertex.class,
-              DataTypes.FIELD("vertex_id", DataTypes.STRING()),
-              DataTypes.FIELD("event_time", DataTypes.TIMESTAMP_LTZ(3)),
-              DataTypes.FIELD("vertex_label", DataTypes.STRING()),
-              DataTypes.FIELD("vertex_properties",
-                DataTypes.of(org.gradoop.common.model.impl.properties.Properties.class))))
+            DataTypes.FIELD("vertex_id", DataTypes.STRING()),
+            DataTypes.FIELD("vertex_label", DataTypes.STRING()),
+            //DataTypes.FIELD("vertex_properties", DataTypes.RAW())),
+            DataTypes.FIELD("event_time", DataTypes.TIMESTAMP_LTZ(3))))*/
           .print();
-*/
     }
 
     /**
@@ -169,11 +159,12 @@ public class StreamGraph extends StreamGraphLayout {
           .fromResolvedSchema(getTableSet().getEdges().getResolvedSchema())
           .build();
 
-        getTableSet().getEdges().printSchema();
-
+        /*
         getConfig().getTableEnvironment()
           .toChangelogStream(getTableSet().getEdges(), edgeSchema)
           .print();
+         */
+        getConfig().getTableEnvironment().toDataStream(getTableSet().getEdges(), StreamEdge.class).print();
     }
 
     /**
