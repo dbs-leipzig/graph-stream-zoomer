@@ -5,14 +5,22 @@ import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.HintFlag;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.*;
+import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
 import org.gradoop.common.model.impl.properties.Properties;
 import org.gradoop.common.model.impl.properties.PropertyValue;
+
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Takes a properties object and returns property value belonging to specified key
  */
+@FunctionHint(
+        output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
 public class ExtractPropertyValue extends ScalarFunction {
 
     /**
@@ -36,14 +44,10 @@ public class ExtractPropertyValue extends ScalarFunction {
      * @param p properties object
      * @return property value belonging to specified key
      */
-    public @DataTypeHint(allowRawGlobally = HintFlag.TRUE, inputGroup = InputGroup.ANY) PropertyValue eval(
-      @DataTypeHint(allowRawGlobally = HintFlag.TRUE, inputGroup = InputGroup.ANY)Object test) {
-        Properties p  = (Properties) test;
+    @FunctionHint(
+            input = @DataTypeHint(inputGroup = InputGroup.ANY))
+    public PropertyValue eval( Object o) {
+        Properties p = (Properties) o;
         return p.get(propertyKey);
-    }
-
-    @Override
-    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-        return super.getTypeInference(typeFactory);
     }
 }
