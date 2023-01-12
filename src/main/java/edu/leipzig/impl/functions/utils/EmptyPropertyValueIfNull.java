@@ -1,5 +1,8 @@
 package edu.leipzig.impl.functions.utils;
 
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.gradoop.common.model.impl.properties.PropertyValue;
 
@@ -13,6 +16,8 @@ import org.gradoop.common.model.impl.properties.PropertyValue;
  * <p>
  * references to: org.gradoop.flink.model.impl.layouts.table.common.functions.table.scalar;
  */
+@FunctionHint(
+        output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
 public class EmptyPropertyValueIfNull extends ScalarFunction {
 
     /**
@@ -23,7 +28,10 @@ public class EmptyPropertyValueIfNull extends ScalarFunction {
      * @param pv property value or null
      * @return property value
      */
-    public PropertyValue eval(PropertyValue pv) {
+    @FunctionHint(
+            input = @DataTypeHint(inputGroup = InputGroup.ANY))
+    public PropertyValue eval(Object pvO) {
+        PropertyValue pv = (PropertyValue) pvO;
         if (null == pv) {
             return null;
         }

@@ -193,6 +193,7 @@ public class PlannerExpressionBuilder {
     }
 
     private void registerScalarFunction(StreamTableEnvironment tableEnv, ScalarFunction function, String functionName) {
+        tableEnv.dropTemporaryFunction(functionName);
         tableEnv.createTemporaryFunction(functionName, function);
     }
 

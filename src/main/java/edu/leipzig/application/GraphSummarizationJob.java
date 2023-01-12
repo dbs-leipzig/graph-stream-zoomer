@@ -104,19 +104,18 @@ public class GraphSummarizationJob {
 
         TableGroupingBase.GroupingBuilder groupingBuilder = new TableGroupingBase.GroupingBuilder();
 
-        groupingBuilder.addVertexGroupingKey("Weekday");
+        //groupingBuilder.addVertexGroupingKey("Weekday");
         groupingBuilder.addVertexGroupingKey(":label");
         //groupingBuilder.addEdgeGroupingKey(":label");
-        groupingBuilder.addVertexAggregateFunction(new MaxProperty("Size"));
-        groupingBuilder.addVertexAggregateFunction(new MinProperty("Size"));
+        //groupingBuilder.addVertexAggregateFunction(new MaxProperty("Size"));
+        //groupingBuilder.addVertexAggregateFunction(new MinProperty("Size"));
         groupingBuilder.addVertexAggregateFunction(new Count());
-        groupingBuilder.addEdgeAggregateFunction(new Count());
-        groupingBuilder.addEdgeAggregateFunction(new AvgProperty("Weight"));
-        groupingBuilder.addEdgeGroupingKey("Weekday");
+        groupingBuilder.addEdgeGroupingKey(":label");
 
         streamGraph = groupingBuilder.build().execute(streamGraph);
 
         streamGraph.printVertices();
+        streamGraph.printEdges();
 
         env.execute();
     }

@@ -1,5 +1,8 @@
 package edu.leipzig.impl.functions.utils;
 
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
 import org.gradoop.common.model.impl.properties.Properties;
@@ -15,6 +18,8 @@ import org.gradoop.common.model.impl.properties.PropertyValue;
  * <p>
  * references to: org.gradoop.flink.model.impl.layouts.table.common.functions.table.scalar;
  */
+@FunctionHint(
+        output = @DataTypeHint(value= "RAW", bridgedTo = Properties.class))
 public class ToProperties extends ScalarFunction {
 
     /**
@@ -68,7 +73,10 @@ public class ToProperties extends ScalarFunction {
      * @param row row containing property key-value pairs
      * @return properties instance
      */
-    public Properties eval(Row row) {
+    @FunctionHint(
+            input = @DataTypeHint(inputGroup = InputGroup.ANY))
+    public Properties eval(Object rowO) {
+        Row row = (Row) rowO;
         Properties properties = Properties.create();
         properties = processPropertiesRow(properties, row);
         return properties;

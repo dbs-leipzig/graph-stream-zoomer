@@ -118,8 +118,8 @@ public class StreamGraph extends StreamGraphLayout {
           .build();
 
         getConfig().getTableEnvironment()
-          //.toDataStream(getTableSet().getVertices(), StreamVertex.class)
-          .toChangelogStream(getTableSet().getVertices(), vertexSchema)
+          .toDataStream(getTableSet().getVertices(), StreamVertex.class)
+          //.toChangelogStream(getTableSet().getVertices(), vertexSchema)
           /*.toDataStream(getTableSet().getVertices(), DataTypes.STRUCTURED(
             StreamVertex.class,
             DataTypes.FIELD("vertex_id", DataTypes.STRING()),
@@ -137,9 +137,12 @@ public class StreamGraph extends StreamGraphLayout {
           .fromResolvedSchema(getTableSet().getEdges().getResolvedSchema())
           .build();
 
+        /*
         getConfig().getTableEnvironment()
           .toChangelogStream(getTableSet().getEdges(), edgeSchema)
           .print();
+         */
+        getConfig().getTableEnvironment().toDataStream(getTableSet().getEdges(), StreamEdge.class).print();
     }
 
     /**

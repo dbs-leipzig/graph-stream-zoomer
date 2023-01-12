@@ -1,5 +1,6 @@
 package edu.leipzig.model.graph;
 
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.gradoop.common.model.impl.properties.Properties;
 
 import java.io.Serializable;
@@ -12,6 +13,7 @@ import java.sql.Timestamp;
 public class StreamEdge implements Serializable {
     private String edge_id;
     private String edge_label;
+    @DataTypeHint(value = "RAW", bridgedTo = Properties.class)
     private Properties edge_properties;
     private String source_id;
     private String target_id;
