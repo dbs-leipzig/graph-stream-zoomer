@@ -1,5 +1,8 @@
 package edu.leipzig.impl.functions.aggregation;
 
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.gradoop.common.model.impl.properties.PropertyValue;
 
@@ -8,6 +11,8 @@ import java.util.Iterator;
 /**
  * Average user-defined aggregate function.
  */
+@FunctionHint(
+        output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
 public class TableAvgProperty extends AggregateFunction<PropertyValue, AvgAcc> {
 
     @Override
@@ -24,7 +29,12 @@ public class TableAvgProperty extends AggregateFunction<PropertyValue, AvgAcc> {
         }
     }
 
-    public void accumulate(AvgAcc acc, PropertyValue iValue) {
+    @FunctionHint(
+            accumulator = @DataTypeHint(value = "RAW", bridgedTo = AvgAcc.class),
+            input = @DataTypeHint(inputGroup = InputGroup.ANY)
+    )
+    public void accumulate(AvgAcc acc, Object iValueO) {
+        PropertyValue iValue = (PropertyValue) iValueO;
         if (null != iValue) {
             if (iValue.isDouble()) {
                 acc.sum += iValue.getDouble();

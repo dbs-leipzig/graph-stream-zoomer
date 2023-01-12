@@ -89,7 +89,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // 2. Write grouping or aggregating properties in own column, extract from vertex_properties column
         // returns: | vertex_id | vertex_event_time | [vertex_label] | [prop_grouping | ...] [prop_agg | ...]
         Table furtherPreparedVertices = prepareVerticesFurther(preparedVertices);
-        System.out.println(furtherPreparedVertices.getResolvedSchema().toPhysicalRowDataType());
 
         // 3. Group vertices by label and/or property values
         // returns: | super_vertex_id | super_vertex_label | [prop_grouping | ...] [prop_agg | ...] | super_vertex_rowtime

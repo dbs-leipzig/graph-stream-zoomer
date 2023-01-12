@@ -1,10 +1,7 @@
 package edu.leipzig.application;
 
 import edu.leipzig.impl.algorithm.TableGroupingBase;
-import edu.leipzig.impl.functions.aggregation.AvgProperty;
-import edu.leipzig.impl.functions.aggregation.Count;
-import edu.leipzig.impl.functions.aggregation.MaxProperty;
-import edu.leipzig.impl.functions.aggregation.MinProperty;
+import edu.leipzig.impl.functions.aggregation.*;
 import edu.leipzig.model.graph.StreamGraph;
 import edu.leipzig.model.graph.StreamGraphConfig;
 import edu.leipzig.model.graph.StreamTriple;
@@ -107,10 +104,11 @@ public class GraphSummarizationJob {
         //groupingBuilder.addVertexGroupingKey("Weekday");
         groupingBuilder.addVertexGroupingKey(":label");
         //groupingBuilder.addEdgeGroupingKey(":label");
-        //groupingBuilder.addVertexAggregateFunction(new MaxProperty("Size"));
+        groupingBuilder.addVertexAggregateFunction(new AvgProperty("Size"));
         //groupingBuilder.addVertexAggregateFunction(new MinProperty("Size"));
-        groupingBuilder.addVertexAggregateFunction(new Count());
+        groupingBuilder.addVertexAggregateFunction(new SumProperty("Size"));
         groupingBuilder.addEdgeGroupingKey(":label");
+        groupingBuilder.addEdgeAggregateFunction(new AvgProperty("Weight"));
 
         streamGraph = groupingBuilder.build().execute(streamGraph);
 

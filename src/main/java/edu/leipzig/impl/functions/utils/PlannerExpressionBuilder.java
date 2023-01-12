@@ -198,6 +198,7 @@ public class PlannerExpressionBuilder {
     }
 
     private void registerAggregateFunction(StreamTableEnvironment tableEnv, AggregateFunction function, String functionName) {
+        tableEnv.dropTemporaryFunction(functionName);
         tableEnv.createTemporaryFunction(functionName, function);
     }
 
