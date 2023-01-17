@@ -18,7 +18,6 @@ package edu.dbsleipzig.stream.grouping.impl.functions.utils;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
-import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
 import org.gradoop.common.model.impl.properties.Properties;
@@ -34,20 +33,21 @@ import org.gradoop.common.model.impl.properties.PropertyValue;
  * <p>
  * references to: org.gradoop.flink.model.impl.layouts.table.common.functions.table.scalar;
  */
-@FunctionHint(
-        output = @DataTypeHint(value= "RAW", bridgedTo = Properties.class))
+@FunctionHint(output = @DataTypeHint(value= "RAW", bridgedTo = Properties.class))
 public class ToProperties extends ScalarFunction {
     /**
      * Requires a 2n-ary Row
      * | key_1:String | value_1:PropertyValue | ... | key_n:String | value_n:PropertyValue|
      * and adds each key-value pair to a new Properties instance
      *
-     * @param row row containing property key-value pairs
+     * @param object row containing property key-value pairs
      * @return properties instance
      */
-    @FunctionHint(
-      input = @DataTypeHint(inputGroup = InputGroup.ANY))
-    public Properties eval(Object row) {
+    @FunctionHint(input = @DataTypeHint(inputGroup = InputGroup.ANY))
+    @SuppressWarnings("unused")
+    public Properties eval(Object object) {
+        Row row = (Row) object;
+
         Properties properties = Properties.create();
 
         if (row.getArity() % 2 != 0) {

@@ -87,7 +87,7 @@ public class StreamTriple extends Tuple6<String, Timestamp, String, Properties, 
     /**
      * Returns the source stream vertex
      *
-     * @return stream edge (vertex_id, vertex_label, vertex_properties)
+     * @return stream vertex
      */
     public StreamVertex getSource() {
         return this.f4;
@@ -100,7 +100,7 @@ public class StreamTriple extends Tuple6<String, Timestamp, String, Properties, 
     /**
      * Returns the target stream vertex
      *
-     * @return stream edge (vertex_id, vertex_label, vertex_properties)
+     * @return stream vertex
      */
     public StreamVertex getTarget() {
         return this.f5;

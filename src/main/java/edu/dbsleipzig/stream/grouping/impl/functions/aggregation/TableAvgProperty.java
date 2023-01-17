@@ -21,13 +21,10 @@ import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.gradoop.common.model.impl.properties.PropertyValue;
 
-import java.util.Iterator;
-
 /**
  * Average user-defined aggregate function.
  */
-@FunctionHint(
-        output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
+@FunctionHint(output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
 public class TableAvgProperty extends AggregateFunction<PropertyValue, AvgAcc> {
 
     @Override
@@ -44,10 +41,9 @@ public class TableAvgProperty extends AggregateFunction<PropertyValue, AvgAcc> {
         }
     }
 
-    @FunctionHint(
-            accumulator = @DataTypeHint(value = "RAW", bridgedTo = AvgAcc.class),
-            input = @DataTypeHint(inputGroup = InputGroup.ANY)
-    )
+    @FunctionHint(accumulator = @DataTypeHint(value = "RAW", bridgedTo = AvgAcc.class),
+      input = @DataTypeHint(inputGroup = InputGroup.ANY))
+    @SuppressWarnings("unused")
     public void accumulate(AvgAcc acc, Object iValueO) {
         PropertyValue iValue = (PropertyValue) iValueO;
         if (null != iValue) {
@@ -60,6 +56,7 @@ public class TableAvgProperty extends AggregateFunction<PropertyValue, AvgAcc> {
         }
     }
 
+    @SuppressWarnings("unused")
     public void retract(AvgAcc acc, PropertyValue iValue) {
         if (null != iValue) {
             if (iValue.isDouble()) {
@@ -71,15 +68,15 @@ public class TableAvgProperty extends AggregateFunction<PropertyValue, AvgAcc> {
         }
     }
 
-    public void merge(AvgAcc acc, Iterable<AvgAcc> it) {
-        Iterator<AvgAcc> iter = it.iterator();
-        while (iter.hasNext()) {
-            AvgAcc a = iter.next();
-            acc.count += a.count;
-            acc.sum += a.sum;
+    @SuppressWarnings("unused")
+    public void merge(AvgAcc accumulate, Iterable<AvgAcc> iterable) {
+        for (AvgAcc a : iterable) {
+            accumulate.count += a.count;
+            accumulate.sum += a.sum;
         }
     }
 
+    @SuppressWarnings("unused")
     public void resetAccumulator(AvgAcc acc) {
         acc.count = 0L;
         acc.sum = 0;

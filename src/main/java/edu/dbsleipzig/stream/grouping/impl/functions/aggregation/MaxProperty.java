@@ -68,7 +68,7 @@ public class MaxProperty extends BaseAggregateFunction implements Max, Customize
     }
 
     @Override
-    public AggregateFunction getTableAggFunction() {
+    public AggregateFunction<PropertyValue, PropertyValue> getTableAggFunction() {
         return new TableMaxProperty();
     }
 

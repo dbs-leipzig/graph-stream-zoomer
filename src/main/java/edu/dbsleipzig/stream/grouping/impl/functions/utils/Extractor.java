@@ -23,10 +23,9 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
 /**
- * The implementation of the ProcessFunction that extracts the edges from data stream objects as regular output
- * besides their vertices as side output
+ * The implementation of the ProcessFunction that extracts the edges from data stream objects as regular
+ * output besides their vertices as side output.
  */
-
 public class Extractor extends ProcessFunction<StreamTriple, StreamEdge> {
 
     public static final OutputTag<StreamVertex> VERTEX_OUTPUT_TAG = new OutputTag<StreamVertex>("side-output") {};

@@ -17,20 +17,32 @@ package edu.dbsleipzig.stream.grouping.model.graph;
 
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.CustomizedAggregationFunction;
 import edu.dbsleipzig.stream.grouping.impl.functions.utils.Extractor;
+import edu.dbsleipzig.stream.grouping.model.graph.functions.TripleRowToStreamTripleMap;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
+import org.gradoop.common.model.impl.properties.Properties;
 
 import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
@@ -110,84 +122,59 @@ public class StreamGraph extends StreamGraphLayout {
         return operator.execute(this);
     }
 
-    /**
-     * TODO: All the following print and write functions are not working properly atm.
-     */
 
+    public DataStream<StreamTriple> toTripleStream() {
+        Table joinedTableEdgesVertices = createStreamTriple(getTableSet().getVertices(),
+          getTableSet().getEdges());
 
-    /**
-     * Prints the vertices and edges of this {@link StreamGraph} instance as triples on stdout.
-     */
-    public void printTriples() {
-        TableSet tableSet = getConfig().getTableSetFactory().fromTable(
-          computeSummarizedGraphTable(
-            getTableSet().getEdges(),
-            getTableSet().getVertices()),
-          getConfig().getTableEnvironment());
-        getConfig().getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).print();
+        DataStream<Row> rowStreamEdgesVertices =
+          getConfig().getTableEnvironment().toDataStream(joinedTableEdgesVertices);
+
+        return rowStreamEdgesVertices
+          .map(new TripleRowToStreamTripleMap());
     }
 
     public void print() {
-        //Todo: We have to clarify what should be the result of a 'print' on a two-tabled layout
+        toTripleStream().print();
     }
 
     /**
      * Prints the vertices of this {@link StreamGraph} instance on stdout as table.
      */
     public void printVertices() {
-        Schema vertexSchema = Schema.newBuilder()
-          .fromResolvedSchema(getTableSet().getVertices().getResolvedSchema())
-          .build();
-
-        getConfig().getTableEnvironment()
-          .toDataStream(getTableSet().getVertices(), StreamVertex.class)
-          //.toChangelogStream(getTableSet().getVertices(), vertexSchema)
-          /*.toDataStream(getTableSet().getVertices(), DataTypes.STRUCTURED(
-            StreamVertex.class,
-            DataTypes.FIELD("vertex_id", DataTypes.STRING()),
-            DataTypes.FIELD("vertex_label", DataTypes.STRING()),
-            //DataTypes.FIELD("vertex_properties", DataTypes.RAW())),
-            DataTypes.FIELD("event_time", DataTypes.TIMESTAMP_LTZ(3))))*/
-          .print();
+        getVertexStream().print();
     }
 
     /**
      * Prints the edges of this {@link StreamGraph} instance on stdout as table.
      */
-    public void printEdges() throws Exception {
-        Schema edgeSchema = Schema.newBuilder()
-          .fromResolvedSchema(getTableSet().getEdges().getResolvedSchema())
-          .build();
-
-        /*
-        getConfig().getTableEnvironment()
-          .toChangelogStream(getTableSet().getEdges(), edgeSchema)
-          .print();
-         */
-        getConfig().getTableEnvironment().toDataStream(getTableSet().getEdges(), StreamEdge.class).print();
+    public void printEdges() {
+        getEdgeStream().print();
     }
 
     /**
-     * writes the resulting super edges and vertices.
+     * Writes the resulting super edges and vertices.
      */
     public void writeAsCsv(String path) {
-
-        final StreamingFileSink<Tuple2<Boolean, Row>> vertexSink =
-          StreamingFileSink.forRowFormat(new Path(path + "_V"), new SimpleStringEncoder<Tuple2<Boolean, Row>>("UTF-8"))
+        final StreamingFileSink<StreamVertex> vertexSink =
+          StreamingFileSink.forRowFormat(new Path(path + "_V"),
+              new SimpleStringEncoder<StreamVertex>("UTF-8"))
+            .withBucketAssigner(new BasePathBucketAssigner<>())
             .build();
 
-        final StreamingFileSink<Tuple2<Boolean, Row>> edgeSink =
-          StreamingFileSink.forRowFormat(new Path(path + "_E"), new SimpleStringEncoder<Tuple2<Boolean, Row>>("UTF-8"))
+        final StreamingFileSink<StreamEdge> edgeSink =
+          StreamingFileSink.forRowFormat(new Path(path + "_E"),
+              new SimpleStringEncoder<StreamEdge>("UTF-8"))
+            .withBucketAssigner(new BasePathBucketAssigner<>())
             .build();
 
-        getConfig().getTableEnvironment().toRetractStream(getTableSet().getVertices(), Row.class)
-          .addSink(vertexSink);
-        getConfig().getTableEnvironment().toRetractStream(getTableSet().getEdges(), Row.class)
-          .addSink(edgeSink);
+        getVertexStream().addSink(vertexSink);
+        getEdgeStream().addSink(edgeSink);
     }
 
     /**
      * writes the resulting summary graph from its super edges and vertices.
+     * todo: not working
      */
     public void writeGraphAsCsv(String path) {
         final StreamingFileSink<Tuple2<Boolean, Row>> graphSink =
@@ -213,37 +200,67 @@ public class StreamGraph extends StreamGraphLayout {
         String sourceVertexEventTime = getConfig().createUniqueAttributeName();
         String targetVertexEventTime = getConfig().createUniqueAttributeName();
 
-        /*
-        Join source-vertices and edges based on IDs and window-time
-         */
+        // Join source-vertices and edges based on IDs and window-time
         Table joinedEdgesWithSourceVertices =
-          vertices.select($(FIELD_VERTEX_ID),
+          vertices.select(
+            $(FIELD_VERTEX_ID),
             $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class)).as(sourceVertexEventTime),
-            $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_SOURCE_LABEL), $(FIELD_VERTEX_PROPERTIES).as(FIELD_VERTEX_SOURCE_PROPERTIES))
+            $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_SOURCE_LABEL),
+            $(FIELD_VERTEX_PROPERTIES).as(FIELD_VERTEX_SOURCE_PROPERTIES))
             .join(
-              edges.select($(FIELD_EDGE_ID),
+              edges.select(
+                $(FIELD_EDGE_ID),
                 $(FIELD_EVENT_TIME).as(edgeEventTime),
-                $(FIELD_SOURCE_ID), $(FIELD_TARGET_ID), $(FIELD_EDGE_LABEL), $(FIELD_EDGE_PROPERTIES)))
-            .where($(FIELD_VERTEX_ID).isEqual($(FIELD_SOURCE_ID)).and($(sourceVertexEventTime).isEqual($(edgeEventTime))))
-            .select($(FIELD_SOURCE_ID), $(FIELD_VERTEX_SOURCE_LABEL), $(FIELD_VERTEX_SOURCE_PROPERTIES),
-              $(FIELD_EDGE_ID), $(edgeEventTime), $(FIELD_EDGE_LABEL), $(FIELD_EDGE_PROPERTIES),
+                $(FIELD_SOURCE_ID),
+                $(FIELD_TARGET_ID),
+                $(FIELD_EDGE_LABEL),
+                $(FIELD_EDGE_PROPERTIES)))
+            .where(
+              $(FIELD_VERTEX_ID).isEqual($(FIELD_SOURCE_ID))
+                .and($(sourceVertexEventTime).isEqual($(edgeEventTime))))
+            .select(
+              $(FIELD_SOURCE_ID),
+              $(FIELD_VERTEX_SOURCE_LABEL),
+              $(FIELD_VERTEX_SOURCE_PROPERTIES),
+              $(FIELD_EDGE_ID),
+              $(edgeEventTime),
+              $(FIELD_EDGE_LABEL),
+              $(FIELD_EDGE_PROPERTIES),
               $(FIELD_TARGET_ID));
 
-        /*
-        Second join to join the edges with the target-vertices based on IDs and window-time
-         */
-        Table fullyJoinedEdgesAndVertices = joinedEdgesWithSourceVertices.join(vertices.select($(FIELD_VERTEX_ID),
-          $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class)).as(targetVertexEventTime),
-          $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_TARGET_LABEL),
-          $(FIELD_VERTEX_PROPERTIES).as(FIELD_VERTEX_TARGET_PROPERTIES))
-        ).where($(FIELD_TARGET_ID).isEqual($(FIELD_VERTEX_ID)).and($(edgeEventTime).isLessOrEqual($(targetVertexEventTime)))
+        // Second join to join the edges with the target-vertices based on IDs and window-time
+        return joinedEdgesWithSourceVertices
+          .join(
+            vertices.select(
+              $(FIELD_VERTEX_ID),
+              $(FIELD_EVENT_TIME).cast(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class)).as(targetVertexEventTime),
+              $(FIELD_VERTEX_LABEL).as(FIELD_VERTEX_TARGET_LABEL),
+              $(FIELD_VERTEX_PROPERTIES).as(FIELD_VERTEX_TARGET_PROPERTIES)))
+          .where(
+            $(FIELD_TARGET_ID).isEqual($(FIELD_VERTEX_ID))
+              .and($(edgeEventTime).isLessOrEqual($(targetVertexEventTime)))
                         .and(($(edgeEventTime).isGreaterOrEqual($(targetVertexEventTime)))))
-          .select($(FIELD_SOURCE_ID), $(FIELD_VERTEX_SOURCE_LABEL), $(FIELD_VERTEX_SOURCE_PROPERTIES),
-            $(FIELD_EDGE_ID), $(edgeEventTime).as(FIELD_EVENT_TIME), $(FIELD_EDGE_LABEL),
+          .select(
+            $(FIELD_SOURCE_ID),
+            $(FIELD_VERTEX_SOURCE_LABEL),
+            $(FIELD_VERTEX_SOURCE_PROPERTIES),
+            $(FIELD_EDGE_ID),
+            $(edgeEventTime).as(FIELD_EVENT_TIME),
+            $(FIELD_EDGE_LABEL),
             $(FIELD_EDGE_PROPERTIES),
-            $(FIELD_TARGET_ID), $(FIELD_VERTEX_TARGET_LABEL), $(FIELD_VERTEX_TARGET_PROPERTIES));
+            $(FIELD_TARGET_ID),
+            $(FIELD_VERTEX_TARGET_LABEL),
+            $(FIELD_VERTEX_TARGET_PROPERTIES));
+    }
 
-        return fullyJoinedEdgesAndVertices;
+    private DataStream<StreamEdge> getEdgeStream() {
+        return getConfig().getTableEnvironment()
+          .toDataStream(getTableSet().getEdges(), StreamEdge.class);
+    }
+
+    private DataStream<StreamVertex> getVertexStream() {
+        return getConfig().getTableEnvironment()
+          .toDataStream(getTableSet().getVertices(), StreamVertex.class);
     }
 
     /*

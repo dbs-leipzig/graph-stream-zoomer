@@ -30,9 +30,8 @@ import org.gradoop.common.model.impl.properties.PropertyValue;
  * <p>
  * references to: org.gradoop.flink.model.impl.layouts.table.common.functions.table.scalar;
  */
-@FunctionHint(
-        output = @DataTypeHint(value = "RAW", bridgedTo = PropertyValue.class)
-)
+@FunctionHint(output = @DataTypeHint(value = "RAW", bridgedTo = PropertyValue.class))
+@SuppressWarnings("unused")
 public class EmptyPropertyValue extends ScalarFunction {
     /**
      * Returns {@link PropertyValue#NULL_VALUE}

@@ -62,7 +62,7 @@ public class Count extends BaseAggregateFunction implements Sum, AggregateDefaul
     }
 
     @Override
-    public AggregateFunction getTableAggFunction() {
+    public AggregateFunction<PropertyValue, PropertyValue> getTableAggFunction() {
         return new TableCount();
     }
 }

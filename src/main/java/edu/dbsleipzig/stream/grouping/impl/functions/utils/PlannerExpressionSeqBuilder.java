@@ -93,13 +93,6 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
     //----------------------------------------------------------------------------
 
     @Override
-    public PlannerExpressionSeqBuilder allFields() {
-        appendIfNewExpression();
-        super.allFields();
-        return this;
-    }
-
-    @Override
     public PlannerExpressionSeqBuilder expression(String e) {
         appendIfNewExpression();
         super.expression(e);

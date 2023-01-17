@@ -16,6 +16,7 @@
 package edu.dbsleipzig.stream.grouping.impl.functions.aggregation;
 
 import org.apache.flink.table.functions.AggregateFunction;
+import org.gradoop.common.model.impl.properties.PropertyValue;
 import org.gradoop.flink.model.impl.operators.aggregation.Aggregation;
 
 /**
@@ -45,9 +46,9 @@ public interface CustomizedAggregationFunction {
      *
      * @return name of aggregation function
      */
-    default AggregateFunction getTableAggFunction() {
-        throw new RuntimeException("AggregateFunction " + getClass().getName() + " is not prepared " +
-                "for use within Flink's Table API");
+    default AggregateFunction<PropertyValue, ?> getTableAggFunction() {
+        throw new RuntimeException("AggregateFunction " + getClass().getName() +
+          " is not prepared for use within Flink's Table API.");
     }
 
     /**

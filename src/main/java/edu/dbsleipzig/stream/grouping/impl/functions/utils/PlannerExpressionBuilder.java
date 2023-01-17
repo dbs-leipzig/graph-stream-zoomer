@@ -28,7 +28,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.table.api.Expressions.*;
 
-
 /**
  * Builder for a single (eventually nested) Flink Table {@link PlannerExpression} for use with Flink's
  * Table-API
@@ -101,17 +100,6 @@ public class PlannerExpressionBuilder {
 
     public Expression getExpression() {
         return currentExpression;
-    }
-
-    /**
-     * Sets current expression to a "all fields" expression
-     *
-     * @return a reference to this object
-     */
-    public PlannerExpressionBuilder allFields() {
-        currentExpressionString = "*";
-        currentExpression = $("*");
-        return this;
     }
 
     /**

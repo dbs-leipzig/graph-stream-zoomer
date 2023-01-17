@@ -54,7 +54,7 @@ public class AvgProperty implements Average, CustomizedAggregationFunction {
     }
 
     @Override
-    public AggregateFunction getTableAggFunction() {
+    public AggregateFunction<PropertyValue, AvgAcc> getTableAggFunction() {
         return new TableAvgProperty();
     }
 

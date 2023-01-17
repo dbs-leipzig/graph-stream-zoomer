@@ -24,7 +24,6 @@ import java.sql.Timestamp;
 /**
  * Stream edge model (edge_id, edge_label, edge_properties, source_id, target_id, timestamp)
  */
-
 public class StreamEdge implements Serializable {
     private String edge_id;
     private String edge_label;

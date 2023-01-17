@@ -31,8 +31,7 @@ import org.gradoop.common.model.impl.properties.PropertyValue;
  * <p>
  * references to: org.gradoop.flink.model.impl.layouts.table.common.functions.table.scalar;
  */
-@FunctionHint(
-        output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
+@FunctionHint(output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
 public class EmptyPropertyValueIfNull extends ScalarFunction {
 
     /**
@@ -40,19 +39,24 @@ public class EmptyPropertyValueIfNull extends ScalarFunction {
      * - {@link PropertyValue#NULL_VALUE}, if passed object is null
      * - passed property value, otherwise
      *
-     * @param pv property value or null
+     * @param propertyValue property value or null
      * @return property value
      */
-    @FunctionHint(
-            input = @DataTypeHint(inputGroup = InputGroup.ANY))
-    public PropertyValue eval(Object pvO) {
-        PropertyValue pv = (PropertyValue) pvO;
-        if (null == pv) {
-            return null;
+    @FunctionHint(input = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
+    @SuppressWarnings("unused")
+    public PropertyValue eval(PropertyValue propertyValue) {
+        if (null == propertyValue) {
+            return PropertyValue.NULL_VALUE;
         }
-        return pv;
+        return propertyValue;
     }
 
+    /**
+     * If this scalar function is used w/o an argument, {@link PropertyValue#NULL_VALUE} is returned.
+     *
+     * @return {@link PropertyValue#NULL_VALUE}
+     */
+    @SuppressWarnings("unused")
     public PropertyValue eval() {
         return PropertyValue.NULL_VALUE;
     }

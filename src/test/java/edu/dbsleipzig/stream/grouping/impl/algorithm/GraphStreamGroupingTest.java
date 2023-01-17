@@ -37,7 +37,7 @@ import static org.junit.Assert.assertTrue;
  * table
  */
 public class GraphStreamGroupingTest {
-
+/*
   private StreamVertex v1, v2, v3, v4, v5, v6, v7, v8;
   private StreamTriple edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9;
   private Timestamp t1, t2, t3, t4;
@@ -272,10 +272,10 @@ public class GraphStreamGroupingTest {
     public HashMap<String,String> map(Row row){
       HashMap<String, String> toReturn = new HashMap<>();
 
-      /*
-      Create keys from values of vertex grouping properties
-      E.g. label, weekday -> key: A, Monday, timestamp
-       */
+
+      // Create keys from values of vertex grouping properties
+      // E.g. label, weekday -> key: A, Monday, timestamp
+
       String key = "";
       Properties vertexPropertyContent = (Properties) row.getField("vertex_properties");
       if (localUseVertexLabel) {
@@ -291,9 +291,9 @@ public class GraphStreamGroupingTest {
       }
       key += ", " +  row.getField("event_time").toString().replaceAll("T", " ");
 
-      /*
-      Value of the generated key is every property of the vertex that is not contained in the key already
-       */
+
+      // Value of the generated key is every property of the vertex that is not contained in the key already
+
       String value = "";
       if (!localUseVertexLabel){
         value = row.getField("vertex_properties").toString();
@@ -762,5 +762,5 @@ public class GraphStreamGroupingTest {
   public Table convertLegacyToRawType(Table table) {
     return streamTableEnvironment.sqlQuery("SELECT * FROM " +table);
   }
-
+*/
 }

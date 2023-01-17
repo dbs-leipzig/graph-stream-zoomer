@@ -21,17 +21,12 @@ import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamTriple;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamVertex;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.types.Row;
 import org.gradoop.common.model.impl.properties.Properties;
 
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 
 /**
@@ -59,9 +54,7 @@ public class LocalExample {
 
         TableGroupingBase.GroupingBuilder groupingBuilder = new TableGroupingBase.GroupingBuilder();
 
-        /*
-        Group edges and vertices on 'label'-property and count the amount.
-         */
+        // Group edges and vertices on 'label'-property and count the amount.
         groupingBuilder.addVertexGroupingKey(":label");
         groupingBuilder.addEdgeGroupingKey(":label");
         groupingBuilder.addVertexAggregateFunction(new Count());
@@ -69,53 +62,11 @@ public class LocalExample {
 
         streamGraph = groupingBuilder.build().execute(streamGraph);
 
-        streamGraph.printEdges();
-        streamGraph.printVertices();
-
-        DataStream<StreamTriple> tripleDataStream = streamGraphToStreamTriple(streamGraph);
-
-        tripleDataStream.print();
+        streamGraph.print();
 
         env.execute();
     }
 
-    /**
-     * Extracts edges- and vertices-table from StreamGraph. Joins them and maps joined table onto StreamTriples.
-     *
-     * @param streamGraph StreamGraph with grouped edges and vertices
-     * @return DataStream of StreamTriples for joined edges and vertices.
-     */
-    public static DataStream<StreamTriple> streamGraphToStreamTriple(StreamGraph streamGraph){
-        StreamTableEnvironment tEnv = streamGraph.getConfig().getTableEnvironment();
-        Table edges = streamGraph.getTableSet().getEdges();
-        Table vertices = streamGraph.getTableSet().getVertices();
-
-        Table joinedTableEdgesVertices = streamGraph.createStreamTriple(vertices, edges);
-
-        //Use .sqlQuery to avoid ClassCastException for LegacyTypeInformation -> RawType
-        DataStream<Row> rowStreamEdgesVertices = tEnv
-          .toDataStream(tEnv.sqlQuery("SELECT * FROM " + joinedTableEdgesVertices));
-
-        return rowStreamEdgesVertices
-          .map(new MapFunction<Row, StreamTriple>() {
-            @Override
-            public StreamTriple map(Row row) throws Exception {
-                String sourceId = row.getFieldAs(0);
-                String sourceLabel = row.getFieldAs(1);
-                Properties sourceProps = row.getFieldAs(2);
-                String edgeId = row.getFieldAs(3);
-                Timestamp eventTime = Timestamp.valueOf((LocalDateTime) row.getFieldAs(4));
-                String edgeLabel = row.getFieldAs(5);
-                Properties edgeProps = row.getFieldAs(6);
-                String targetId = row.getFieldAs(7);
-                String targetLabel = row.getFieldAs(8);
-                Properties targetProps = row.getFieldAs(9);
-                StreamVertex sourceVertex = new StreamVertex(sourceId, sourceLabel, sourceProps, eventTime);
-                StreamVertex targetVertex = new StreamVertex(targetId, targetLabel, targetProps, eventTime);
-                return new StreamTriple(edgeId, eventTime, edgeLabel, edgeProps, sourceVertex, targetVertex);
-            }
-        });
-    }
 
     /**
      * Creates custom StreamTriples.

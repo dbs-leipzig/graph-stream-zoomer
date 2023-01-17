@@ -32,8 +32,7 @@ import org.gradoop.common.model.impl.properties.PropertyValueUtils;
  * <p>
  * references to: org.gradoop.flink.model.impl.layouts.table.common.functions.table.aggregate;
  */
-@FunctionHint(
-        output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
+@FunctionHint(output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
 public class TableSumProperty extends BaseTablePropertyValueAggregateFunction {
 
     @Override
@@ -49,10 +48,9 @@ public class TableSumProperty extends BaseTablePropertyValueAggregateFunction {
             return propertyValue;
         }
     }
-    @FunctionHint(
-            accumulator = @DataTypeHint(value = "RAW", bridgedTo = PropertyValue.class),
-            input = @DataTypeHint(inputGroup = InputGroup.ANY)
-    )
+    @FunctionHint(accumulator = @DataTypeHint(value = "RAW", bridgedTo = PropertyValue.class),
+      input = @DataTypeHint(inputGroup = InputGroup.ANY))
+    @SuppressWarnings("unused")
     public void accumulate(Object accO, Object valO) {
         PropertyValue acc = (PropertyValue) accO;
         PropertyValue val = (PropertyValue) valO;
@@ -61,6 +59,7 @@ public class TableSumProperty extends BaseTablePropertyValueAggregateFunction {
         }
     }
 
+    @SuppressWarnings("unused")
     public void retract(PropertyValue acc, PropertyValue val) {
         if (null != val) {
             if (val.isInt()) {
@@ -74,15 +73,15 @@ public class TableSumProperty extends BaseTablePropertyValueAggregateFunction {
         }
     }
 
+    @SuppressWarnings("unused")
     public void merge(PropertyValue acc, Iterable<PropertyValue> it) {
         for (PropertyValue val : it) {
             acc.setObject(PropertyValueUtils.Numeric.add(acc, val).getObject());
         }
     }
 
-
+    @SuppressWarnings("unused")
     public void resetAccumulator(PropertyValue acc) {
         acc.setInt(0);
     }
-
 }

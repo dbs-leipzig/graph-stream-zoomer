@@ -17,25 +17,14 @@ package edu.dbsleipzig.stream.grouping.impl.functions.utils;
 
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
-import org.apache.flink.table.annotation.HintFlag;
-import org.apache.flink.table.annotation.InputGroup;
-import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.*;
-import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
 import org.gradoop.common.model.impl.properties.Properties;
 import org.gradoop.common.model.impl.properties.PropertyValue;
-
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Takes a properties object and returns property value belonging to specified key
  */
-@FunctionHint(
-        output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
+@FunctionHint(output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
 public class ExtractPropertyValue extends ScalarFunction {
 
     /**
@@ -54,15 +43,14 @@ public class ExtractPropertyValue extends ScalarFunction {
 
     /**
      * Returns property value of given properties object belonging to property key defined in
-     * constructor call
+     * constructor call.
      *
-     * @param p properties object
+     * @param properties properties object
      * @return property value belonging to specified key
      */
-    @FunctionHint(
-            input = @DataTypeHint(inputGroup = InputGroup.ANY))
-    public PropertyValue eval( Object o) {
-        Properties p = (Properties) o;
-        return p.get(propertyKey);
+    @FunctionHint(input = @DataTypeHint(value= "RAW", bridgedTo = Properties.class))
+    @SuppressWarnings("unused")
+    public PropertyValue eval(Properties properties) {
+        return properties.get(propertyKey);
     }
 }

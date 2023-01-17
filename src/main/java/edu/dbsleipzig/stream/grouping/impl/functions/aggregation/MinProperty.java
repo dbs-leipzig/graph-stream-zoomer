@@ -68,7 +68,7 @@ public class MinProperty extends BaseAggregateFunction implements Min, Customize
     }
 
     @Override
-    public AggregateFunction getTableAggFunction() {
+    public AggregateFunction<PropertyValue, PropertyValue> getTableAggFunction() {
         return new TableMinProperty();
     }
 

@@ -66,7 +66,7 @@ public class SumProperty extends BaseAggregateFunction implements Sum, Customize
     }
 
     @Override
-    public AggregateFunction getTableAggFunction() {
+    public AggregateFunction<PropertyValue, PropertyValue> getTableAggFunction() {
         return new TableSumProperty();
     }
 

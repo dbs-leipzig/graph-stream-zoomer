@@ -31,8 +31,7 @@ import org.gradoop.common.model.impl.properties.PropertyValueUtils;
  * references to: org.gradoop.flink.model.impl.layouts.table.common.functions.table.aggregate;
  */
 
-@FunctionHint(
-        output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
+@FunctionHint(output = @DataTypeHint(value= "RAW", bridgedTo = PropertyValue.class))
 public class TableMaxProperty extends BaseTablePropertyValueAggregateFunction {
 
     @Override
@@ -42,20 +41,17 @@ public class TableMaxProperty extends BaseTablePropertyValueAggregateFunction {
 
     @Override
     public PropertyValue getValue(PropertyValue propertyValue) {
-        if (propertyValue.isDouble() &&
-                Double.compare(propertyValue.getDouble(), Double.MIN_VALUE) == 0) {
+        if (propertyValue.isDouble() && Double.compare(propertyValue.getDouble(), Double.MIN_VALUE) == 0) {
             return PropertyValue.NULL_VALUE;
         } else {
             return propertyValue;
         }
     }
 
-    @FunctionHint(
-            accumulator = @DataTypeHint(value = "RAW", bridgedTo = PropertyValue.class),
-            input = @DataTypeHint(inputGroup = InputGroup.ANY)
-    )
-    public void accumulate(Object accO,
-                            Object valO) {
+    @FunctionHint(accumulator = @DataTypeHint(value = "RAW", bridgedTo = PropertyValue.class),
+      input = @DataTypeHint(inputGroup = InputGroup.ANY))
+    @SuppressWarnings("unused")
+    public void accumulate(Object accO, Object valO) {
         PropertyValue acc = (PropertyValue) accO;
         PropertyValue val = (PropertyValue) valO;
 
@@ -64,21 +60,20 @@ public class TableMaxProperty extends BaseTablePropertyValueAggregateFunction {
         }
     }
 
-
+    @SuppressWarnings("unused")
     public void retract(PropertyValue acc, PropertyValue val) {
 
     }
 
-
+    @SuppressWarnings("unused")
     public void merge(PropertyValue acc, Iterable<PropertyValue> it) {
         for (PropertyValue val : it) {
             acc.setObject(PropertyValueUtils.Numeric.max(acc, val).getObject());
         }
     }
 
-
+    @SuppressWarnings("unused")
     public void resetAccumulator(PropertyValue acc) {
         acc.setDouble(Double.MIN_VALUE);
     }
-
 }
