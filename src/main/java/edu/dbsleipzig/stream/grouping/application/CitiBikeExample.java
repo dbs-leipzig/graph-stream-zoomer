@@ -2,6 +2,7 @@ package edu.dbsleipzig.stream.grouping.application;
 
 import edu.dbsleipzig.stream.grouping.impl.algorithm.TableGroupingBase;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.AvgProperty;
+import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.Count;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.MinProperty;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
@@ -41,7 +42,7 @@ public class CitiBikeExample {
 
         groupingBuilder.addVertexGroupingKey(":label");
         groupingBuilder.addEdgeGroupingKey(":label");
-        groupingBuilder.addEdgeAggregateFunction(new AvgProperty("tripduration"));
+        groupingBuilder.addEdgeAggregateFunction(new MinProperty("birth year"));
         //groupingBuilder.addEdgeAggregateFunction(new MinProperty("birth year"));
 
         streamGraph = groupingBuilder.build().execute(streamGraph);
@@ -74,6 +75,7 @@ public class CitiBikeExample {
             HashMap<String, Object> sourcePropMap = new HashMap<>();
             HashMap<String, Object> targetPropMap = new HashMap<>();
 
+            edgePropMap.put("tripduration", tuple15.f0);
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
             Date parseStopTime = simpleDateFormat.parse(tuple15.f2.replaceAll("\"", ""));
             Timestamp stopTime = new Timestamp(parseStopTime.getTime());
@@ -112,3 +114,5 @@ public class CitiBikeExample {
         return tripleDataStream;
     }
 }
+
+
