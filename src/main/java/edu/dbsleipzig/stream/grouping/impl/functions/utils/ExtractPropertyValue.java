@@ -17,9 +17,11 @@ package edu.dbsleipzig.stream.grouping.impl.functions.utils;
 
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.gradoop.common.model.impl.properties.Properties;
 import org.gradoop.common.model.impl.properties.PropertyValue;
+import scala.sys.Prop;
 
 /**
  * Takes a properties object and returns property value belonging to specified key
@@ -45,12 +47,13 @@ public class ExtractPropertyValue extends ScalarFunction {
      * Returns property value of given properties object belonging to property key defined in
      * constructor call.
      *
-     * @param properties properties object
+     * @param propertiesO properties object
      * @return property value belonging to specified key
      */
-    @FunctionHint(input = @DataTypeHint(value= "RAW", bridgedTo = Properties.class))
+    @FunctionHint(input = @DataTypeHint(inputGroup = InputGroup.ANY))
     @SuppressWarnings("unused")
-    public PropertyValue eval(Properties properties) {
+    public PropertyValue eval(Object propertiesO) {
+        Properties properties = (Properties) propertiesO;
         return properties.get(propertyKey);
     }
 }
