@@ -71,6 +71,10 @@ public class ToProperties extends ScalarFunction {
             }
 
             String key = (String) f0;
+            // todo: check if this trimming is cool, because literals got '...' quotes
+            if (key.startsWith("'") && key.endsWith("'")) {
+                key = key.substring(1, key.length() - 1);
+            }
             PropertyValue value = (PropertyValue) f1;
 
             properties.set(key, value);

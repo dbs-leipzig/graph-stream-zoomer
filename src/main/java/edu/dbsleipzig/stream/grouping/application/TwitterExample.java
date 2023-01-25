@@ -22,6 +22,7 @@ import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.Count;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.MaxProperty;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.MinProperty;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.SumProperty;
+import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamTriple;
 import edu.dbsleipzig.stream.grouping.application.functions.FilterEndpointInitializer;
@@ -73,6 +74,7 @@ public class TwitterExample {
 
         // select grouping configuration
         GraphStreamGrouping groupingOperator = new TableGroupingBase.GroupingBuilder()
+          .setWindowSize(20, WindowConfig.TimeUnit.SECONDS)
           .addVertexGroupingKey(":label")
           .addVertexGroupingKey("country")
           .addVertexAggregateFunction(new Count())

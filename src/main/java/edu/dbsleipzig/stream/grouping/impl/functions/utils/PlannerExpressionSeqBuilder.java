@@ -54,6 +54,7 @@ import java.util.List;
 public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
     /**
      * Internal list of expressions
+     * todo: check if this can be removed
      */
     private String expressionsString = "";
 
@@ -64,12 +65,6 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
      */
     public PlannerExpressionSeqBuilder(StreamTableEnvironment tableEnvironment) {
         super(tableEnvironment);
-    }
-
-
-    public String buildString() {
-        appendIfNewExpression();
-        return expressionsString;
     }
 
     public Expression[] build() {

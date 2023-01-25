@@ -15,13 +15,14 @@
  */
 package edu.dbsleipzig.stream.grouping.application;
 
+import edu.dbsleipzig.stream.grouping.impl.algorithm.GraphStreamGrouping;
 import edu.dbsleipzig.stream.grouping.impl.algorithm.TableGroupingBase;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.Count;
+import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamTriple;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamVertex;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.gradoop.common.model.impl.properties.Properties;
@@ -42,25 +43,24 @@ public class LocalExample {
      */
     public static void main(String[] args) throws Exception {
 
-        // Increase number of network buffers to prevent IOException
-        Configuration cfg = new Configuration();
-        cfg.setString("taskmanager.memory.network.max", "1gb");
-
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(cfg);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
         DataStream<StreamTriple> graphStreamTriples = createStreamTriples(env);
 
         StreamGraph streamGraph = StreamGraph.fromFlinkStream(graphStreamTriples, new StreamGraphConfig(env));
 
-        TableGroupingBase.GroupingBuilder groupingBuilder = new TableGroupingBase.GroupingBuilder();
+        GraphStreamGrouping groupingOperator = new TableGroupingBase.GroupingBuilder()
+          // Use 10 seconds window
+          .setWindowSize(10, WindowConfig.TimeUnit.SECONDS)
+          // Group edges and vertices on 'label'
+          .addVertexGroupingKey(":label")
+          .addEdgeGroupingKey(":label")
+          // Count elements
+          .addVertexAggregateFunction(new Count())
+          .addEdgeAggregateFunction(new Count())
+          .build();
 
-        // Group edges and vertices on 'label'-property and count the amount.
-        groupingBuilder.addVertexGroupingKey(":label");
-        groupingBuilder.addEdgeGroupingKey(":label");
-        groupingBuilder.addVertexAggregateFunction(new Count());
-        groupingBuilder.addEdgeAggregateFunction(new Count());
-
-        streamGraph = groupingBuilder.build().execute(streamGraph);
+        streamGraph = groupingOperator.execute(streamGraph);
 
         streamGraph.print();
 
@@ -166,8 +166,6 @@ public class LocalExample {
         StreamTriple edge8 = new StreamTriple("e8", t4, "impacts", propertiesE2, v7, v8);
         StreamTriple edge9 = new StreamTriple("e9", t1, "calculates", propertiesE3, v7, v8);
 
-        DataStream<StreamTriple> graphStreamTriples = env.fromElements(edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9);
-
-        return graphStreamTriples;
+        return env.fromElements(edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9);
     }
 }

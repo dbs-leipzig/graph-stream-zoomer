@@ -15,9 +15,7 @@
  */
 package edu.dbsleipzig.stream.grouping.model.table;
 
-import edu.dbsleipzig.stream.grouping.impl.functions.utils.PlannerExpressionSeqBuilder;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 /**
  * Responsible for creating instances of {@link TableSetFactory}
@@ -27,20 +25,7 @@ public class TableSetFactory {
     /**
      * Constructor
      */
-    public TableSetFactory() {
-    }
-
-    /**
-     * Creates a table set from given table.
-     *
-     * @param graph graph table
-     * @return new table set
-     */
-    public TableSet fromTable(Table graph, StreamTableEnvironment tableEnvironment) {
-        TableSet tableSet = new TableSet();
-        tableSet.put(TableSet.TABLE_GRAPH, computeNewGraph(graph, tableEnvironment));
-        return tableSet;
-    }
+    public TableSetFactory() { }
 
     /**
      * Creates a table set from given table.
@@ -56,36 +41,6 @@ public class TableSetFactory {
         tableSet.put(TableSet.TABLE_EDGES, edges);
 
         return tableSet;
-    }
-
-
-    /**
-     * Performs a
-     * <p>
-     * SELECT edge_id, edge_label, edge_properties,
-     * tail_id, source_label, source_properties,
-     * head_id, target_label, target_properties
-     * FROM graph
-     * <p>
-     *
-     * @param graph graph table
-     * @return new graph table
-     */
-    private Table computeNewGraph(Table graph, StreamTableEnvironment tableEnvironment) {
-        return graph.select(new PlannerExpressionSeqBuilder(tableEnvironment)
-                .field(TableSet.FIELD_EDGE_ID)
-                .field(TableSet.FIELD_EDGE_LABEL)
-                .field(TableSet.FIELD_EDGE_PROPERTIES)
-
-                .field(TableSet.FIELD_SOURCE_ID)
-                .field(TableSet.FIELD_VERTEX_SOURCE_LABEL)
-                .field(TableSet.FIELD_VERTEX_SOURCE_PROPERTIES)
-
-                .field(TableSet.FIELD_TARGET_ID)
-                .field(TableSet.FIELD_VERTEX_TARGET_LABEL)
-                .field(TableSet.FIELD_VERTEX_TARGET_PROPERTIES)
-                .buildString()
-        );
     }
 }
 

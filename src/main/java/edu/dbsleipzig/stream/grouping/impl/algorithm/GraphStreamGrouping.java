@@ -16,6 +16,7 @@
 package edu.dbsleipzig.stream.grouping.impl.algorithm;
 
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.CustomizedAggregationFunction;
+import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.GraphStreamToGraphStreamOperator;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
@@ -28,7 +29,6 @@ import java.util.List;
 
 import static edu.dbsleipzig.stream.grouping.model.table.TableSet.*;
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.lit;
 
 /**
  * Implementation of grouping in a graph stream layout.
@@ -59,10 +59,11 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
       List<String> vertexGroupingPropertyKeys,
       List<CustomizedAggregationFunction> vertexAggregateFunctions,
       List<String> edgeGroupingPropertyKeys,
-      List<CustomizedAggregationFunction> edgeAggregateFunctions
+      List<CustomizedAggregationFunction> edgeAggregateFunctions,
+      WindowConfig windowConfig
     ) {
         super(useVertexLabels, useEdgeLabels, vertexGroupingPropertyKeys, vertexAggregateFunctions,
-          edgeGroupingPropertyKeys, edgeAggregateFunctions);
+          edgeGroupingPropertyKeys, edgeAggregateFunctions, windowConfig);
     }
 
     /**
@@ -78,14 +79,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         // Perform the grouping and create a new graph stream
         return new StreamGraph(performGrouping(), getConfig());
-    }
-
-    public void setConfig(StreamGraphConfig config) {
-        this.config = config;
-    }
-
-    public void setTableSet(TableSet tableSet) {
-        this.tableSet = tableSet;
     }
 
     /**
@@ -144,7 +137,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES + ", " +
             "window_time as " + FIELD_VERTEX_EVENT_TIME + " " +
             "FROM TABLE ( TUMBLE ( TABLE  " + this.tableSet.getVertices() + ", " +
-            "DESCRIPTOR(" + FIELD_EVENT_TIME + "), INTERVAL '10' SECONDS)) " +
+            // Todo: Replace with configurable time interval
+            "DESCRIPTOR(" + FIELD_EVENT_TIME + "), " + windowConfig.getSqlApiExpression() + ")) " +
             "GROUP BY window_time, " + FIELD_VERTEX_ID + ", " + FIELD_VERTEX_LABEL + ", " +
             FIELD_VERTEX_PROPERTIES + ", window_start, window_end"
         );
@@ -158,7 +152,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
     public Table groupVertices(Table furtherPreparedVertices){
         return furtherPreparedVertices
           // Todo: Replace with configurable time interval
-          .window(Tumble.over(lit(10).seconds()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW))
+          .window(Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW))
           .groupBy(buildVertexGroupExpressions())
           .select(buildVertexProjectExpressions());
     }
@@ -222,7 +216,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             $(FIELD_TARGET_ID).isEqual($(vertexTargetId))
               .and($(FIELD_EVENT_TIME).isLessOrEqual($(vertexTargetEventTime)))
               // Todo: Replace with configurable time interval
-              .and($(FIELD_EVENT_TIME).isGreater($(vertexTargetEventTime).minus(lit(10).seconds()))))
+              .and($(FIELD_EVENT_TIME).isGreater($(vertexTargetEventTime).minus(windowConfig.getWindowExpression()))))
 
           .join(
             expandedVertices.select(
@@ -233,7 +227,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             $(FIELD_SOURCE_ID).isEqual($(vertexSourceId))
               .and($(FIELD_EVENT_TIME).isLessOrEqual($(vertexSourceEventTime)))
               // Todo: Replace with configurable time interval
-              .and($(FIELD_EVENT_TIME).isGreater($(vertexSourceEventTime).minus(lit(10).seconds()))))
+              .and($(FIELD_EVENT_TIME).isGreater($(vertexSourceEventTime).minus(windowConfig.getWindowExpression()))))
 
           .select(
             $(FIELD_EDGE_ID),
@@ -252,7 +246,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
     public Table groupEdges(Table enrichedEdgesWithSuperVertices) {
         return enrichedEdgesWithSuperVertices
           // Todo: Replace with configurable time interval
-          .window(Tumble.over(lit(10).seconds()).on($(FIELD_EVENT_TIME)).as(FIELD_EDGE_EVENT_WINDOW))
+          .window(Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_EVENT_TIME)).as(FIELD_EDGE_EVENT_WINDOW))
           .groupBy(buildEdgeGroupExpressions())
           .select(buildEdgeProjectExpressions());
     }

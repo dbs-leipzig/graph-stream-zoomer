@@ -173,22 +173,6 @@ public class StreamGraph extends StreamGraphLayout {
     }
 
     /**
-     * writes the resulting summary graph from its super edges and vertices.
-     * todo: not working
-     */
-    public void writeGraphAsCsv(String path) {
-        final StreamingFileSink<Tuple2<Boolean, Row>> graphSink =
-          StreamingFileSink.forRowFormat(new Path(path), new SimpleStringEncoder<Tuple2<Boolean, Row>>("UTF-8"))
-            .build();
-
-        TableSet tableSet = getConfig().getTableSetFactory().fromTable(
-          computeSummarizedGraphTable(getTableSet().getEdges(), getTableSet().getVertices()),
-          getConfig().getTableEnvironment());
-
-        getConfig().getTableEnvironment().toRetractStream(tableSet.getGraph(), Row.class).addSink(graphSink);
-    }
-
-    /**
      * Returns joined table for edges and vertices.
      *
      * @param vertices Grouped vertices-table of the StreamGraph

@@ -64,22 +64,9 @@ public class SocketExample {
     List<String> edgeGroupingKeys = new ArrayList<>();
     List<CustomizedAggregationFunction> edgeAggregationFunctions = new ArrayList<>();
     vertexGroupingKeys.add(":label");       // vertex label grouping
-    // vertexGroupingKeys.add("domain");    // vertex grouping on property field in Project class
-    // vertexGroupingKeys.add("city");      // vertex grouping on property field in Company class
-    // vertexGroupingKeys.add("nothing");   // Testing vertex grouping on not existed property
     vertexAggregationFunctions.add(new Count());
-    // vertexAggregationFunctions.add(new AvgProperty("salary", "avg_salary"));    // Testing Avg agg func
-    // on vertex property field in Developer class
-    // vertexAggregationFunctions.add(new SumProperty("salary", "sum_salary"));     // Testing Sum agg func
-    // on vertex property field in Developer class
-    // vertexAggregationFunctions.add(new MaxProperty("salary", "max_salary"));     // Testing Max agg func
-    // on vertex property field in Developer class
     edgeGroupingKeys.add(":label");          // edge label grouping
-    // edgeGroupingKeys.add("month");       // edge grouping on property field in Action class
-    edgeGroupingKeys
-      .add("timestamp_10.sec"); // edge grouping on timestamp (per sec, 10.sec, min, 10.min, h, d, m, y)
     edgeAggregationFunctions.add(new Count());
-    // edgeAggregationFunctions.add(new AvgFreqStreamEdge());
 
     // execute grouping
     streamGraph
@@ -89,5 +76,4 @@ public class SocketExample {
     // execute program
     env.execute("Graph grouping example.");
   }
-
 }

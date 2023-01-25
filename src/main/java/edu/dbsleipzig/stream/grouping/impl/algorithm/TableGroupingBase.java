@@ -25,6 +25,7 @@ import edu.dbsleipzig.stream.grouping.impl.functions.utils.CreateSuperElementId;
 import edu.dbsleipzig.stream.grouping.impl.functions.utils.PlannerExpressionBuilder;
 import edu.dbsleipzig.stream.grouping.impl.functions.utils.PlannerExpressionSeqBuilder;
 import edu.dbsleipzig.stream.grouping.impl.functions.utils.ToProperties;
+import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
 import org.apache.flink.table.api.ApiExpression;
@@ -96,6 +97,8 @@ public abstract class TableGroupingBase {
      * List of aggregate functions to execute on grouped edges
      */
     final List<CustomizedAggregationFunction> edgeAggregateFunctions;
+
+    final WindowConfig windowConfig;
 
     /**
      * Table set of the original stream graph
@@ -187,6 +190,7 @@ public abstract class TableGroupingBase {
      * @param vertexAggregateFunctions   aggregate functions to execute on grouped vertices
      * @param edgeGroupingPropertyKeys   list of property keys to group edges by
      * @param edgeAggregateFunctions     aggregate functions to execute on grouped edges
+     * @param windowConfig               window configuration
      */
     TableGroupingBase(
       boolean useVertexLabels,
@@ -194,14 +198,14 @@ public abstract class TableGroupingBase {
       List<String> vertexGroupingPropertyKeys,
       List<CustomizedAggregationFunction> vertexAggregateFunctions,
       List<String> edgeGroupingPropertyKeys,
-      List<CustomizedAggregationFunction> edgeAggregateFunctions
-    ) {
+      List<CustomizedAggregationFunction> edgeAggregateFunctions, WindowConfig windowConfig) {
         this.useVertexLabels = useVertexLabels;
         this.useEdgeLabels = useEdgeLabels;
         this.vertexGroupingPropertyKeys = vertexGroupingPropertyKeys;
         this.vertexAggregateFunctions = vertexAggregateFunctions;
         this.edgeGroupingPropertyKeys = edgeGroupingPropertyKeys;
         this.edgeAggregateFunctions = edgeAggregateFunctions;
+        this.windowConfig = windowConfig;
         this.vertexGroupingPropertyFieldNames = new HashMap<>();
         this.vertexAfterGroupingPropertyFieldNames = new HashMap<>();
         this.edgeGroupingPropertyFieldNames = new HashMap<>();
@@ -622,7 +626,7 @@ public abstract class TableGroupingBase {
               .isNull()));
         }
         temporalJoinConditions.expression($("preparedVerticesTime").isLessOrEqual($(FIELD_SUPER_VERTEX_ROWTIME)))
-          .and($("preparedVerticesTime").isGreater($(FIELD_SUPER_VERTEX_ROWTIME).minus(lit(10).seconds())));
+          .and($("preparedVerticesTime").isGreater($(FIELD_SUPER_VERTEX_ROWTIME).minus(windowConfig.getWindowExpression())));
         Expression[] joinConditionArray = attributeJoinConditions.build();
         ArrayList<ApiExpression> orConnectedConditions = new ArrayList<>();
 
@@ -820,6 +824,8 @@ public abstract class TableGroupingBase {
          */
         boolean useEdgeLabel;
 
+        WindowConfig windowConfig;
+
         /**
          * Creates a new grouping builder
          */
@@ -830,6 +836,7 @@ public abstract class TableGroupingBase {
             this.vertexAggregateFunctions = new ArrayList<>();
             this.edgePropertyKeys = new ArrayList<>();
             this.edgeAggregateFunctions = new ArrayList<>();
+            this.windowConfig = WindowConfig.create();
         }
 
         /**
@@ -917,6 +924,11 @@ public abstract class TableGroupingBase {
             return this;
         }
 
+        public GroupingBuilder setWindowSize(int value, WindowConfig.TimeUnit timeUnit) {
+            this.windowConfig.setValue(value).setUnit(timeUnit);
+            return this;
+        }
+
         /**
          * Define, if the vertex label shall be used for grouping vertices.
          *
@@ -946,7 +958,7 @@ public abstract class TableGroupingBase {
          */
         public GraphStreamGrouping build() {
             return new GraphStreamGrouping(useVertexLabel, useEdgeLabel, vertexPropertyKeys,
-              vertexAggregateFunctions, edgePropertyKeys, edgeAggregateFunctions);
+              vertexAggregateFunctions, edgePropertyKeys, edgeAggregateFunctions, windowConfig);
         }
     }
 }

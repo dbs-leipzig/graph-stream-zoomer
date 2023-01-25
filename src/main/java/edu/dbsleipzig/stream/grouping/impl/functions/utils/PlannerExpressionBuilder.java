@@ -122,7 +122,7 @@ public class PlannerExpressionBuilder {
     public PlannerExpressionBuilder literal(String e) {
         String literal = "\"" + e + "\"";
         currentExpressionString = literal;
-        currentExpression = $(literal);
+        currentExpression = lit(e);
         return this;
     }
 
