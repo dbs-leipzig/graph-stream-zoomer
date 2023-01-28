@@ -1,6 +1,9 @@
 [![Apache License, Version 2.0, January 2004](https://img.shields.io/github/license/apache/maven.svg?label=License)](https://www.apache.org/licenses/LICENSE-2.0)
 
 # Graph Stream Zoomer
+![GraphStreamZoomer_Logo](logo/GraphStreamZoomerLogo_small.png)
+
+
 *Graph Stream Zoomer* is a open source (ALv2) distributed grouping algorithm for property graph streams based on 
 [Apache Flink&reg;](https://flink.apache.org) and [Gradoop](https://github.com/dbs-leipzig/gradoop).
 
