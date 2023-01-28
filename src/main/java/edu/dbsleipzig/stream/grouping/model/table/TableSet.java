@@ -15,7 +15,6 @@
  */
 package edu.dbsleipzig.stream.grouping.model.table;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
@@ -106,31 +105,6 @@ public class TableSet extends HashMap<String, Table> {
      * Table key of edges table
      */
     public static final String TABLE_EDGES = "edges";
-    /**
-     * Table key of graph table
-     */
-    static final String TABLE_GRAPH = "graph";
-    /**
-     * Initial table set schema of stream graph layout
-     */
-    private static final TableSetSchema SCHEMA = new TableSetSchema(
-      ImmutableMap.<String, Schema>builder()
-        .put(TABLE_VERTICES,
-          Schema.newBuilder()
-            .column(FIELD_VERTEX_ID, DataTypes.STRING())
-            .column(FIELD_VERTEX_LABEL, DataTypes.STRING())
-            .column(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
-            .column(FIELD_EVENT_TIME, DataTypes.TIMESTAMP(3))
-            .build())
-        .put(TABLE_EDGES,
-          Schema.newBuilder()
-            .column(FIELD_EDGE_ID, DataTypes.STRING())
-            .column(FIELD_SOURCE_ID, DataTypes.STRING()).column(FIELD_TARGET_ID, DataTypes.STRING())
-            .column(FIELD_EDGE_LABEL, DataTypes.STRING())
-            .column(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
-            .column(FIELD_EVENT_TIME, DataTypes.TIMESTAMP(3))
-            .build())
-        .build());
 
     /**
      * Constructor
@@ -154,25 +128,6 @@ public class TableSet extends HashMap<String, Table> {
      */
     public Table getEdges() {
         return get(TABLE_EDGES);
-    }
-
-    /**
-     * Returns graph table
-     *
-     * @return graph table
-     */
-    public Table getGraph() {
-        return get(TABLE_GRAPH);
-    }
-
-    /**
-     * Projects a given table with a super set of edges and vertices fields to those fields
-     *
-     * @param table table to project
-     * @return projected table
-     */
-    public Table projectToGraph(Table table) {
-        return table.select(SCHEMA.buildProjectExpressions(TABLE_GRAPH));
     }
 
     /**

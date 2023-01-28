@@ -17,11 +17,8 @@ package edu.dbsleipzig.stream.grouping.model.graph;
 
 import edu.dbsleipzig.stream.grouping.impl.algorithm.GraphStreamGrouping;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.CustomizedAggregationFunction;
-import edu.dbsleipzig.stream.grouping.impl.functions.utils.PlannerExpressionBuilder;
-import edu.dbsleipzig.stream.grouping.impl.functions.utils.PlannerExpressionSeqBuilder;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.table.api.Table;
 
 import java.util.List;
 import java.util.Objects;
@@ -140,43 +137,5 @@ public class StreamGraphLayout {
     }
 
     return builder.build().execute(this);
-  }
-
-  /**
-   * Computes vertex induced edges by performing
-   * <p>
-   * (Edges ⋈ Vertices on head_id=vertex_id)
-   * ⋈ Vertices on tail_id=vertex_id)
-   *
-   * @param edges    original edges table
-   * @param vertices inducing vertices table
-   * @return table
-   */
-  Table computeSummarizedGraphTable(Table edges, Table vertices) {
-    String newSourceIdAttributeName = config.createUniqueAttributeName();
-    String newTargetIdAttributeName = config.createUniqueAttributeName();
-    PlannerExpressionBuilder builder = new PlannerExpressionBuilder(config.getTableEnvironment());
-
-    return tableSet.projectToGraph(
-      edges
-        .join(
-          vertices.select(new PlannerExpressionSeqBuilder(config.getTableEnvironment())
-            .field(TableSet.FIELD_VERTEX_ID)
-            .as(newSourceIdAttributeName)
-            .field(TableSet.FIELD_VERTEX_LABEL)
-            .as(TableSet.FIELD_VERTEX_SOURCE_LABEL)
-            .field(TableSet.FIELD_VERTEX_PROPERTIES)
-            .as(TableSet.FIELD_VERTEX_SOURCE_PROPERTIES).build()),
-          builder.field(TableSet.FIELD_SOURCE_ID)
-            .equalTo(newSourceIdAttributeName).getExpression())
-        .join(vertices.select(new PlannerExpressionSeqBuilder(config.getTableEnvironment())
-            .field(TableSet.FIELD_VERTEX_ID)
-            .as(newTargetIdAttributeName)
-            .field(TableSet.FIELD_VERTEX_LABEL)
-            .as(TableSet.FIELD_VERTEX_TARGET_LABEL)
-            .field(TableSet.FIELD_VERTEX_PROPERTIES)
-            .as(TableSet.FIELD_VERTEX_TARGET_PROPERTIES).build()),
-          builder.field(TableSet.FIELD_TARGET_ID)
-            .equalTo(newTargetIdAttributeName).getExpression()));
   }
 }

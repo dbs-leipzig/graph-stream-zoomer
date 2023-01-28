@@ -20,29 +20,17 @@ import edu.dbsleipzig.stream.grouping.impl.functions.utils.Extractor;
 import edu.dbsleipzig.stream.grouping.model.graph.functions.TripleRowToStreamTripleMap;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
-import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
-import org.gradoop.common.model.impl.properties.Properties;
 
 import java.sql.Timestamp;
-import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
@@ -81,7 +69,7 @@ public class StreamGraph extends StreamGraphLayout {
      * Creates a new stream graph based on a tableset.
      *
      * @param tableSet representation of the stream graph as tables
-     * @param config the the stream graph configuration
+     * @param config the stream graph configuration
      */
     public StreamGraph(TableSet tableSet, StreamGraphConfig config) {
         super(Objects.requireNonNull(tableSet), Objects.requireNonNull(config));
