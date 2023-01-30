@@ -19,24 +19,16 @@ import edu.dbsleipzig.stream.grouping.impl.algorithm.GraphStreamGrouping;
 import edu.dbsleipzig.stream.grouping.impl.algorithm.TableGroupingBase;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.Count;
 import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
-import edu.dbsleipzig.stream.grouping.impl.functions.utils.BridgeProperties;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamTriple;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamVertex;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.Expressions;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.expressions.Expression;
 import org.gradoop.common.model.impl.properties.Properties;
 
 import java.sql.Timestamp;
-import java.util.Arrays;
 import java.util.HashMap;
-
-import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.call;
 
 /**
  * A local example with some test data graph stream.
@@ -57,20 +49,16 @@ public class LocalExample {
 
         StreamGraph streamGraph = StreamGraph.fromFlinkStream(graphStreamTriples, new StreamGraphConfig(env));
 
-        streamGraph.printVertices();
-        streamGraph.printEdges();
-
         GraphStreamGrouping groupingOperator = new TableGroupingBase.GroupingBuilder()
-                // Use 10 seconds window
-                .setWindowSize(10, WindowConfig.TimeUnit.SECONDS)
-                // Group edges and vertices on 'label'
-                .addVertexGroupingKey(":label")
-                .addEdgeGroupingKey(":label")
-                .addVertexGroupingKey("Size")
-                // Count elements
-                .addVertexAggregateFunction(new Count())
-                .addEdgeAggregateFunction(new Count())
-                .build();
+          // Use 10 seconds window
+          .setWindowSize(10, WindowConfig.TimeUnit.SECONDS)
+          // Group edges and vertices on 'label'
+          .addVertexGroupingKey(":label")
+          .addEdgeGroupingKey(":label")
+          // Count elements
+          .addVertexAggregateFunction(new Count())
+          .addEdgeAggregateFunction(new Count())
+          .build();
 
         streamGraph = groupingOperator.execute(streamGraph);
 
