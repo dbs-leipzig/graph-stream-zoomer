@@ -33,6 +33,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.net.URL;
+
 /**
  * Demonstration of the graph stream grouping using public citibike bike-sharing data.
  */
@@ -84,11 +86,12 @@ public class CitiBikeExample {
                   String.class, String.class, String.class, String.class, String.class,
                   String.class, String.class, String.class, String.class, String.class);
 
+        URL url = CitiBikeExample.class.getResource("/citibike-data/201306-citibike-tripdata.csv");
         CsvInputFormat<Tuple15<String, String, String, String, String, String, String, String,
           String, String, String, String, String, String, String>> inputFormat =
           // todo: use path from Resources
           new TupleCsvInputFormat<>(
-            new Path("./src/main/resources/citibike-data/201306-citibike-tripdata.csv"),
+            new Path(url.getPath()),
             tuple15TupleTypeInfo);
         inputFormat.setSkipFirstLineAsHeader(true);
         DataStreamSource<Tuple15<String, String, String, String, String, String, String, String, String,
