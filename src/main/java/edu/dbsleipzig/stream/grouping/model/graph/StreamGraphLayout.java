@@ -17,11 +17,20 @@ package edu.dbsleipzig.stream.grouping.model.graph;
 
 import edu.dbsleipzig.stream.grouping.impl.algorithm.GraphStreamGrouping;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.CustomizedAggregationFunction;
+import edu.dbsleipzig.stream.grouping.impl.functions.utils.BridgeProperties;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.Table;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+
+import org.apache.flink.table.expressions.Expression;
+
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 
 /**
  * A stream graph layout is wrapping a {@link TableSet} which defines, how the layout is
@@ -43,19 +52,21 @@ public class StreamGraphLayout {
    * Constructor used for input data stream.
    *
    * @param vertices stream of vertices
-   * @param edges stream of edges
-   * @param config the graph stream configuration
+   * @param edges    stream of edges
+   * @param config   the graph stream configuration
    */
   public StreamGraphLayout(DataStream<StreamVertex> vertices, DataStream<StreamEdge> edges,
-    StreamGraphConfig config) {
+                           StreamGraphConfig config) {
 
     TableSet tableSet = new TableSet();
 
+    //bridge Properties to Properties.class (only necessary if grouping didn't happen yet)
+
     tableSet.put(TableSet.TABLE_VERTICES,
-      config.getTableEnvironment().fromDataStream(vertices, TableSet.getVertexSchema()));
+            bridgeVertexProperties(vertices, config));
 
     tableSet.put(TableSet.TABLE_EDGES,
-      config.getTableEnvironment().fromDataStream(edges, TableSet.getEdgeSchema()));
+            bridgeEdgeProperties(edges, config));
 
     this.tableSet = tableSet;
     this.config = Objects.requireNonNull(config);
@@ -137,5 +148,26 @@ public class StreamGraphLayout {
     }
 
     return builder.build().execute(this);
+  }
+
+  private Table bridgeVertexProperties(DataStream<StreamVertex> vertexDataStream, StreamGraphConfig config) {
+    Table vertexTable = config.getTableEnvironment().fromDataStream(vertexDataStream, TableSet.getVertexSchema());
+    String[] column = new String[1];
+    column[0] = "vertex_properties";
+    Expression[] columnAsEx = Arrays.stream(column).map(Expressions::$).toArray(Expression[]::new);
+    vertexTable = vertexTable.select($("vertex_id"), $("vertex_label"),
+            call(BridgeProperties.class, columnAsEx).as("vertex_properties"), $("event_time"));
+    return vertexTable;
+  }
+
+  private Table bridgeEdgeProperties(DataStream<StreamEdge> edgeDataStream, StreamGraphConfig config) {
+    Table edgeTable = config.getTableEnvironment().fromDataStream(edgeDataStream, TableSet.getEdgeSchema());
+    String[] column = new String[1];
+    column[0] = "edge_properties";
+    Expression[] columnAsEx = Arrays.stream(column).map(Expressions::$).toArray(Expression[]::new);
+    edgeTable = edgeTable.select($("edge_id"), $("event_time"), $("edge_label"),
+            call(BridgeProperties.class, columnAsEx).as("edge_properties"), $("target_id"),
+            $("source_id"));
+    return edgeTable;
   }
 }
