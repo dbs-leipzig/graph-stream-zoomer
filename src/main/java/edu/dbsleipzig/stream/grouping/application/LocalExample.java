@@ -19,7 +19,6 @@ import edu.dbsleipzig.stream.grouping.impl.algorithm.GraphStreamGrouping;
 import edu.dbsleipzig.stream.grouping.impl.algorithm.TableGroupingBase;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.Count;
 import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
-import edu.dbsleipzig.stream.grouping.impl.functions.utils.BridgeProperties;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamTriple;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamVertex;
