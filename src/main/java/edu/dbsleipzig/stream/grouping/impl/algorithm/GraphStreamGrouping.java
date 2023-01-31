@@ -126,7 +126,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // return: | edge_id | source_id | target_id | edge_label | edge_properties
         Table newEdges = createNewEdges(groupedEdges);
 
-        return getConfig().getTableSetFactory().fromTables(getTableEnv().sqlQuery("SELECT * FROM " + newVertices), getTableEnv().sqlQuery("SELECT * FROM "+ newEdges));
+        return getConfig().getTableSetFactory().fromTables(newVertices, newEdges);
     }
 
     public Table prepareVertices() {

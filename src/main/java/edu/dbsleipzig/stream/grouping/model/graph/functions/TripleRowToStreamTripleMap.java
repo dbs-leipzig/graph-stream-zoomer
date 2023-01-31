@@ -16,7 +16,7 @@ public class TripleRowToStreamTripleMap implements MapFunction<Row, StreamTriple
     String sourceLabel = row.getFieldAs(1);
     Properties sourceProps = row.getFieldAs(2);
     String edgeId = row.getFieldAs(3);
-    Timestamp eventTime = Timestamp.valueOf((LocalDateTime) row.getFieldAs(4));
+    Timestamp eventTime =  row.getFieldAs(4);
     String edgeLabel = row.getFieldAs(5);
     Properties edgeProps = row.getFieldAs(6);
     String targetId = row.getFieldAs(7);
