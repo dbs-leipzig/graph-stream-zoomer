@@ -132,6 +132,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
     public Table prepareVertices() {
         return this.getTableEnv().sqlQuery(
           "SELECT " +
+            "'d' as dummy, " +
             FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID + ", " +
             FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL + ", " +
             FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES + ", " +
