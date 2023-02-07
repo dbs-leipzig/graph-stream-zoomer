@@ -32,11 +32,7 @@ import org.apache.flink.table.api.ApiExpression;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.expressions.Expression;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static edu.dbsleipzig.stream.grouping.model.table.TableSet.*;
@@ -612,43 +608,30 @@ public abstract class TableGroupingBase {
      */
     protected Expression buildJoinConditionForExpandedVertices(){
         PlannerExpressionSeqBuilder attributeJoinConditions = new PlannerExpressionSeqBuilder(getTableEnv());
-        PlannerExpressionSeqBuilder temporalJoinConditions = new PlannerExpressionSeqBuilder(getTableEnv());
         if (vertexGroupingPropertyKeys.size() > 0) {
             for (String key : vertexGroupingPropertyFieldNames.keySet()) {
                 attributeJoinConditions.expression($(vertexGroupingPropertyFieldNames.get(key))
-                        .isEqual($(vertexAfterGroupingPropertyFieldNames.get(key))));
-                attributeJoinConditions.expression($(vertexGroupingPropertyFieldNames.get(key)).isNull()
-                        .and($(vertexAfterGroupingPropertyFieldNames.get(key)).isNull()));
+                        .isEqual($(vertexAfterGroupingPropertyFieldNames.get(key)))
+                        .or($(vertexGroupingPropertyFieldNames.get(key)).isNull()
+                        .and($(vertexAfterGroupingPropertyFieldNames.get(key)).isNull())));
             }
         }
         if (useVertexLabels) {
-            attributeJoinConditions.expression($(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL)));
-            attributeJoinConditions.expression($(FIELD_VERTEX_LABEL).isNull().and($(FIELD_SUPER_VERTEX_LABEL)
-              .isNull()));
+            attributeJoinConditions.expression($(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL))).or(
+            $(FIELD_VERTEX_LABEL).isNull().and($(FIELD_SUPER_VERTEX_LABEL).isNull()));
         }
 
-        temporalJoinConditions.expression($("preparedVerticesTime").isLessOrEqual($(FIELD_SUPER_VERTEX_ROWTIME)))
-          .and($("preparedVerticesTime").isGreater($(FIELD_SUPER_VERTEX_ROWTIME).minus(windowConfig.getWindowExpression())));
-        Expression[] joinConditionArray = attributeJoinConditions.build();
-        ArrayList<ApiExpression> orConnectedConditions = new ArrayList<>();
+        ApiExpression temporalExpression = $("preparedVerticesTime").isLessOrEqual($(FIELD_SUPER_VERTEX_ROWTIME))
+                .and($("preparedVerticesTime").isGreater($(FIELD_SUPER_VERTEX_ROWTIME).minus(windowConfig.getWindowExpression())));
 
-        for (int i=0; i<attributeJoinConditions.build().length; i+=2) {
-            orConnectedConditions.add(((ApiExpression) joinConditionArray[i]).or(joinConditionArray[i+1]));
+        ApiExpression[] apiExpressionArray = Arrays.stream(attributeJoinConditions.build()).toArray(ApiExpression[]::new);
+
+        if (apiExpressionArray.length > 0) {
+            ApiExpression apiExpression = Arrays.stream(apiExpressionArray).reduce(temporalExpression , (prev, cur) -> prev.and(cur));
+            return apiExpression;
         }
 
-        Expression[] temporalConditions = temporalJoinConditions.build();
-        ApiExpression apiExpression = (ApiExpression) temporalConditions[0];
-
-        for (int i=1; i<temporalConditions.length; i++) {
-            apiExpression = apiExpression.and(temporalConditions[i]);
-        }
-
-        if (orConnectedConditions.size() > 0) {
-            for (ApiExpression orCond : orConnectedConditions) {
-                apiExpression = apiExpression.and(orCond);
-            }
-        }
-        return apiExpression;
+        return temporalExpression;
     }
 
     /**
