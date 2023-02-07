@@ -552,7 +552,7 @@ public abstract class TableGroupingBase {
         PlannerExpressionSeqBuilder selectFromExpandedVertices =
           new PlannerExpressionSeqBuilder(getTableEnv());
         selectFromExpandedVertices.field(FIELD_VERTEX_ID);
-        selectFromExpandedVertices.field("preparedVerticesTime").as(FIELD_EVENT_TIME);
+        selectFromExpandedVertices.field(PREPARED_VERTICES_EVENT_TIME).as(FIELD_EVENT_TIME);
         selectFromExpandedVertices.field(FIELD_SUPER_VERTEX_ID);
         if (useVertexLabels) {
             selectFromExpandedVertices.field(FIELD_SUPER_VERTEX_LABEL);
@@ -575,7 +575,7 @@ public abstract class TableGroupingBase {
             selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_LABEL);
         }
 
-        selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_EVENT_TIME).as("preparedVerticesTime");
+        selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_EVENT_TIME).as(PREPARED_VERTICES_EVENT_TIME);
         selectPreparedVerticesGroupAttributes.field(FIELD_VERTEX_ID);
         return selectPreparedVerticesGroupAttributes.build();
     }
@@ -621,8 +621,8 @@ public abstract class TableGroupingBase {
             $(FIELD_VERTEX_LABEL).isNull().and($(FIELD_SUPER_VERTEX_LABEL).isNull()));
         }
 
-        ApiExpression temporalExpression = $("preparedVerticesTime").isLessOrEqual($(FIELD_SUPER_VERTEX_ROWTIME))
-                .and($("preparedVerticesTime").isGreater($(FIELD_SUPER_VERTEX_ROWTIME).minus(windowConfig.getWindowExpression())));
+        ApiExpression temporalExpression = $(PREPARED_VERTICES_EVENT_TIME).isLessOrEqual($(FIELD_SUPER_VERTEX_ROWTIME))
+                .and($(PREPARED_VERTICES_EVENT_TIME).isGreater($(FIELD_SUPER_VERTEX_ROWTIME).minus(windowConfig.getWindowExpression())));
 
         ApiExpression[] apiExpressionArray = Arrays.stream(attributeJoinConditions.build()).toArray(ApiExpression[]::new);
 
