@@ -28,9 +28,7 @@ import edu.dbsleipzig.stream.grouping.model.graph.StreamTriple;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.io.TupleCsvInputFormat;
-import org.apache.flink.api.java.tuple.Tuple15;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -50,10 +48,8 @@ public class CitiBikeExample {
      * @throws Exception in case of an error
      */
     public static void main(String[] args) throws Exception {
-        Configuration configuration = new Configuration();
-        configuration.setString("taskmanager.memory.network.max", "1gb");
         // Init the stream environment
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(configuration);
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
         // Create the triple stream from a csv file
         DataStream<StreamTriple> citiBikeStream = createInputFromCsv(env);
@@ -63,14 +59,14 @@ public class CitiBikeExample {
 
         // Configure and build the grouping operator
         GraphStreamGrouping groupingOperator = new TableGroupingBase.GroupingBuilder()
-                .setWindowSize(15, WindowConfig.TimeUnit.DAYS)
-                .addVertexGroupingKey(":label")
-                .addEdgeGroupingKey("gender")
-                .addEdgeGroupingKey(":label")
-                .addVertexAggregateFunction(new Count())
-                .addEdgeAggregateFunction(new Count())
-                .addEdgeAggregateFunction(new AvgProperty("tripduration"))
-                .build();
+          .setWindowSize(15, WindowConfig.TimeUnit.DAYS)
+          .addVertexGroupingKey(":label")
+          .addEdgeGroupingKey("gender")
+          .addEdgeGroupingKey(":label")
+          .addVertexAggregateFunction(new Count())
+          .addEdgeAggregateFunction(new Count())
+          .addEdgeAggregateFunction(new AvgProperty("tripduration"))
+          .build();
 
         // Execute the grouping and overwrite the input stream with the grouping result
         streamGraph = groupingOperator.execute(streamGraph);
@@ -85,9 +81,9 @@ public class CitiBikeExample {
     public static DataStream<StreamTriple> createInputFromCsv(StreamExecutionEnvironment env) {
 
         TupleTypeInfo<CitibikeTuple15> citiBikeTupleTypeInfo = TupleTypeInfo.getBasicTupleTypeInfo(
-                String.class, String.class, String.class, String.class, String.class,
-                String.class, String.class, String.class, String.class, String.class,
-                String.class, String.class, String.class, String.class, String.class);
+          String.class, String.class, String.class, String.class, String.class,
+          String.class, String.class, String.class, String.class, String.class,
+          String.class, String.class, String.class, String.class, String.class);
 
         URL url = CitiBikeExample.class.getResource("/citibike-data/201306-citibike-tripdata.csv");
 
