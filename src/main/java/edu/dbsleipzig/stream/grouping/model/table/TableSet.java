@@ -104,7 +104,7 @@ public class TableSet extends HashMap<String, Table> {
     /**
      * Field name if not grouping on label
      */
-    public static final String FIELD_NO_LABEL = "no_label";
+    public static final String FIELD_NO_LABEL = "";
     /**
      * Table key of vertices table
      */
