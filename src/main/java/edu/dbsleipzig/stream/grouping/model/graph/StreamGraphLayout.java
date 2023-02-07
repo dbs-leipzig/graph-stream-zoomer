@@ -19,17 +19,9 @@ import edu.dbsleipzig.stream.grouping.impl.algorithm.GraphStreamGrouping;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.CustomizedAggregationFunction;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.table.api.Expressions;
-import org.apache.flink.table.api.Table;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-
-import org.apache.flink.table.expressions.Expression;
-
-import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.call;
 
 /**
  * A stream graph layout is wrapping a {@link TableSet} which defines, how the layout is
@@ -51,21 +43,19 @@ public class StreamGraphLayout {
    * Constructor used for input data stream.
    *
    * @param vertices stream of vertices
-   * @param edges    stream of edges
-   * @param config   the graph stream configuration
+   * @param edges stream of edges
+   * @param config the graph stream configuration
    */
   public StreamGraphLayout(DataStream<StreamVertex> vertices, DataStream<StreamEdge> edges,
-                           StreamGraphConfig config) {
+    StreamGraphConfig config) {
 
     TableSet tableSet = new TableSet();
 
-    //bridge Properties to Properties.class (only necessary if grouping didn't happen yet)
-
     tableSet.put(TableSet.TABLE_VERTICES,
-            config.getTableEnvironment().fromDataStream(vertices, TableSet.getVertexSchema()));
+      config.getTableEnvironment().fromDataStream(vertices, TableSet.getVertexSchema()));
 
     tableSet.put(TableSet.TABLE_EDGES,
-            config.getTableEnvironment().fromDataStream(edges, TableSet.getEdgeSchema()));
+      config.getTableEnvironment().fromDataStream(edges, TableSet.getEdgeSchema()));
 
     this.tableSet = tableSet;
     this.config = Objects.requireNonNull(config);
