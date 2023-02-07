@@ -270,6 +270,25 @@ public class PlannerExpressionBuilder {
     }
 
     /**
+     * Appends a call of boolean "OR(expression)" operator with given expression to current
+     * expression
+     * Builds a boolean expression!
+     *
+     * @param expression expression
+     * @return a reference to this object
+     */
+    public PlannerExpressionBuilder or(ApiExpression expression) {
+        if (null == currentExpression) {
+            currentExpression = expression;
+        }
+        else {
+            currentExpression = currentExpression.or(expression);
+        }
+
+        return this;
+    }
+
+    /**
      * Builds a row expression. Used only as scalar function argument at {@link ToProperties}.
      *
      * @param expressions the expression for the row.
