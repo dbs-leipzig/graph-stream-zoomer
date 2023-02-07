@@ -253,14 +253,7 @@ public abstract class TableGroupingBase {
             expressions.add($(vertexGroupingPropertyFieldNames.get(vertexPropertyKey)));
         }
 
-        if (useVertexLabels) {
-            // optional: vertex_label
-            expressions.add($(FIELD_VERTEX_LABEL));
-        } else if (vertexGroupingPropertyKeys.size() == 0) {
-            // in case no vertex criteria grouping specified
-            expressions.add($("dummy"));
-        }
-
+        expressions.add($(FIELD_VERTEX_LABEL));
         expressions.add($(FIELD_SUPER_VERTEX_EVENT_WINDOW));
         return expressions.toArray(new Expression[0]);
     }
@@ -286,27 +279,21 @@ public abstract class TableGroupingBase {
             for (int i = 1; i <= vertexGroupingPropertyFieldNames.size(); i++)
                 fields[i] = $(vertexGroupingPropertyFieldNames.get(vertexGroupingPropertyKeys.get(i - 1)));
 
-        } else if (useVertexLabels) {
-            fields = new Expression[2];
-            fields[0] = $(FIELD_VERTEX_LABEL);
-        } else if (vertexGroupingPropertyKeys.size() > 0) {
+        }  else if (vertexGroupingPropertyKeys.size() > 0) {
             fields = new Expression[vertexGroupingPropertyFieldNames.size() + 1];
             for (int i = 0; i < vertexGroupingPropertyFieldNames.size(); i++)
                 fields[i] = $(vertexGroupingPropertyFieldNames.get(vertexGroupingPropertyKeys.get(i)));
         } // no vertex grouping criteria specified
         else {
             fields = new Expression[2];
-            fields[0] = $("dummy");
+            fields[0] = $(FIELD_VERTEX_LABEL);
         }
         fields[fields.length-1] = $(FIELD_SUPER_VERTEX_EVENT_WINDOW).rowtime();
         builder
           .scalarFunctionCall(new CreateSuperElementId(), fields)
           .as(FIELD_SUPER_VERTEX_ID);
 
-        // optional: vertex_label
-        if (useVertexLabels) {
-            builder.field(FIELD_VERTEX_LABEL).as(FIELD_SUPER_VERTEX_LABEL);
-        }
+        builder.field(FIELD_VERTEX_LABEL).as(FIELD_SUPER_VERTEX_LABEL);
 
         // tmp_a1 AS tmp_c1, ... , tmp_an AS tmp_cn
         for (String vertexPropertyKey : vertexGroupingPropertyKeys) {
@@ -355,12 +342,13 @@ public abstract class TableGroupingBase {
           .field(FIELD_EDGE_ID)
           .field(FIELD_EVENT_TIME)
           .field(FIELD_SOURCE_ID)
-          .field(FIELD_TARGET_ID)
-          .literal("d").as("dummy");
+          .field(FIELD_TARGET_ID);
 
         // 2. optionally: edge_label
         if (useEdgeLabels) {
             projectExpressionsBuilder.field(TableSet.FIELD_EDGE_LABEL);
+        } else {
+            projectExpressionsBuilder.literal(FIELD_NO_LABEL).as(FIELD_EDGE_LABEL);
         }
 
         // 3. Add properties (key and aggregate)
@@ -410,13 +398,8 @@ public abstract class TableGroupingBase {
             builder.field(edgeGroupingPropertyFieldNames.get(edgePropertyKey));
         }
 
-        // optionally: edge_label
-        if (useEdgeLabels) {
-            builder.field(TableSet.FIELD_EDGE_LABEL);
-        } // in case no edge criteria grouping specified
-        else if (edgeGroupingPropertyKeys.size() == 0) {
-            builder.field("dummy");
-        }
+        // if useEdgeLabel is false, then label = "no_label" for all vertices, so it doesn't affect the grouping
+        builder.field(TableSet.FIELD_EDGE_LABEL);
 
         builder.field(FIELD_EDGE_EVENT_WINDOW);
 
@@ -445,9 +428,6 @@ public abstract class TableGroupingBase {
             for (int i = 1; i <= edgeGroupingPropertyKeys.size(); i++)
                 fields[i] = $(edgeGroupingPropertyFieldNames.get(edgeGroupingPropertyKeys.get(i - 1)));
 
-        } else if (useEdgeLabels) {
-            fields = new Expression[2];
-            fields[0] = $(TableSet.FIELD_EDGE_LABEL);
         } else if (edgeGroupingPropertyKeys.size() > 0) {
             fields = new Expression[edgeGroupingPropertyFieldNames.size()];
             for (int i = 0; i < edgeGroupingPropertyKeys.size(); i++)
@@ -455,7 +435,7 @@ public abstract class TableGroupingBase {
         } // no edge grouping criteria specified
         else {
             fields = new Expression[2];
-            fields[0] = $("dummy");
+            fields[0] = $(FIELD_EDGE_LABEL);
         }
         fields[fields.length-1] = $(FIELD_EDGE_EVENT_WINDOW).rowtime();
         builder
@@ -467,10 +447,7 @@ public abstract class TableGroupingBase {
                 .field(TableSet.FIELD_SOURCE_ID)
                 .field(TableSet.FIELD_TARGET_ID);
 
-        // optional: edge_label
-        if (useEdgeLabels) {
-            builder.field(TableSet.FIELD_EDGE_LABEL);
-        }
+        builder.field(TableSet.FIELD_EDGE_LABEL);
 
         // tmp_e1 AS tmp_g1, ... , tmp_ek AS tmp_gk
         for (String edgePropertyKey : edgeGroupingPropertyKeys) {
@@ -644,10 +621,12 @@ public abstract class TableGroupingBase {
 
         builder.field(TableSet.FIELD_VERTEX_ID);
         builder.field(FIELD_VERTEX_EVENT_TIME);
-        builder.field("dummy");
 
         if (useVertexLabels) {
             builder.field(TableSet.FIELD_VERTEX_LABEL);
+        }
+        else {
+            builder.literal(FIELD_NO_LABEL).as(FIELD_VERTEX_LABEL);
         }
 
         // grouping_property_1 AS tmp_a1, ... , grouping_property_n AS tmp_an
@@ -692,12 +671,7 @@ public abstract class TableGroupingBase {
         builder.field(FIELD_SUPER_VERTEX_ROWTIME).as(FIELD_EVENT_TIME);
 
         // vertex_label
-        if (useVertexLabels) {
-            builder.field(FIELD_SUPER_VERTEX_LABEL).as(TableSet.FIELD_VERTEX_LABEL);
-        }
-        else {
-            builder.literal("unknown").as(FIELD_VERTEX_LABEL);
-        }
+        builder.field(FIELD_SUPER_VERTEX_LABEL).as(TableSet.FIELD_VERTEX_LABEL);
 
         // grouped_properties + aggregated_properties -> vertex_properties
         PlannerExpressionSeqBuilder propertyKeysAndFieldsBuilder = new PlannerExpressionSeqBuilder(getTableEnv());
@@ -739,12 +713,7 @@ public abstract class TableGroupingBase {
           .field(TableSet.FIELD_TARGET_ID);
 
         // edge_label
-        if (useEdgeLabels) {
-            builder.field(TableSet.FIELD_EDGE_LABEL);
-        }
-        else {
-            builder.literal("unknown").as(FIELD_EDGE_LABEL);
-        }
+        builder.field(TableSet.FIELD_EDGE_LABEL);
         // grouped_properties + aggregated_properties -> edge_properties
         PlannerExpressionSeqBuilder propertyKeysAndFieldsBuilder = new PlannerExpressionSeqBuilder(getTableEnv());
         // add grouped properties

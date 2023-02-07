@@ -19,7 +19,6 @@ import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.CustomizedAggre
 import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.GraphStreamToGraphStreamOperator;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
-import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphLayout;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
 import org.apache.flink.table.api.Table;
@@ -132,7 +131,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
     public Table prepareVertices() {
         return this.getTableEnv().sqlQuery(
           "SELECT " +
-            "'d' as dummy, " +
             FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID + ", " +
             FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL + ", " +
             FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES + ", " +
