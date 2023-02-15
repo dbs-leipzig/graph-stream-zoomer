@@ -30,10 +30,10 @@ import java.util.HashMap;
 /**
  * Maps a tuple parsed from csv line of the citibike csv file to a StreamTriple.
  */
-public class CitibikeCSVLineToStreamTripleMap implements MapFunction<Tuple15<String, String, String, String, String, String, String, String, String, String, String, String, String, String, String>, StreamTriple> {
+public class CitibikeCSVLineToStreamTripleMap implements MapFunction<CitibikeTuple15, StreamTriple> {
 
   @Override
-  public StreamTriple map(Tuple15<String, String, String, String, String, String, String, String, String, String, String, String, String, String, String> tuple15) throws
+  public StreamTriple map(CitibikeTuple15 tuple15) throws
     Exception {
     StreamTriple streamTriple = new StreamTriple();
     StreamVertex sourceVertex = new StreamVertex();

@@ -16,6 +16,7 @@
 package edu.dbsleipzig.stream.grouping.application;
 
 import edu.dbsleipzig.stream.grouping.application.functions.CitibikeCSVLineToStreamTripleMap;
+import edu.dbsleipzig.stream.grouping.application.functions.CitibikeTuple15;
 import edu.dbsleipzig.stream.grouping.impl.algorithm.GraphStreamGrouping;
 import edu.dbsleipzig.stream.grouping.impl.algorithm.TableGroupingBase;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.AvgProperty;
@@ -24,14 +25,16 @@ import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamTriple;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.io.TupleCsvInputFormat;
-import org.apache.flink.api.java.tuple.Tuple15;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
+import java.net.URL;
 
 /**
  * Demonstration of the graph stream grouping using public citibike bike-sharing data.
@@ -76,24 +79,20 @@ public class CitiBikeExample {
     }
 
     public static DataStream<StreamTriple> createInputFromCsv(StreamExecutionEnvironment env) {
-        TupleTypeInfo<
-          Tuple15<String, String, String, String, String, String, String, String, String,
-            String, String, String, String, String, String>> tuple15TupleTypeInfo =
-                TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(
-                  String.class, String.class, String.class, String.class, String.class,
-                  String.class, String.class, String.class, String.class, String.class,
-                  String.class, String.class, String.class, String.class, String.class);
 
-        CsvInputFormat<Tuple15<String, String, String, String, String, String, String, String,
-          String, String, String, String, String, String, String>> inputFormat =
-          // todo: use path from Resources
-          new TupleCsvInputFormat<>(
-            new Path("./src/main/resources/citibike-data/201306-citibike-tripdata.csv"),
-            tuple15TupleTypeInfo);
+        TupleTypeInfo<CitibikeTuple15> citiBikeTupleTypeInfo = TupleTypeInfo.getBasicTupleTypeInfo(
+          String.class, String.class, String.class, String.class, String.class,
+          String.class, String.class, String.class, String.class, String.class,
+          String.class, String.class, String.class, String.class, String.class);
+
+        URL url = CitiBikeExample.class.getResource("/citibike-data/201306-citibike-tripdata.csv");
+
+        CsvInputFormat<CitibikeTuple15> inputFormat = new TupleCsvInputFormat<>(
+                new Path(url.getPath()), citiBikeTupleTypeInfo);
         inputFormat.setSkipFirstLineAsHeader(true);
-        DataStreamSource<Tuple15<String, String, String, String, String, String, String, String, String,
-          String, String, String, String, String, String>>
-                source = env.createInput(inputFormat, tuple15TupleTypeInfo);
+
+        DataStreamSource<CitibikeTuple15> source = env.createInput(
+                inputFormat, TypeInformation.of(CitibikeTuple15.class));
 
         return source.map(new CitibikeCSVLineToStreamTripleMap());
     }
