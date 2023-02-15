@@ -19,7 +19,6 @@ import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.CustomizedAggre
 import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.GraphStreamToGraphStreamOperator;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
-import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphLayout;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
 import org.apache.flink.table.api.Table;

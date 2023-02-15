@@ -140,7 +140,7 @@ public class TableSet extends HashMap<String, Table> {
           .column(FIELD_VERTEX_ID, DataTypes.STRING())
           .column(FIELD_EVENT_TIME, DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class))
           .column(FIELD_VERTEX_LABEL, DataTypes.STRING())
-          .column(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .column(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(Properties.class).bridgedTo(Properties.class))
           .watermark(FIELD_EVENT_TIME, $(FIELD_EVENT_TIME).minus(lit(10).seconds()))
           .build();
     }
@@ -154,7 +154,7 @@ public class TableSet extends HashMap<String, Table> {
         return Schema.newBuilder()
           .column(FIELD_EDGE_ID, DataTypes.STRING())
           .column(FIELD_EDGE_LABEL, DataTypes.STRING())
-          .column(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .column(FIELD_EDGE_PROPERTIES, DataTypes.RAW(Properties.class).bridgedTo(Properties.class))
           .column(FIELD_TARGET_ID, DataTypes.STRING())
           .column(FIELD_SOURCE_ID, DataTypes.STRING())
           .column(FIELD_EVENT_TIME, DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class))
