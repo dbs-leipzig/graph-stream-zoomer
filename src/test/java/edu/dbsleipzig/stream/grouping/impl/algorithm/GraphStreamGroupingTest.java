@@ -37,7 +37,8 @@ import static org.junit.Assert.assertTrue;
  * table
  */
 public class GraphStreamGroupingTest {
-/*
+  /*
+
   private StreamVertex v1, v2, v3, v4, v5, v6, v7, v8;
   private StreamTriple edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9;
   private Timestamp t1, t2, t3, t4;
