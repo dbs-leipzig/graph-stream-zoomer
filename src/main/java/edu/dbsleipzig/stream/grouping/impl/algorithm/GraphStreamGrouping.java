@@ -22,6 +22,8 @@ import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphLayout;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
+import org.apache.flink.table.api.GroupWindowedTable;
+import org.apache.flink.table.api.Slide;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.Tumble;
 
@@ -54,16 +56,16 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      * @param edgeAggregateFunctions     aggregate functions to execute on grouped edges
      */
     GraphStreamGrouping(
-      boolean useVertexLabels,
-      boolean useEdgeLabels,
-      List<String> vertexGroupingPropertyKeys,
-      List<CustomizedAggregationFunction> vertexAggregateFunctions,
-      List<String> edgeGroupingPropertyKeys,
-      List<CustomizedAggregationFunction> edgeAggregateFunctions,
-      WindowConfig windowConfig
+            boolean useVertexLabels,
+            boolean useEdgeLabels,
+            List<String> vertexGroupingPropertyKeys,
+            List<CustomizedAggregationFunction> vertexAggregateFunctions,
+            List<String> edgeGroupingPropertyKeys,
+            List<CustomizedAggregationFunction> edgeAggregateFunctions,
+            WindowConfig windowConfig
     ) {
         super(useVertexLabels, useEdgeLabels, vertexGroupingPropertyKeys, vertexAggregateFunctions,
-          edgeGroupingPropertyKeys, edgeAggregateFunctions, windowConfig);
+                edgeGroupingPropertyKeys, edgeAggregateFunctions, windowConfig);
     }
 
     /**
@@ -89,10 +91,12 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
     protected TableSet performGrouping() {
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
+        this.tableSet.getVertices().execute().print();
 
         // 1. Prepare distinct vertices
         // Returns: | vertex_event_time | vertex_id | vertex_label | vertex_properties |
         Table preparedVertices = prepareVertices();
+        preparedVertices.execute().print();
 
         // 2. Write grouping or aggregating properties in own column, extract from vertex_properties column
         // returns: | vertex_id | vertex_event_time | [vertex_label] | [prop_grouping | ...] [prop_agg | ...]
@@ -101,6 +105,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // 3. Group vertices by label and/or property values
         // returns: | super_vertex_id | super_vertex_label | [prop_grouping | ...] [prop_agg | ...] | super_vertex_rowtime
         Table groupedVertices = groupVertices(furtherPreparedVertices);
+        groupedVertices.execute().print();
 
         // 4. Derive new super vertices
         // returns: | vertex_id | vertex_label | vertex_properties |
@@ -126,40 +131,63 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // return: | edge_id | source_id | target_id | edge_label | edge_properties
         Table newEdges = createNewEdges(groupedEdges);
 
-        return getConfig().getTableSetFactory().fromTables(getTableEnv().sqlQuery("SELECT * FROM " + newVertices), getTableEnv().sqlQuery("SELECT * FROM "+ newEdges));
+        return getConfig().getTableSetFactory().fromTables(getTableEnv().sqlQuery("SELECT * FROM " + newVertices), getTableEnv().sqlQuery("SELECT * FROM " + newEdges));
     }
 
     public Table prepareVertices() {
-        return this.getTableEnv().sqlQuery(
-          "SELECT " +
-            FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID + ", " +
-            FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL + ", " +
-            FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES + ", " +
-            "window_time as " + FIELD_VERTEX_EVENT_TIME + " " +
-            "FROM TABLE ( TUMBLE ( TABLE  " + this.tableSet.getVertices() + ", " +
-            // Todo: Replace with configurable time interval
-            "DESCRIPTOR(" + FIELD_EVENT_TIME + "), " + windowConfig.getSqlApiExpression() + ")) " +
-            "GROUP BY window_time, " + FIELD_VERTEX_ID + ", " + FIELD_VERTEX_LABEL + ", " +
-            FIELD_VERTEX_PROPERTIES + ", window_start, window_end"
-        );
+        /*
+        Wird Sliding Window zur Deduplizierung benötigt? Oder kann hier auch TumblingWindow verwendet werden?
+         */
+        if (!windowConfig.useSlideWindow()) {
+            return this.getTableEnv().sqlQuery(
+                    "SELECT " +
+                            FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID + ", " +
+                            FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL + ", " +
+                            FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES + ", " +
+                            "window_time as " + FIELD_VERTEX_EVENT_TIME + " " +
+                            "FROM TABLE ( TUMBLE ( TABLE  " + this.tableSet.getVertices() + ", " +
+                            // Todo: Replace with configurable time interval
+                            "DESCRIPTOR(" + FIELD_EVENT_TIME + "), " + windowConfig.getSqlApiExpression() + ")) " +
+                            "GROUP BY window_time, " + FIELD_VERTEX_ID + ", " + FIELD_VERTEX_LABEL + ", " +
+                            FIELD_VERTEX_PROPERTIES + ", window_start, window_end"
+            );
+        } else {
+            return this.getTableEnv().sqlQuery(
+                    "SELECT " +
+                            FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID + ", " +
+                            FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL + ", " +
+                            FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES + ", " +
+                            "event_time " + FIELD_VERTEX_EVENT_TIME + " " +
+                            "FROM " + this.tableSet.getVertices() +
+                            // Todo: Replace with configurable time interval
+                            " GROUP BY event_time, " + FIELD_VERTEX_ID + ", " + FIELD_VERTEX_LABEL + ", " +
+                            FIELD_VERTEX_PROPERTIES
+            );
+        }
+
     }
 
     public Table prepareVerticesFurther(Table preparedVertices) {
         return preparedVertices
-          .select(buildVertexGroupProjectExpressions());
+                .select(buildVertexGroupProjectExpressions());
     }
 
-    public Table groupVertices(Table furtherPreparedVertices){
-        return furtherPreparedVertices
-          // Todo: Replace with configurable time interval
-          .window(Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW))
-          .groupBy(buildVertexGroupExpressions())
-          .select(buildVertexProjectExpressions());
+    public Table groupVertices(Table furtherPreparedVertices) {
+        GroupWindowedTable gwt;
+        if (!windowConfig.useSlideWindow()) {
+            gwt = furtherPreparedVertices.window((Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW)));
+        } else {
+            gwt = furtherPreparedVertices.window((Slide.over(windowConfig.getWindowExpression()).every(windowConfig.getFrequencyExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW)));
+        }
+        return gwt
+                // Todo: Replace with configurable time interval
+                .groupBy(buildVertexGroupExpressions())
+                .select(buildVertexProjectExpressions());
     }
 
     public Table createNewVertices(Table groupedVertices) {
         return groupedVertices
-          .select(buildSuperVertexProjectExpressions());
+                .select(buildSuperVertexProjectExpressions());
     }
 
     /**
@@ -175,15 +203,15 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      * )
      *
      * @param furtherPreparedVertices further prepared vertex table
-     * @param groupedVertices  grouped vertex table
+     * @param groupedVertices         grouped vertex table
      * @return vertex - super vertex mapping table
      */
     public Table createExpandedVertices(Table furtherPreparedVertices, Table groupedVertices) {
         return furtherPreparedVertices
-          .select(buildSelectPreparedVerticesGroupAttributes())
-          .join(groupedVertices.select(buildSelectGroupedVerticesGroupAttributes()))
-          .where(buildJoinConditionForExpandedVertices())
-          .select(buildSelectFromExpandedVertices());
+                .select(buildSelectPreparedVerticesGroupAttributes())
+                .join(groupedVertices.select(buildSelectGroupedVerticesGroupAttributes()))
+                .where(buildJoinConditionForExpandedVertices())
+                .select(buildSelectFromExpandedVertices());
     }
 
     /**
@@ -194,8 +222,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      * ⋈_{source_id=vertex_id}(π_{vertex_id, super_vertex_id AS new_source_id}(ExpandedVertices))
      * )
      *
-     * @param edges                        table of edges to assign super vertices to
-     * @param expandedVertices             vertex - super vertex mapping table
+     * @param edges            table of edges to assign super vertices to
+     * @param expandedVertices vertex - super vertex mapping table
      * @return enriched edges table
      */
     public Table createEdgesWithExpandedVertices(Table edges, Table expandedVertices) {
@@ -207,52 +235,56 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         String vertexSourceEventTime = config.createUniqueAttributeName();
 
         return edges
-          .join(
-            expandedVertices.select(
-              $(FIELD_VERTEX_ID).as(vertexTargetId),
-              $(FIELD_SUPER_VERTEX_ID).as(superVertexTargetId),
-              $(FIELD_EVENT_TIME).as(vertexTargetEventTime)))
-          .where(
-            $(FIELD_TARGET_ID).isEqual($(vertexTargetId))
-              .and($(FIELD_EVENT_TIME).isLessOrEqual($(vertexTargetEventTime)))
-              // Todo: Replace with configurable time interval
-              .and($(FIELD_EVENT_TIME).isGreater($(vertexTargetEventTime).minus(windowConfig.getWindowExpression()))))
+                .join(
+                        expandedVertices.select(
+                                $(FIELD_VERTEX_ID).as(vertexTargetId),
+                                $(FIELD_SUPER_VERTEX_ID).as(superVertexTargetId),
+                                $(FIELD_EVENT_TIME).as(vertexTargetEventTime)))
+                .where(
+                        $(FIELD_TARGET_ID).isEqual($(vertexTargetId))
+                                .and($(FIELD_EVENT_TIME).isLessOrEqual($(vertexTargetEventTime)))
+                                // Todo: Replace with configurable time interval
+                                .and($(FIELD_EVENT_TIME).isGreater($(vertexTargetEventTime).minus(windowConfig.getWindowExpression()))))
 
-          .join(
-            expandedVertices.select(
-              $(FIELD_VERTEX_ID).as(vertexSourceId),
-              $(FIELD_SUPER_VERTEX_ID).as(superVertexSourceId),
-              $(FIELD_EVENT_TIME).as(vertexSourceEventTime)))
-          .where(
-            $(FIELD_SOURCE_ID).isEqual($(vertexSourceId))
-              .and($(FIELD_EVENT_TIME).isLessOrEqual($(vertexSourceEventTime)))
-              // Todo: Replace with configurable time interval
-              .and($(FIELD_EVENT_TIME).isGreater($(vertexSourceEventTime).minus(windowConfig.getWindowExpression()))))
+                .join(
+                        expandedVertices.select(
+                                $(FIELD_VERTEX_ID).as(vertexSourceId),
+                                $(FIELD_SUPER_VERTEX_ID).as(superVertexSourceId),
+                                $(FIELD_EVENT_TIME).as(vertexSourceEventTime)))
+                .where(
+                        $(FIELD_SOURCE_ID).isEqual($(vertexSourceId))
+                                .and($(FIELD_EVENT_TIME).isLessOrEqual($(vertexSourceEventTime)))
+                                // Todo: Replace with configurable time interval
+                                .and($(FIELD_EVENT_TIME).isGreater($(vertexSourceEventTime).minus(windowConfig.getWindowExpression()))))
 
-          .select(
-            $(FIELD_EDGE_ID),
-            $(FIELD_EVENT_TIME),
-            $(superVertexSourceId).as(FIELD_SOURCE_ID),
-            $(superVertexTargetId).as(FIELD_TARGET_ID),
-            $(FIELD_EDGE_LABEL),
-            $(FIELD_EDGE_PROPERTIES));
+                .select(
+                        $(FIELD_EDGE_ID),
+                        $(FIELD_EVENT_TIME),
+                        $(superVertexSourceId).as(FIELD_SOURCE_ID),
+                        $(superVertexTargetId).as(FIELD_TARGET_ID),
+                        $(FIELD_EDGE_LABEL),
+                        $(FIELD_EDGE_PROPERTIES));
     }
 
     public Table enrichEdgesWithSuperVertices(Table edgesWithSuperVertices) {
         return edgesWithSuperVertices
-          .select(buildEdgeGroupProjectExpressions());
+                .select(buildEdgeGroupProjectExpressions());
     }
 
     public Table groupEdges(Table enrichedEdgesWithSuperVertices) {
-        return enrichedEdgesWithSuperVertices
-          // Todo: Replace with configurable time interval
-          .window(Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_EVENT_TIME)).as(FIELD_EDGE_EVENT_WINDOW))
-          .groupBy(buildEdgeGroupExpressions())
-          .select(buildEdgeProjectExpressions());
+        GroupWindowedTable gwt;
+        if (!windowConfig.useSlideWindow()) {
+            gwt = enrichedEdgesWithSuperVertices.window(Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_EVENT_TIME)).as(FIELD_EDGE_EVENT_WINDOW));
+        } else {
+            gwt = enrichedEdgesWithSuperVertices.window(Slide.over(windowConfig.getWindowExpression()).every(windowConfig.getFrequencyExpression()).on($(FIELD_EVENT_TIME)).as(FIELD_EDGE_EVENT_WINDOW));
+        }
+        return gwt
+                .groupBy(buildEdgeGroupExpressions())
+                .select(buildEdgeProjectExpressions());
     }
 
     public Table createNewEdges(Table groupedEdges) {
         return groupedEdges
-          .select(buildSuperEdgeProjectExpressions());
+                .select(buildSuperEdgeProjectExpressions());
     }
 }

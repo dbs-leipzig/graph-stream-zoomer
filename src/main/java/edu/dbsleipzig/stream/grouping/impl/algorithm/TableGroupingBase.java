@@ -929,6 +929,11 @@ public abstract class TableGroupingBase {
             return this;
         }
 
+        public GroupingBuilder setSlidingWindow(int size, int frequency, WindowConfig.TimeUnit timeUnit) {
+            this.windowConfig.setSlidingWindow(frequency, size).setUnit(timeUnit);
+            return this;
+        }
+
         /**
          * Define, if the vertex label shall be used for grouping vertices.
          *

@@ -23,6 +23,7 @@ import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamTriple;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamVertex;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.gradoop.common.model.impl.properties.Properties;
@@ -43,7 +44,10 @@ public class LocalExample {
      */
     public static void main(String[] args) throws Exception {
 
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+        Configuration cfg = new Configuration();
+        int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
+        cfg.setString("taskmanager.memory.network.max", "1gb");
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(defaultLocalParallelism, cfg);
 
         DataStream<StreamTriple> graphStreamTriples = createStreamTriples(env);
 
@@ -52,6 +56,7 @@ public class LocalExample {
         GraphStreamGrouping groupingOperator = new TableGroupingBase.GroupingBuilder()
           // Use 10 seconds window
           .setWindowSize(10, WindowConfig.TimeUnit.SECONDS)
+          .setSlidingWindow(10, 5, WindowConfig.TimeUnit.SECONDS)
           // Group edges and vertices on 'label'
           .addVertexGroupingKey(":label")
           .addEdgeGroupingKey(":label")
@@ -80,21 +85,24 @@ public class LocalExample {
         t(i+1) = t(i) + 10s
          */
         Timestamp t1 = new Timestamp(1619511661000L);
-        Timestamp t2 = new Timestamp(1619511662000L);
-        Timestamp t3 = new Timestamp(1619511673000L);
-        Timestamp t4 = new Timestamp(1619511674000L);
+        Timestamp t2 = new Timestamp(1619511665000L);
+        Timestamp t3 = new Timestamp(1619511671000L);
+        Timestamp t4 = new Timestamp(1619511676000L);
 
         /*
         Create vertices with empty properties
          */
         StreamVertex v1 = new StreamVertex("v1", "A", Properties.create(), t1);
         StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t1);
-        StreamVertex v3 = new StreamVertex("v3", "A", Properties.create(), t2);
-        StreamVertex v4 = new StreamVertex("v4", "B", Properties.create(), t2);
-        StreamVertex v5 = new StreamVertex("v5", "A", Properties.create(), t3);
-        StreamVertex v6 = new StreamVertex("v6", "B", Properties.create(), t3);
-        StreamVertex v7 = new StreamVertex("v7", "A", Properties.create(), t4);
-        StreamVertex v8 = new StreamVertex("v8", "B", Properties.create(), t4);
+        StreamVertex v3 = new StreamVertex("v1", "A", Properties.create(), t2);
+        StreamVertex v4 = new StreamVertex("v2", "B", Properties.create(), t2);
+        /*
+        StreamVertex v5 = new StreamVertex("v1", "A", Properties.create(), t3);
+        StreamVertex v6 = new StreamVertex("v2", "B", Properties.create(), t3);
+        StreamVertex v7 = new StreamVertex("v1", "A", Properties.create(), t4);
+        StreamVertex v8 = new StreamVertex("v2", "B", Properties.create(), t4);
+
+         */
 
         /*
         Define custom vertex properties
@@ -133,12 +141,15 @@ public class LocalExample {
          */
         v1.setVertexProperties(propertiesV1);
         v2.setVertexProperties(propertiesV2);
-        v3.setVertexProperties(propertiesV3);
-        v4.setVertexProperties(propertiesV4);
-        v5.setVertexProperties(propertiesCustom);
+        v3.setVertexProperties(propertiesV1);
+        v4.setVertexProperties(propertiesV2);
+        /*
+        v5.setVertexProperties(propertiesV1);
         v6.setVertexProperties(propertiesV2);
-        v7.setVertexProperties(propertiesV3);
-        v8.setVertexProperties(propertiesV4);
+        v7.setVertexProperties(propertiesV1);
+        v8.setVertexProperties(propertiesV2);
+
+         */
 
         /*
         Create custom edge properties
@@ -160,12 +171,17 @@ public class LocalExample {
         StreamTriple edge2 = new StreamTriple("e2", t1, "impacts", propertiesE2, v3, v4);
         StreamTriple edge3 = new StreamTriple("e3", t2, "calculates", propertiesE3, v3, v4);
         StreamTriple edge4 = new StreamTriple("e4", t2, "impacts",  propertiesE1, v1, v2);
+        /*
         StreamTriple edge5 = new StreamTriple("e5", t3, "impacts", propertiesE2, v5, v6);
         StreamTriple edge6 = new StreamTriple("e6", t3, "calculates", propertiesE3, v5, v6);
         StreamTriple edge7 = new StreamTriple("e7", t4, "impacts",  propertiesE1, v7, v8);
         StreamTriple edge8 = new StreamTriple("e8", t4, "impacts", propertiesE2, v7, v8);
         StreamTriple edge9 = new StreamTriple("e9", t1, "calculates", propertiesE3, v7, v8);
 
-        return env.fromElements(edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9);
+         */
+
+        //return env.fromElements(edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9);
+        return env.fromElements(edge1, edge2, edge3, edge4);
+
     }
 }

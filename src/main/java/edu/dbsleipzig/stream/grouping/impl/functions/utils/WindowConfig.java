@@ -42,6 +42,10 @@ public class WindowConfig {
    */
   private TimeUnit unit = DEFAULT_UNIT;
 
+  private int frequency = DEFAULT_VALUE;
+
+  private boolean useSlideWindow = false;
+
   /**
    * Creates an instance of the window config. Since this is private, please use the static functions
    * {@link WindowConfig#create()} to initialize a config with default window specification (10 seconds).
@@ -117,6 +121,21 @@ public class WindowConfig {
   public WindowConfig setValue(int value) {
     this.value = value;
     return this;
+  }
+
+  public WindowConfig setSlidingWindow(int frequency, int size) {
+    this.useSlideWindow = true;
+    this.value = size;
+    this.frequency = frequency;
+    return this;
+  }
+
+  public ApiExpression getFrequencyExpression() {
+    return lit(this.frequency).seconds();
+  }
+
+  public Boolean useSlideWindow() {
+    return this.useSlideWindow;
   }
 
   /**
