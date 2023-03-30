@@ -96,7 +96,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // 1. Prepare distinct vertices
         // Returns: | vertex_event_time | vertex_id | vertex_label | vertex_properties |
         Table preparedVertices = prepareVertices();
-        preparedVertices.execute().print();
 
         // 2. Write grouping or aggregating properties in own column, extract from vertex_properties column
         // returns: | vertex_id | vertex_event_time | [vertex_label] | [prop_grouping | ...] [prop_agg | ...]
@@ -105,11 +104,11 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // 3. Group vertices by label and/or property values
         // returns: | super_vertex_id | super_vertex_label | [prop_grouping | ...] [prop_agg | ...] | super_vertex_rowtime
         Table groupedVertices = groupVertices(furtherPreparedVertices);
-        groupedVertices.execute().print();
 
         // 4. Derive new super vertices
         // returns: | vertex_id | vertex_label | vertex_properties |
         Table newVertices = createNewVertices(groupedVertices);
+        newVertices.execute().print();
 
         // 5. Mapping between super-vertices and basic vertices
         // returns: | vertex_id | event_time | super_vertex_id | super_vertex_label |
@@ -157,11 +156,12 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
                             FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID + ", " +
                             FIELD_VERTEX_LABEL + " as " + FIELD_VERTEX_LABEL + ", " +
                             FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES + ", " +
-                            "event_time " + FIELD_VERTEX_EVENT_TIME + " " +
-                            "FROM " + this.tableSet.getVertices() +
+                            "window_time as " + FIELD_VERTEX_EVENT_TIME + " " +
+                            "FROM TABLE ( HOP ( TABLE  " + this.tableSet.getVertices() + ", " +
                             // Todo: Replace with configurable time interval
-                            " GROUP BY event_time, " + FIELD_VERTEX_ID + ", " + FIELD_VERTEX_LABEL + ", " +
-                            FIELD_VERTEX_PROPERTIES
+                            "DESCRIPTOR(" + FIELD_EVENT_TIME + "), INTERVAL '5' SECONDS, " + windowConfig.getSqlApiExpression() + ")) " +
+                            "GROUP BY window_time, " + FIELD_VERTEX_ID + ", " + FIELD_VERTEX_LABEL + ", " +
+                            FIELD_VERTEX_PROPERTIES + ", window_start, window_end"
             );
         }
 
@@ -177,7 +177,10 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         if (!windowConfig.useSlideWindow()) {
             gwt = furtherPreparedVertices.window((Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW)));
         } else {
-            gwt = furtherPreparedVertices.window((Slide.over(windowConfig.getWindowExpression()).every(windowConfig.getFrequencyExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW)));
+            //gwt = furtherPreparedVertices.window((Slide.over(windowConfig.getWindowExpression()).every(windowConfig.getFrequencyExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW)));
+            return furtherPreparedVertices
+                    .groupBy(buildVertexGroupExpressionsSliding())
+                    .select(buildVertexProjectExpressionsSliding());
         }
         return gwt
                 // Todo: Replace with configurable time interval
