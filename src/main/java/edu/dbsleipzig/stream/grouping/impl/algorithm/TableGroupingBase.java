@@ -32,6 +32,7 @@ import org.apache.flink.table.api.ApiExpression;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.expressions.Expression;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -695,7 +696,7 @@ public abstract class TableGroupingBase {
             selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_LABEL);
         }
         selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_ID);
-        selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_ROWTIME);
+        selectGroupedVerticesGroupAttributes.field(FIELD_SUPER_VERTEX_ROWTIME).as(FIELD_SUPER_VERTEX_ROWTIME);
         return selectGroupedVerticesGroupAttributes.build();
     }
 
@@ -720,7 +721,8 @@ public abstract class TableGroupingBase {
               .isNull()));
         }
         temporalJoinConditions.expression($("preparedVerticesTime").isLessOrEqual($(FIELD_SUPER_VERTEX_ROWTIME)))
-          .and($("preparedVerticesTime").isGreater($(FIELD_SUPER_VERTEX_ROWTIME).minus(windowConfig.getWindowExpression())));
+          .and($("preparedVerticesTime").isGreater($(FIELD_SUPER_VERTEX_ROWTIME).minus(lit(10).seconds())));
+        //temporalJoinConditions.expression($(FIELD_VERTEX_LABEL).isEqual($(FIELD_SUPER_VERTEX_LABEL)));
         Expression[] joinConditionArray = attributeJoinConditions.build();
         ArrayList<ApiExpression> orConnectedConditions = new ArrayList<>();
 

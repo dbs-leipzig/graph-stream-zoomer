@@ -91,28 +91,32 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
     protected TableSet performGrouping() {
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
-        this.tableSet.getVertices().execute().print();
 
         // 1. Prepare distinct vertices
         // Returns: | vertex_event_time | vertex_id | vertex_label | vertex_properties |
         Table preparedVertices = prepareVertices();
+        System.out.println(preparedVertices.getResolvedSchema());
 
         // 2. Write grouping or aggregating properties in own column, extract from vertex_properties column
         // returns: | vertex_id | vertex_event_time | [vertex_label] | [prop_grouping | ...] [prop_agg | ...]
         Table furtherPreparedVertices = prepareVerticesFurther(preparedVertices);
+        furtherPreparedVertices.execute().print();
+        System.out.println(furtherPreparedVertices.getResolvedSchema());
 
         // 3. Group vertices by label and/or property values
         // returns: | super_vertex_id | super_vertex_label | [prop_grouping | ...] [prop_agg | ...] | super_vertex_rowtime
         Table groupedVertices = groupVertices(furtherPreparedVertices);
+        groupedVertices.execute().print();
+        System.out.println(groupedVertices.getResolvedSchema());
 
         // 4. Derive new super vertices
         // returns: | vertex_id | vertex_label | vertex_properties |
         Table newVertices = createNewVertices(groupedVertices);
-        newVertices.execute().print();
 
         // 5. Mapping between super-vertices and basic vertices
         // returns: | vertex_id | event_time | super_vertex_id | super_vertex_label |
         Table expandedVertices = createExpandedVertices(furtherPreparedVertices, groupedVertices);
+        expandedVertices.execute().print();
 
         // 6. Assign super vertices to edges and replace source_id and target_id with the ids of the super vertices
         // returns: | edge_id | event_time | source_id | target_id | edge_label | edge_properties
@@ -178,9 +182,12 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             gwt = furtherPreparedVertices.window((Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW)));
         } else {
             //gwt = furtherPreparedVertices.window((Slide.over(windowConfig.getWindowExpression()).every(windowConfig.getFrequencyExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW)));
+
             return furtherPreparedVertices
                     .groupBy(buildVertexGroupExpressionsSliding())
                     .select(buildVertexProjectExpressionsSliding());
+
+
         }
         return gwt
                 // Todo: Replace with configurable time interval
