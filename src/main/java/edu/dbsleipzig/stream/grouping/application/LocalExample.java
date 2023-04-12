@@ -44,6 +44,11 @@ public class LocalExample {
      */
     public static void main(String[] args) throws Exception {
 
+        /*TODO: To fix this Issue, update to version 1.15.0 seems necessary
+        Related bug: https://issues.apache.org/jira/browse/FLINK-19792
+        https://stackoverflow.com/questions/64445207/rowtime-attributes-must-not-be-in-the-input-rows-of-a-regular-join-despite-usi
+         */
+
         Configuration cfg = new Configuration();
         int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
         cfg.setString("taskmanager.memory.network.max", "1gb");
