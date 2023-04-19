@@ -21,7 +21,6 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.planner.expressions.PlannerExpression;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;

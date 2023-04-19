@@ -88,10 +88,12 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
     protected TableSet performGrouping() {
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
+        this.tableSet.get(TABLE_VERTICES).execute().print();
 
         // 1. Prepare distinct vertices
         // Returns: | vertex_event_time | vertex_id | vertex_label | vertex_properties |
         Table preparedVertices = prepareVertices();
+        preparedVertices.execute().print();
 
         // 2. Write grouping or aggregating properties in own column, extract from vertex_properties column
         // returns: | vertex_id | vertex_event_time | [vertex_label] | [prop_grouping | ...] [prop_agg | ...]
