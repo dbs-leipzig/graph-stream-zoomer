@@ -47,7 +47,7 @@ under the License.
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<flink.version>1.15.0</flink.version>
 		<gradoop.version>0.6.0</gradoop.version>
-		<java.version>1.8</java.version>
+		<java.version>11</java.version>
 		<scala.binary.version>2.12</scala.binary.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
@@ -86,19 +86,18 @@ under the License.
 			<!--<scope>provided</scope>-->
 		</dependency>
 
-		<dependency>
+		<!--<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
-			<!--<scope>provided</scope>-->
-		</dependency>
+			<scope>provided</scope>
+		</dependency>-->
 
-		<!--
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner-loader</artifactId>
 			<version>${flink.version}</version>
-		</dependency>-->
+		</dependency>
 
 
 		<dependency>
@@ -134,8 +133,8 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-runtime</artifactId>
 			<version>${flink.version}</version>
-			<scope>test</scope>
-			<classifier>tests</classifier>
+			<!--<scope>test</scope>-->
+			<!--<classifier>tests</classifier>-->
 		</dependency>
 
 		<dependency>
