@@ -114,6 +114,7 @@ public class StreamGraph extends StreamGraphLayout {
     public DataStream<StreamTriple> toTripleStream() {
         Table joinedTableEdgesVertices = createStreamTriple(getTableSet().getVertices(),
           getTableSet().getEdges());
+        joinedTableEdgesVertices.execute().print();
 
         DataStream<Row> rowStreamEdgesVertices =
           getConfig().getTableEnvironment().toDataStream(joinedTableEdgesVertices);
@@ -171,6 +172,8 @@ public class StreamGraph extends StreamGraphLayout {
         String edgeEventTime = getConfig().createUniqueAttributeName();
         String sourceVertexEventTime = getConfig().createUniqueAttributeName();
         String targetVertexEventTime = getConfig().createUniqueAttributeName();
+        vertices.execute().print();
+        edges.execute().print();
 
         // Join source-vertices and edges based on IDs and window-time
         Table joinedEdgesWithSourceVertices =
@@ -199,6 +202,9 @@ public class StreamGraph extends StreamGraphLayout {
               $(FIELD_EDGE_LABEL),
               $(FIELD_EDGE_PROPERTIES),
               $(FIELD_TARGET_ID));
+
+        joinedEdgesWithSourceVertices.execute().print();
+        System.out.println("Bin hier");
 
         // Second join to join the edges with the target-vertices based on IDs and window-time
         return joinedEdgesWithSourceVertices

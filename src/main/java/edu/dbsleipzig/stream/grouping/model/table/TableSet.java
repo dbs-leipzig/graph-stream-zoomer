@@ -98,6 +98,14 @@ public class TableSet extends HashMap<String, Table> {
      */
     public static final String FIELD_VERTEX_EVENT_TIME = "vertex_event_time";
     /**
+     * Field name of prepared vertex timestamp
+     */
+    public static final String PREPARED_VERTICES_EVENT_TIME = "prepared_vertices_event_time";
+    /**
+     * Field name if not grouping on label
+     */
+    public static final String FIELD_NO_LABEL = "";
+    /**
      * Table key of vertices table
      */
     public static final String TABLE_VERTICES = "vertices";
@@ -140,7 +148,7 @@ public class TableSet extends HashMap<String, Table> {
           .column(FIELD_VERTEX_ID, DataTypes.STRING())
           .column(FIELD_EVENT_TIME, DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class))
           .column(FIELD_VERTEX_LABEL, DataTypes.STRING())
-          .column(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .column(FIELD_VERTEX_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)).bridgedTo(Properties.class))
           .watermark(FIELD_EVENT_TIME, $(FIELD_EVENT_TIME).minus(lit(10).seconds()))
           .build();
     }
@@ -154,7 +162,7 @@ public class TableSet extends HashMap<String, Table> {
         return Schema.newBuilder()
           .column(FIELD_EDGE_ID, DataTypes.STRING())
           .column(FIELD_EDGE_LABEL, DataTypes.STRING())
-          .column(FIELD_EDGE_PROPERTIES, DataTypes.RAW(TypeInformation.of(Properties.class)))
+          .column(FIELD_EDGE_PROPERTIES, DataTypes.RAW(Properties.class).bridgedTo(Properties.class))
           .column(FIELD_TARGET_ID, DataTypes.STRING())
           .column(FIELD_SOURCE_ID, DataTypes.STRING())
           .column(FIELD_EVENT_TIME, DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class))

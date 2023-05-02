@@ -26,7 +26,9 @@ import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.Table;
 import org.gradoop.common.model.impl.properties.Properties;
+import org.gradoop.common.model.impl.properties.PropertyValue;
 
 import java.sql.Timestamp;
 import java.util.HashMap;
@@ -53,6 +55,13 @@ public class LocalExample {
         int defaultLocalParallelism = Runtime.getRuntime().availableProcessors();
         cfg.setString("taskmanager.memory.network.max", "1gb");
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(defaultLocalParallelism, cfg);
+        /*
+        TODO: Updating to version 1.15 runs into the Table.execute.print() bug listed here:
+         https://issues.apache.org/jira/browse/FLINK-28275?page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel&focusedCommentId=17563096#comment-17563096
+         Also sometimes, there is a FlinkRuntimeException because of Java EOF. Replicate it when placing a
+         newVertices.execute.print() or print vertices after grouping was executed.
+         */
+
 
         DataStream<StreamTriple> graphStreamTriples = createStreamTriples(env);
 
@@ -60,7 +69,7 @@ public class LocalExample {
 
         GraphStreamGrouping groupingOperator = new TableGroupingBase.GroupingBuilder()
           // Use 10 seconds window
-          .setWindowSize(10, WindowConfig.TimeUnit.SECONDS)
+          //.setWindowSize(10, WindowConfig.TimeUnit.SECONDS)
           .setSlidingWindow(10, 5, WindowConfig.TimeUnit.SECONDS)
           // Group edges and vertices on 'label'
           .addVertexGroupingKey(":label")
@@ -101,13 +110,11 @@ public class LocalExample {
         StreamVertex v2 = new StreamVertex("v2", "B", Properties.create(), t1);
         StreamVertex v3 = new StreamVertex("v1", "A", Properties.create(), t2);
         StreamVertex v4 = new StreamVertex("v2", "B", Properties.create(), t2);
-        /*
         StreamVertex v5 = new StreamVertex("v1", "A", Properties.create(), t3);
         StreamVertex v6 = new StreamVertex("v2", "B", Properties.create(), t3);
         StreamVertex v7 = new StreamVertex("v1", "A", Properties.create(), t4);
         StreamVertex v8 = new StreamVertex("v2", "B", Properties.create(), t4);
 
-         */
 
         /*
         Define custom vertex properties
@@ -148,13 +155,10 @@ public class LocalExample {
         v2.setVertexProperties(propertiesV2);
         v3.setVertexProperties(propertiesV1);
         v4.setVertexProperties(propertiesV2);
-        /*
         v5.setVertexProperties(propertiesV1);
         v6.setVertexProperties(propertiesV2);
         v7.setVertexProperties(propertiesV1);
         v8.setVertexProperties(propertiesV2);
-
-         */
 
         /*
         Create custom edge properties
@@ -176,17 +180,12 @@ public class LocalExample {
         StreamTriple edge2 = new StreamTriple("e2", t1, "impacts", propertiesE2, v3, v4);
         StreamTriple edge3 = new StreamTriple("e3", t2, "calculates", propertiesE3, v3, v4);
         StreamTriple edge4 = new StreamTriple("e4", t2, "impacts",  propertiesE1, v1, v2);
-        /*
         StreamTriple edge5 = new StreamTriple("e5", t3, "impacts", propertiesE2, v5, v6);
         StreamTriple edge6 = new StreamTriple("e6", t3, "calculates", propertiesE3, v5, v6);
         StreamTriple edge7 = new StreamTriple("e7", t4, "impacts",  propertiesE1, v7, v8);
         StreamTriple edge8 = new StreamTriple("e8", t4, "impacts", propertiesE2, v7, v8);
-        StreamTriple edge9 = new StreamTriple("e9", t1, "calculates", propertiesE3, v7, v8);
 
-         */
-
-        //return env.fromElements(edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9);
-        return env.fromElements(edge1, edge2, edge3, edge4);
+        return env.fromElements(edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8);
 
     }
 }

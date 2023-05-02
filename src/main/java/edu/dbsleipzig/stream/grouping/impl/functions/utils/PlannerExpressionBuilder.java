@@ -21,7 +21,6 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.planner.expressions.PlannerExpression;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -264,6 +263,25 @@ public class PlannerExpressionBuilder {
             currentExpression = expression;
         } else {
             currentExpression = currentExpression.and(expression);
+        }
+
+        return this;
+    }
+
+    /**
+     * Appends a call of boolean "OR(expression)" operator with given expression to current
+     * expression
+     * Builds a boolean expression!
+     *
+     * @param expression expression
+     * @return a reference to this object
+     */
+    public PlannerExpressionBuilder or(ApiExpression expression) {
+        if (null == currentExpression) {
+            currentExpression = expression;
+        }
+        else {
+            currentExpression = currentExpression.or(expression);
         }
 
         return this;

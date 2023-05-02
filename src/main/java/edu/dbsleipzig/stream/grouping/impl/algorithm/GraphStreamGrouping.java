@@ -19,7 +19,6 @@ import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.CustomizedAggre
 import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.GraphStreamToGraphStreamOperator;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
-import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphLayout;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
 import org.apache.flink.table.api.GroupWindowedTable;
@@ -91,34 +90,33 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
     protected TableSet performGrouping() {
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
+        tableSet.getVertices().execute().print();
 
         // 1. Prepare distinct vertices
         // Returns: | vertex_event_time | vertex_id | vertex_label | vertex_properties |
         Table preparedVertices = prepareVertices();
-        System.out.println(preparedVertices.getResolvedSchema());
 
         // 2. Write grouping or aggregating properties in own column, extract from vertex_properties column
         // returns: | vertex_id | vertex_event_time | [vertex_label] | [prop_grouping | ...] [prop_agg | ...]
         Table furtherPreparedVertices = prepareVerticesFurther(preparedVertices);
-        furtherPreparedVertices.execute().print();
-        System.out.println(furtherPreparedVertices.getResolvedSchema());
 
         // 3. Group vertices by label and/or property values
         // returns: | super_vertex_id | super_vertex_label | [prop_grouping | ...] [prop_agg | ...] | super_vertex_rowtime
         Table groupedVertices = groupVertices(furtherPreparedVertices);
-        groupedVertices.execute().print();
-        System.out.println(groupedVertices.getResolvedSchema());
+        System.out.println(groupedVertices.getResolvedSchema() + " grouped vertices schema");
 
         // 4. Derive new super vertices
         // returns: | vertex_id | vertex_label | vertex_properties |
         Table newVertices = createNewVertices(groupedVertices);
+        System.out.println(newVertices.getResolvedSchema() + " new Vertices schema");
+        newVertices.execute().print();
 
         // 5. Mapping between super-vertices and basic vertices
         // returns: | vertex_id | event_time | super_vertex_id | super_vertex_label |
         Table expandedVertices = createExpandedVertices(furtherPreparedVertices, groupedVertices);
         expandedVertices.execute().print();
 
-        // 6. Assign super vertices to edges and replace source_id and target_id with the ids of the super vertices
+        // 6. Assign super vertices to edge s and replace source_id and target_id with the ids of the super vertices
         // returns: | edge_id | event_time | source_id | target_id | edge_label | edge_properties
         Table edgesWithSuperVertices = createEdgesWithExpandedVertices(tableSet.getEdges(), expandedVertices);
 
@@ -134,7 +132,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         // return: | edge_id | source_id | target_id | edge_label | edge_properties
         Table newEdges = createNewEdges(groupedEdges);
 
-        return getConfig().getTableSetFactory().fromTables(getTableEnv().sqlQuery("SELECT * FROM " + newVertices), getTableEnv().sqlQuery("SELECT * FROM " + newEdges));
+        return getConfig().getTableSetFactory().fromTables(newVertices, newEdges);
     }
 
     public Table prepareVertices() {
