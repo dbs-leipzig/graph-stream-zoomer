@@ -21,8 +21,10 @@ import edu.dbsleipzig.stream.grouping.model.graph.GraphStreamToGraphStreamOperat
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphLayout;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.Tumble;
+import org.apache.flink.types.Row;
 
 import java.util.List;
 
@@ -73,11 +75,18 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      */
     @Override
     public StreamGraph execute(StreamGraphLayout streamGraph) {
-        this.config = streamGraph.getConfig();
-        this.tableSet = streamGraph.getTableSet();
+        setConfig(streamGraph);
+        setTableSet(streamGraph);
 
         // Perform the grouping and create a new graph stream
         return new StreamGraph(performGrouping(), getConfig());
+    }
+    public void setConfig(StreamGraphLayout streamGraph) {
+        this.config = streamGraph.getConfig();
+    }
+
+    public void setTableSet(StreamGraphLayout streamGraph) {
+        this.tableSet = streamGraph.getTableSet();
     }
 
     /**
