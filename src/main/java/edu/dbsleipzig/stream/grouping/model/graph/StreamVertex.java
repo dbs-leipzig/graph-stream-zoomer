@@ -114,7 +114,17 @@ public class StreamVertex implements Serializable {
           && this.getVertexProperties().equals(other.getVertexProperties())
           && this.getEventTime() == other.getEventTime();
     }
+    @Override
+    public int hashCode() {
+        int hashCode = 1;
 
+        hashCode = hashCode * 37 + this.vertex_id.hashCode();
+        hashCode = hashCode * 37 + this.getVertexLabel().hashCode();
+        hashCode = hashCode * 37 + this.getVertexProperties().hashCode();
+        hashCode = hashCode * 37 + this.getEventTime().hashCode();
+
+        return hashCode;
+    }
     public String toString() {
         return String.format("(%s(t:%s):%s{%s})",
           this.vertex_id, this.event_time, this.vertex_label, this.vertex_properties == null ? "" : this.vertex_properties);
