@@ -6,7 +6,6 @@ import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamVertex;
 import static org.junit.Assert.*;
-
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -15,7 +14,6 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -47,7 +45,8 @@ public class LabelGroupSizeAgg {
          edgeAggregations.add(new SumProperty("Weight"));
 
          graphStreamGrouping = new GraphStreamGrouping(true, true, new ArrayList<>(),
-                 vertexAggregations, new ArrayList<>(), new ArrayList<>(), WindowConfig.create().setValue(10).setUnit(WindowConfig.TimeUnit.SECONDS));
+                 vertexAggregations, new ArrayList<>(), edgeAggregations,
+           WindowConfig.create().setValue(10).setUnit(WindowConfig.TimeUnit.SECONDS));
          graphStreamGrouping.setConfig(streamGraph);
          graphStreamGrouping.setTableSet(streamGraph);
          tEnv = graphStreamGrouping.getTableEnv();
@@ -65,7 +64,7 @@ public class LabelGroupSizeAgg {
          groupedEdges = graphStreamGrouping.groupEdges(enrichedEdgesWithSuperVertices);
          newEdges = graphStreamGrouping.createNewEdges(groupedEdges);
 
-         //Mapping vertex -> superVertex is necessary in multiple test classes
+         //Mapping vertex -> superVertex is necessary in multiple test methods
          DataStream<Row> evRows = tEnv.toDataStream(expandedVertices);
          ArrayList<Row> evList = new ArrayList<>(evRows.executeAndCollect(20));
          for (Row r : evList) {
@@ -75,8 +74,9 @@ public class LabelGroupSizeAgg {
          }
     }
 
-    /*
-    Checks for duplicates after deduplication based StreamVertex-Hashcode
+    /**
+     * Checks for duplicates after deduplication based StreamVertex-Hashcode
+     * @throws Exception if Table-DataStream-Conversion fails
      */
     @Test
     public void testPrepareVerticesDeduplication() throws Exception {
@@ -89,27 +89,28 @@ public class LabelGroupSizeAgg {
         assertEquals(vertexList.size(), hashCodes.size());
     }
 
-    /*
-    Checks for column-extension based on the arity of the rows
-    Checks for column-naming based on the field names of the rows
+    /**
+     * Checks for column-extension based on the arity of the row
+     * Checks for column-naming based on the field names of the row
+     * @throws Exception if Table-DataStream-Conversion fails
      */
     @Test
     public void testFurtherPreparedVertices() throws Exception {
         DataStream<Row> fpRows = tEnv.toDataStream(furtherPreparedVertices);
         ArrayList<Row> fpList = new ArrayList<>(fpRows.executeAndCollect(10));
-        for (Row r : fpList) {
-            Set<String> fieldNames = r.getFieldNames(true);
-            assertEquals(r.getArity(), 4);
-            assertTrue(fieldNames.contains("vertex_id"));
-            assertTrue(fieldNames.contains("vertex_event_time"));
-            assertTrue(fieldNames.contains("vertex_label"));
-            assertTrue(fieldNames.contains("TMP_0"));
-        }
+        Row r = fpList.get(0);
+        Set<String> fieldNames = r.getFieldNames(true);
+        assertEquals(r.getArity(), 4);
+        assertTrue(fieldNames.contains("vertex_id"));
+        assertTrue(fieldNames.contains("vertex_event_time"));
+        assertTrue(fieldNames.contains("vertex_label"));
+        assertTrue(fieldNames.contains("TMP_0"));
     }
 
-    /*
-    Checks duplicates in assigned Super-Vertex-IDs
-    Checks if summation of size for corresponding label and window is correct
+    /**
+     * Checks duplicates in assigned Super-Vertex-IDs
+     * Checks if summation of size for corresponding label and window is correct
+     * @throws Exception if Table-DataStream-Conversion fails
      */
     @Test
     public void testGroupedVertices() throws Exception {
@@ -140,9 +141,10 @@ public class LabelGroupSizeAgg {
         assertEquals(svIds.size(), gvList.size());
     }
 
-    /*
-    Checks if column vertex_properties is correctly created
-    Checks if vertex_properties-entries have the correct syntax
+    /**
+     * Checks if column vertex_properties is correctly created
+     * Checks if vertex_properties-entries have the correct syntax
+     * @throws Exception if Table-DataStream-Conversion fails
      */
     @Test
     public void testNewVertices() throws Exception {
@@ -160,9 +162,10 @@ public class LabelGroupSizeAgg {
         }
     }
 
-    /*
-    Tests if vertices in the same group were assigned to the same super_vertex_id
-    Groups: [(v1,v3), (v2,v4), (v5,v7), (v6,v8)]
+    /**
+     * Tests if vertices in the same group were assigned to the same super_vertex_id
+     * Groups: [(v1,v3), (v2,v4), (v5,v7), (v6,v8)]
+     * @throws Exception if Table-DataStream-Conversion fails
      */
     @Test
     public void testExpandedVertices() throws Exception {
@@ -178,12 +181,12 @@ public class LabelGroupSizeAgg {
                 case "v7": assertEquals(vId_vSupId.get("v5"), supId); break;
                 case "v8": assertEquals(vId_vSupId.get("v6"), supId); break;
             }
-            vId_vSupId.put(id, supId);
         }
     }
 
-    /*
-    Checks if the edges are mapped on the correct super-vertex
+    /**
+     * Checks if the edges are mapped on the correct super-vertex
+     * @throws Exception if Table-DataStream-Conversion fails
      */
     @Test
     public void testEdgesWithExpandedVertices() throws Exception {
@@ -206,6 +209,81 @@ public class LabelGroupSizeAgg {
             String target = source_target.get(edgeId).f1;
             assertEquals(superSource, vId_vSupId.get(source));
             assertEquals(superTarget, vId_vSupId.get(target));
+        }
+    }
+
+    /**
+     * Checks for column-extension based on the arity of the row
+     * Checks for column-naming based on the field names of the row
+     * @throws Exception if Table-DataStream-Conversion fails
+     */
+    @Test
+    public void testEnrichedEdgesWithSuperVertices() throws Exception {
+        DataStream<Row> eesRow = tEnv.toDataStream(enrichedEdgesWithSuperVertices);
+        ArrayList<Row> eesList = new ArrayList<>(eesRow.executeAndCollect(20));
+        Row r = eesList.get(0);
+        Set<String> fieldNames = r.getFieldNames(true);
+        assertEquals(r.getArity(), 6);
+        assertTrue(fieldNames.contains("edge_id"));
+        assertTrue(fieldNames.contains("event_time"));
+        assertTrue(fieldNames.contains("source_id"));
+        assertTrue(fieldNames.contains("target_id"));
+        assertTrue(fieldNames.contains("edge_label"));
+        assertTrue(fieldNames.contains("TMP_8"));
+    }
+
+    /**
+     * Checks duplicates in assigned Super-Edge-IDs
+     * Checks if summation of weight for corresponding label and window is correct
+     * @throws Exception if Table-DataStream-Conversion fails
+     */
+    @Test
+    public void testGroupedEdges() throws Exception {
+        DataStream<Row> gRows = tEnv.toDataStream(groupedEdges);
+        ArrayList<Row> gList = new ArrayList<>(gRows.executeAndCollect(20));
+        HashSet<String> seIds = new HashSet<>();
+        for (Row r : gList) {
+            seIds.add(r.getField("super_edge_id").toString());
+            String edgeLabel = r.getField("edge_label").toString();
+            String event_time = r.getField("event_time").toString();
+            int sumWeight = Integer.parseInt(r.getField("TMP_9").toString());
+            if (event_time.equals("2021-04-27 10:21:09.999") && edgeLabel.equals("impacts")) {
+                assertEquals(6, sumWeight);
+            }
+            else if (event_time.equals("2021-04-27 10:21:09.999") && edgeLabel.equals("calculates")) {
+                assertEquals(3, sumWeight);
+            }
+            else if (event_time.equals("2021-04-27 10:21:19.999") && edgeLabel.equals("impacts")) {
+                assertEquals(12, sumWeight);
+            }
+            else if (event_time.equals("2021-04-27 10:21:19.999") && edgeLabel.equals("calculates")) {
+                assertEquals(3, sumWeight);
+            }
+            else {
+                throw new AssertionError("Unexpected timestamp or label after grouping. Timestamp: " + event_time + ", Label: " + edgeLabel);
+            }
+        }
+        assertEquals(gList.size(), seIds.size());
+    }
+
+    /**
+     * Checks if column edge_properties is correctly created
+     * Checks if edge_properties-entries have the correct syntax
+     * @throws Exception if Table-DataStream-Conversion fails
+     */
+    @Test
+    public void testNewEdges() throws Exception {
+        DataStream<Row> neRows = tEnv.toDataStream(newEdges);
+        ArrayList<Row> neList = new ArrayList<>(neRows.executeAndCollect(20));
+        Pattern propertiesPattern = Pattern.compile("sum_Weight=\\d+:Integer");
+        for (Row r : neList) {
+            Set<String> fieldNames = r.getFieldNames(true);
+            assertTrue(fieldNames.contains("edge_properties"));
+            assertEquals(r.getArity(), 6);
+
+            String vertex_properties = r.getField("edge_properties").toString();
+            Matcher matcher = propertiesPattern.matcher(vertex_properties);
+            assertTrue(matcher.matches());
         }
     }
 }
