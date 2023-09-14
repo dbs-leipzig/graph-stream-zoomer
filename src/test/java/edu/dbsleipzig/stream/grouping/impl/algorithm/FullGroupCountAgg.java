@@ -2,7 +2,6 @@ package edu.dbsleipzig.stream.grouping.impl.algorithm;
 
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.Count;
 import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.CustomizedAggregationFunction;
-import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.SumProperty;
 import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamVertex;
@@ -14,11 +13,9 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
