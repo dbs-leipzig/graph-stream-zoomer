@@ -22,7 +22,8 @@ import java.util.regex.Pattern;
    TODO:
         - Check properly set window-timestamps
         - Change hard-coded ground-truth-timestamps to external calculation based on base-vertex-timestamps
-        - Check if unique super-Ids for vertices and edges (not separately)
+        - Check if unique super-Ids for vertices and edges (not separately) <-- currently buggy
+        - Only check prepareVertices/newVertices-/newEdges-Method once?
  */
 public class LabelGroupSizeAgg {
 
