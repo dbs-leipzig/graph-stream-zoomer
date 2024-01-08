@@ -43,7 +43,7 @@ public class LocalExample {
      */
     public static void main(String[] args) throws Exception {
 
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<StreamTriple> graphStreamTriples = createStreamTriples(env);
 
