@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
         - Check if unique super-Ids for vertices and edges (not separately) <-- currently buggy
         - Only check prepareVertices/newVertices-/newEdges-Method once?
  */
-public class LabelGroupSizeAgg {
+public class LabelGroupSizeAggTest {
 
     static StreamExecutionEnvironment env;
     static StreamTableEnvironment tEnv;

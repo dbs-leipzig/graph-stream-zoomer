@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class FullGroupCountAgg {
+public class FullGroupCountAggTest {
 
     static StreamExecutionEnvironment env;
     static StreamTableEnvironment tEnv;
@@ -97,7 +97,6 @@ public class FullGroupCountAgg {
         ArrayList<Row> fpList = new ArrayList<>(fpRows.executeAndCollect(10));
         Row r = fpList.get(0);
         Set<String> fieldNames = r.getFieldNames(true);
-        furtherPreparedVertices.execute().print();
         assertEquals(r.getArity(), 3);
         assertTrue(fieldNames.contains("vertex_id"));
         assertTrue(fieldNames.contains("vertex_event_time"));
