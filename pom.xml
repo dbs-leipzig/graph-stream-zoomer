@@ -83,14 +83,14 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
-			<!--<scope>provided</scope>-->
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
-			<!--<scope>provided</scope>-->
+			<scope>provided</scope>
 		</dependency>
 
 
@@ -98,7 +98,7 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
-			<!--<scope>provided</scope>-->
+			<scope>provided</scope>
 		</dependency>
 
 
@@ -106,14 +106,14 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${flink.version}</version>
-			<!--<scope>provided</scope>-->
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-common</artifactId>
 			<version>${flink.version}</version>
-			<!--<scope>provided</scope>-->
+			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -211,7 +211,21 @@ under the License.
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-nop</artifactId>
 			<version>1.7.15</version>
+			<scope>provided</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>2.0.10</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-slf4j-impl</artifactId>
+			<version>2.11.2</version>
+		</dependency>
+
 
 	</dependencies>
 
@@ -247,7 +261,7 @@ under the License.
 								<excludes>
 									<exclude>org.apache.flink:force-shading</exclude>
 									<exclude>com.google.code.findbugs:jsr305</exclude>
-									<exclude>org.slf4j:*</exclude>
+
 									<exclude>log4j:*</exclude>
 									<exclude>org.codehaus.janino:*</exclude>
 								</excludes>
@@ -266,7 +280,7 @@ under the License.
 							</filters>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>edu.leipzig.benchmark.SyntheticStreamGrouping</mainClass>
+									<mainClass>edu.dbsleipzig.stream.grouping.application.LocalExample</mainClass>
 								</transformer>
 							</transformers>
 						</configuration>
