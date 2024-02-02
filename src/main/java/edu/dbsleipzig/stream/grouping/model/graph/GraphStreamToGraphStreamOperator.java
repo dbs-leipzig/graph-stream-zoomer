@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 - 2023 Leipzig University (Database Research Group)
+ * Copyright © 2021 - 2024 Leipzig University (Database Research Group)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
  */
 package edu.dbsleipzig.stream.grouping.model.graph;
 
+/**
+ * An interface that models a stream to stream operator.
+ */
 public interface GraphStreamToGraphStreamOperator {
   StreamGraph execute(StreamGraphLayout streamGraph);
 }

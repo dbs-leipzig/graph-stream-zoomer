@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 - 2023 Leipzig University (Database Research Group)
+ * Copyright © 2021 - 2024 Leipzig University (Database Research Group)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,11 +52,6 @@ import java.util.List;
  * references to: org.gradoop.flink.model.impl.layouts.table.util;
  */
 public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
-    /**
-     * Internal list of expressions
-     * todo: check if this can be removed
-     */
-    private String expressionsString = "";
 
     List<Expression> expressions = new ArrayList<>();
 
@@ -79,7 +74,7 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
      */
     public boolean isEmpty() {
         appendIfNewExpression();
-        return expressionsString.isEmpty() || expressions.isEmpty();
+        return expressions.isEmpty();
     }
 
     //----------------------------------------------------------------------------
@@ -193,14 +188,6 @@ public class PlannerExpressionSeqBuilder extends PlannerExpressionBuilder {
             expressions.add(this.currentExpression);
         } else if (null != this.currentExpression && !expressions.contains(this.currentExpression)) {
             expressions.add(this.currentExpression);
-        }
-
-        if (null != this.currentExpressionString && expressionsString.isEmpty()) {
-            expressionsString = this.currentExpressionString;
-        //} else if (null != this.currentExpression && !expressions.contains(this.currentExpression)) {
-        } else if (null != this.currentExpressionString && !this.currentExpressionString
-          .isEmpty() && !expressionsString.endsWith(this.currentExpressionString)) {
-            expressionsString += "," + this.currentExpressionString;
         }
     }
 }

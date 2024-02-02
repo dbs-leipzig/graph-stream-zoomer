@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 - 2023 Leipzig University (Database Research Group)
+ * Copyright © 2021 - 2024 Leipzig University (Database Research Group)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,6 +78,12 @@ public class CitiBikeExample {
         env.execute();
     }
 
+    /**
+     * Creates a stream from the bikesharing csv file by reading it line by line as a {@link StreamTriple}.
+     *
+     * @param env the stream execution environment of type {@link StreamExecutionEnvironment}
+     * @return a {@link DataStream} of type {@link StreamTriple}
+     */
     public static DataStream<StreamTriple> createInputFromCsv(StreamExecutionEnvironment env) {
 
         TupleTypeInfo<CitibikeTuple15> citiBikeTupleTypeInfo = TupleTypeInfo.getBasicTupleTypeInfo(
@@ -91,8 +97,8 @@ public class CitiBikeExample {
                 new Path(url.getPath()), citiBikeTupleTypeInfo);
         inputFormat.setSkipFirstLineAsHeader(true);
 
-        DataStreamSource<CitibikeTuple15> source = env.createInput(
-                inputFormat, TypeInformation.of(CitibikeTuple15.class));
+        DataStreamSource<CitibikeTuple15> source = env
+          .createInput(inputFormat, TypeInformation.of(CitibikeTuple15.class));
 
         return source.map(new CitibikeCSVLineToStreamTripleMap());
     }

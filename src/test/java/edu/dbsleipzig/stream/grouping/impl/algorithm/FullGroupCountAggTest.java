@@ -43,22 +43,22 @@ public class FullGroupCountAggTest {
         graphStreamGrouping = new GraphStreamGrouping(false, false, new ArrayList<>(),
                 vertexAggregations, new ArrayList<>(), edgeAggregations,
                 WindowConfig.create().setValue(1).setUnit(WindowConfig.TimeUnit.MINUTES));
-        graphStreamGrouping.setConfig(streamGraph);
-        graphStreamGrouping.setTableSet(streamGraph);
+        graphStreamGrouping.setConfig(streamGraph.getConfig());
+        graphStreamGrouping.setTableSet(streamGraph.getTableSet());
         tEnv = graphStreamGrouping.getTableEnv();
 
         vertices = streamGraph.getTableSet().getVertices();
-        preparedVertices = graphStreamGrouping.prepareVertices();
-        furtherPreparedVertices = graphStreamGrouping.prepareVerticesFurther(preparedVertices);
+        preparedVertices = graphStreamGrouping.deduplicateVertices();
+        furtherPreparedVertices = graphStreamGrouping.enhanceVerticesByPropertyColumns(preparedVertices);
         groupedVertices = graphStreamGrouping.groupVertices(furtherPreparedVertices);
-        newVertices = graphStreamGrouping.createNewVertices(groupedVertices);
+        newVertices = graphStreamGrouping.createSuperVertices(groupedVertices);
         expandedVertices = graphStreamGrouping.createExpandedVertices(furtherPreparedVertices, groupedVertices);
 
         edges = streamGraph.getTableSet().getEdges();
         edgesWithExpandedVertices = graphStreamGrouping.createEdgesWithExpandedVertices(edges, expandedVertices);
         enrichedEdgesWithSuperVertices = graphStreamGrouping.enrichEdgesWithSuperVertices(edgesWithExpandedVertices);
         groupedEdges = graphStreamGrouping.groupEdges(enrichedEdgesWithSuperVertices);
-        newEdges = graphStreamGrouping.createNewEdges(groupedEdges);
+        newEdges = graphStreamGrouping.createSuperEdges(groupedEdges);
 
         //Mapping vertex -> superVertex is necessary in multiple test methods
         DataStream<Row> evRows = tEnv.toDataStream(expandedVertices);

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 - 2023 Leipzig University (Database Research Group)
+ * Copyright © 2021 - 2024 Leipzig University (Database Research Group)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,11 @@ import edu.dbsleipzig.stream.grouping.impl.functions.aggregation.CustomizedAggre
 import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.GraphStreamToGraphStreamOperator;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
+import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphLayout;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.Tumble;
-import org.apache.flink.types.Row;
 
 import java.util.List;
 
@@ -75,18 +74,21 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
      */
     @Override
     public StreamGraph execute(StreamGraphLayout streamGraph) {
-        setConfig(streamGraph);
-        setTableSet(streamGraph);
+        setConfig(streamGraph.getConfig());
+        setTableSet(streamGraph.getTableSet());
 
-        // Perform the grouping and create a new graph stream
-        return new StreamGraph(performGrouping(), getConfig());
+        // Perform the grouping
+        TableSet resultGraphStreamTable = performGrouping();
+
+        // create a new graph stream
+        return new StreamGraph(resultGraphStreamTable, getConfig());
     }
-    public void setConfig(StreamGraphLayout streamGraph) {
-        this.config = streamGraph.getConfig();
+    public void setConfig(StreamGraphConfig streamGraphConfig) {
+        this.config = streamGraphConfig;
     }
 
-    public void setTableSet(StreamGraphLayout streamGraph) {
-        this.tableSet = streamGraph.getTableSet();
+    public void setTableSet(TableSet streamGraphTableSet) {
+        this.tableSet = streamGraphTableSet;
     }
 
     /**
@@ -98,25 +100,25 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
 
-        // 1. Prepare distinct vertices
+        // 1. Deduplicate vertices
         // Returns: | vertex_event_time | vertex_id | vertex_label | vertex_properties |
-        Table preparedVertices = prepareVertices();
+        Table preparedVertices = deduplicateVertices();
 
         // 2. Write grouping or aggregating properties in own column, extract from vertex_properties column
         // returns: | vertex_id | vertex_event_time | [vertex_label] | [prop_grouping | ...] [prop_agg | ...]
-        Table furtherPreparedVertices = prepareVerticesFurther(preparedVertices);
+        Table enhancedVertices = enhanceVerticesByPropertyColumns(preparedVertices);
 
         // 3. Group vertices by label and/or property values
         // returns: | super_vertex_id | super_vertex_label | [prop_grouping | ...] [prop_agg | ...] | super_vertex_rowtime
-        Table groupedVertices = groupVertices(furtherPreparedVertices);
+        Table groupedVertices = groupVertices(enhancedVertices);
 
         // 4. Derive new super vertices
         // returns: | vertex_id | vertex_label | vertex_properties |
-        Table newVertices = createNewVertices(groupedVertices);
+        Table newVertices = createSuperVertices(groupedVertices);
 
         // 5. Mapping between super-vertices and basic vertices
         // returns: | vertex_id | event_time | super_vertex_id | super_vertex_label |
-        Table expandedVertices = createExpandedVertices(furtherPreparedVertices, groupedVertices);
+        Table expandedVertices = createExpandedVertices(enhancedVertices, groupedVertices);
 
         // 6. Assign super vertices to edges and replace source_id and target_id with the ids of the super vertices
         // returns: | edge_id | event_time | source_id | target_id | edge_label | edge_properties
@@ -132,12 +134,12 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         // 9. Derive new super edges from grouped edges
         // return: | edge_id | source_id | target_id | edge_label | edge_properties
-        Table newEdges = createNewEdges(groupedEdges);
+        Table newEdges = createSuperEdges(groupedEdges);
 
         return getConfig().getTableSetFactory().fromTables(newVertices, newEdges);
     }
 
-    public Table prepareVertices() {
+    public Table deduplicateVertices() {
         return this.getTableEnv().sqlQuery(
           "SELECT " +
             FIELD_VERTEX_ID + " as " + FIELD_VERTEX_ID + ", " +
@@ -145,27 +147,25 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             FIELD_VERTEX_PROPERTIES + " as " + FIELD_VERTEX_PROPERTIES + ", " +
             "window_time as " + FIELD_VERTEX_EVENT_TIME + " " +
             "FROM TABLE ( TUMBLE ( TABLE  " + this.tableSet.getVertices() + ", " +
-            // Todo: Replace with configurable time interval
             "DESCRIPTOR(" + FIELD_EVENT_TIME + "), " + windowConfig.getSqlApiExpression() + ")) " +
             "GROUP BY window_time, " + FIELD_VERTEX_ID + ", " + FIELD_VERTEX_LABEL + ", " +
             FIELD_VERTEX_PROPERTIES + ", window_start, window_end"
         );
     }
 
-    public Table prepareVerticesFurther(Table preparedVertices) {
+    public Table enhanceVerticesByPropertyColumns(Table preparedVertices) {
         return preparedVertices
           .select(buildVertexGroupProjectExpressions());
     }
 
     public Table groupVertices(Table furtherPreparedVertices){
         return furtherPreparedVertices
-          // Todo: Replace with configurable time interval
           .window(Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW))
           .groupBy(buildVertexGroupExpressions())
           .select(buildVertexProjectExpressions());
     }
 
-    public Table createNewVertices(Table groupedVertices) {
+    public Table createSuperVertices(Table groupedVertices) {
         return groupedVertices
           .select(buildSuperVertexProjectExpressions());
     }
@@ -223,7 +223,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
           .where(
             $(FIELD_TARGET_ID).isEqual($(vertexTargetId))
               .and($(FIELD_EVENT_TIME).isLessOrEqual($(vertexTargetEventTime)))
-              // Todo: Replace with configurable time interval
               .and($(FIELD_EVENT_TIME).isGreater($(vertexTargetEventTime).minus(windowConfig.getWindowExpression()))))
 
           .join(
@@ -234,7 +233,6 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
           .where(
             $(FIELD_SOURCE_ID).isEqual($(vertexSourceId))
               .and($(FIELD_EVENT_TIME).isLessOrEqual($(vertexSourceEventTime)))
-              // Todo: Replace with configurable time interval
               .and($(FIELD_EVENT_TIME).isGreater($(vertexSourceEventTime).minus(windowConfig.getWindowExpression()))))
 
           .select(
@@ -253,13 +251,12 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
     public Table groupEdges(Table enrichedEdgesWithSuperVertices) {
         return enrichedEdgesWithSuperVertices
-          // Todo: Replace with configurable time interval
           .window(Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_EVENT_TIME)).as(FIELD_EDGE_EVENT_WINDOW))
           .groupBy(buildEdgeGroupExpressions())
           .select(buildEdgeProjectExpressions());
     }
 
-    public Table createNewEdges(Table groupedEdges) {
+    public Table createSuperEdges(Table groupedEdges) {
         return groupedEdges
           .select(buildSuperEdgeProjectExpressions());
     }
