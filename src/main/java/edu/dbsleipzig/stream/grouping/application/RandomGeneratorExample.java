@@ -23,15 +23,11 @@ import edu.dbsleipzig.stream.grouping.impl.functions.utils.WindowConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraph;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
 import edu.dbsleipzig.stream.grouping.model.graph.StreamTriple;
-import edu.dbsleipzig.stream.grouping.model.graph.StreamVertex;
+import org.apache.commons.cli.MissingArgumentException;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
-import org.gradoop.common.model.impl.properties.Properties;
-
-import java.sql.Timestamp;
-import java.util.HashMap;
 
 /**
  * A local example with some randomly generated graph stream.
@@ -49,9 +45,13 @@ public class RandomGeneratorExample {
      * @throws Exception in case of an error
      */
     public static void main(String[] args) throws Exception {
+
+        if (args.length < 2) {
+            throw new MissingArgumentException("Please provide window size in [s] as first argument and " +
+              "#elementsPerSecond as second argument.");
+        }
         // Get the window size from args[0]
         int windowSize = Integer.parseInt(args[0]);
-
         // Get the number of elements per sec args[1]
         int elementsPerSecond = Integer.parseInt(args[1]);
 
@@ -60,7 +60,7 @@ public class RandomGeneratorExample {
 
         // Init the source
         DataGeneratorSource<StreamTriple> source = new DataGeneratorSource<>(
-          new RandomStreamTripleGenerator(10, 10, 1000), elementsPerSecond, 1000000L);
+          new RandomStreamTripleGenerator(10, 10, 10_000), elementsPerSecond, 1000000L);
 
         // Init the artificial random data stream
         DataStream<StreamTriple> graphStreamTriples =
