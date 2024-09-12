@@ -89,7 +89,8 @@ under the License.
     <dependency>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-        <version>${flink.version}</version>
+	<version>${flink.version}</version>
+	<scope>provided</scope>
     </dependency>
 
 
@@ -185,7 +186,7 @@ under the License.
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
         <version>4.2.6</version>
-    </dependency>
+</dependency>
 
     <dependency>
         <groupId>commons-codec</groupId>
