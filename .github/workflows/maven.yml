@@ -1,3 +1,5 @@
+run-name: Build the Zoomer by @${{ github.actor }}
+on: push
 steps:
   - uses: actions/checkout@v4
   - name: Set up JDK 8 for x64 and run maven
