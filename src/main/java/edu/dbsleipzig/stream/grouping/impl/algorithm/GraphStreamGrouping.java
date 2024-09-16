@@ -99,48 +99,44 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
     protected TableSet performGrouping() {
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
-        /*
-         return furtherPreparedVertices
-          .window(Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW))
-          .groupBy(buildVertexGroupExpressions())
-          .select(buildVertexProjectExpressions());
-         */
-
-        Table preparedEdges = deduplicateEdges();
 
         // 1. Deduplicate vertices
-        // Returns: | vertex_event_time | vertex_id | vertex_label | vertex_properties |
+        // returns: | vertex_event_time | vertex_id | vertex_label | vertex_properties |
         Table preparedVertices = deduplicateVertices();
 
-        // 2. Write grouping or aggregating properties in own column, extract from vertex_properties column
+        // 2. Deduplicate edges
+        // returns: | edge_id | edge_label | edge_properties | event_time | target_id | source_id
+        Table preparedEdges = deduplicateEdges();
+
+        // 3. Write grouping or aggregating properties in own column, extract from vertex_properties column
         // returns: | vertex_id | vertex_event_time | [vertex_label] | [prop_grouping | ...] [prop_agg | ...]
         Table enhancedVertices = enhanceVerticesByPropertyColumns(preparedVertices);
 
-        // 3. Group vertices by label and/or property values
+        // 4. Group vertices by label and/or property values
         // returns: | super_vertex_id | super_vertex_label | [prop_grouping | ...] [prop_agg | ...] | super_vertex_rowtime
         Table groupedVertices = groupVertices(enhancedVertices);
 
-        // 4. Derive new super vertices
+        // 5. Derive new super vertices
         // returns: | vertex_id | vertex_label | vertex_properties |
         Table newVertices = createSuperVertices(groupedVertices);
 
-        // 5. Mapping between super-vertices and basic vertices
+        // 6. Mapping between super-vertices and basic vertices
         // returns: | vertex_id | event_time | super_vertex_id | super_vertex_label |
         Table expandedVertices = createExpandedVertices(enhancedVertices, groupedVertices);
 
-        // 6. Assign super vertices to edges and replace source_id and target_id with the ids of the super vertices
+        // 7. Assign super vertices to edges and replace source_id and target_id with the ids of the super vertices
         // returns: | edge_id | event_time | source_id | target_id | edge_label | edge_properties
         Table edgesWithSuperVertices = createEdgesWithExpandedVertices(preparedEdges, expandedVertices);
 
-        // 7. Write grouping or aggregating properties in own column, extract from edge_properties column
+        // 8. Write grouping or aggregating properties in own column, extract from edge_properties column
         // return: | edge_id | event_time | source_id | target_id | [edge_label] | [prop_grouping | ..] [prop_agg | ... ]
         Table enrichedEdgesWithSuperVertices = enrichEdgesWithSuperVertices(edgesWithSuperVertices);
 
-        // 8. Group edges by label and/or property values
+        // 9. Group edges by label and/or property values
         // return: | super_edge_id | source_id | target_id | [edge_label] | [prop_grouping | ..] [prop_agg | ... ]
         Table groupedEdges = groupEdges(enrichedEdgesWithSuperVertices);
 
-        // 9. Derive new super edges from grouped edges
+        // 10. Derive new super edges from grouped edges
         // return: | edge_id | source_id | target_id | edge_label | edge_properties
         Table newEdges = createSuperEdges(groupedEdges);
 
@@ -167,7 +163,8 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
                 FIELD_EDGE_ID + " as " + FIELD_EDGE_ID + ", " +
                 FIELD_EDGE_LABEL + " as " + FIELD_EDGE_LABEL + ", " +
                 FIELD_EDGE_PROPERTIES + " as " + FIELD_EDGE_PROPERTIES + ", " +
-                "window_time as event_time, target_id as target_id, source_id as source_id " +
+                "window_time as " + FIELD_EVENT_TIME + " , " + FIELD_TARGET_ID + " as " + FIELD_TARGET_ID +
+                ", " + FIELD_SOURCE_ID + "  as " + FIELD_SOURCE_ID + " " +
                 "FROM TABLE ( TUMBLE ( TABLE  " + this.tableSet.getEdges() + ", " +
                 "DESCRIPTOR(" + FIELD_EVENT_TIME + "), " + windowConfig.getSqlApiExpression() + ")) " +
                 "GROUP BY window_time, " + FIELD_EDGE_ID + ", " + FIELD_EDGE_LABEL + ", " +
