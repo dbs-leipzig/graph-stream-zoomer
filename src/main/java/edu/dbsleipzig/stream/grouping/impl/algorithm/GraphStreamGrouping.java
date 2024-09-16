@@ -99,6 +99,14 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
     protected TableSet performGrouping() {
         getTableEnv().createTemporaryView(TABLE_VERTICES, tableSet.getVertices());
         getTableEnv().createTemporaryView(TABLE_EDGES, tableSet.getEdges());
+        /*
+         return furtherPreparedVertices
+          .window(Tumble.over(windowConfig.getWindowExpression()).on($(FIELD_VERTEX_EVENT_TIME)).as(FIELD_SUPER_VERTEX_EVENT_WINDOW))
+          .groupBy(buildVertexGroupExpressions())
+          .select(buildVertexProjectExpressions());
+         */
+
+        Table preparedEdges = deduplicateEdges();
 
         // 1. Deduplicate vertices
         // Returns: | vertex_event_time | vertex_id | vertex_label | vertex_properties |
@@ -122,7 +130,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
 
         // 6. Assign super vertices to edges and replace source_id and target_id with the ids of the super vertices
         // returns: | edge_id | event_time | source_id | target_id | edge_label | edge_properties
-        Table edgesWithSuperVertices = createEdgesWithExpandedVertices(tableSet.getEdges(), expandedVertices);
+        Table edgesWithSuperVertices = createEdgesWithExpandedVertices(preparedEdges, expandedVertices);
 
         // 7. Write grouping or aggregating properties in own column, extract from edge_properties column
         // return: | edge_id | event_time | source_id | target_id | [edge_label] | [prop_grouping | ..] [prop_agg | ... ]
@@ -150,6 +158,20 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
             "DESCRIPTOR(" + FIELD_EVENT_TIME + "), " + windowConfig.getSqlApiExpression() + ")) " +
             "GROUP BY window_time, " + FIELD_VERTEX_ID + ", " + FIELD_VERTEX_LABEL + ", " +
             FIELD_VERTEX_PROPERTIES + ", window_start, window_end"
+        );
+    }
+
+    public Table deduplicateEdges() {
+        return this.getTableEnv().sqlQuery(
+                "SELECT " +
+                FIELD_EDGE_ID + " as " + FIELD_EDGE_ID + ", " +
+                FIELD_EDGE_LABEL + " as " + FIELD_EDGE_LABEL + ", " +
+                FIELD_EDGE_PROPERTIES + " as " + FIELD_EDGE_PROPERTIES + ", " +
+                "window_time as event_time, target_id as target_id, source_id as source_id " +
+                "FROM TABLE ( TUMBLE ( TABLE  " + this.tableSet.getEdges() + ", " +
+                "DESCRIPTOR(" + FIELD_EVENT_TIME + "), " + windowConfig.getSqlApiExpression() + ")) " +
+                "GROUP BY window_time, " + FIELD_EDGE_ID + ", " + FIELD_EDGE_LABEL + ", " +
+                FIELD_EDGE_PROPERTIES + ", window_start, window_end, source_id, target_id"
         );
     }
 
@@ -222,9 +244,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
               $(FIELD_EVENT_TIME).as(vertexTargetEventTime)))
           .where(
             $(FIELD_TARGET_ID).isEqual($(vertexTargetId))
-              .and($(FIELD_EVENT_TIME).isLessOrEqual($(vertexTargetEventTime)))
-              .and($(FIELD_EVENT_TIME).isGreater($(vertexTargetEventTime).minus(windowConfig.getWindowExpression()))))
-
+              .and($(FIELD_EVENT_TIME).isLessOrEqual($(FIELD_EVENT_TIME))))
           .join(
             expandedVertices.select(
               $(FIELD_VERTEX_ID).as(vertexSourceId),
@@ -232,9 +252,7 @@ public class GraphStreamGrouping extends TableGroupingBase implements GraphStrea
               $(FIELD_EVENT_TIME).as(vertexSourceEventTime)))
           .where(
             $(FIELD_SOURCE_ID).isEqual($(vertexSourceId))
-              .and($(FIELD_EVENT_TIME).isLessOrEqual($(vertexSourceEventTime)))
-              .and($(FIELD_EVENT_TIME).isGreater($(vertexSourceEventTime).minus(windowConfig.getWindowExpression()))))
-
+              .and($(FIELD_EVENT_TIME).isLessOrEqual($(FIELD_EVENT_TIME))))
           .select(
             $(FIELD_EDGE_ID),
             $(FIELD_EVENT_TIME),
