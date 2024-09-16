@@ -249,7 +249,7 @@ public class StreamGraph extends StreamGraphLayout {
     public static StreamGraph fromFlinkStream(DataStream<StreamTriple> stream, StreamGraphConfig config) {
         stream.assignTimestampsAndWatermarks(
           WatermarkStrategy
-            .<StreamTriple>forBoundedOutOfOrderness(config.getMaxOutOfOrdernessDuration())
+            .<StreamTriple>forMonotonousTimestamps()
             .withTimestampAssigner((event, timestamp) -> event.getTimestamp().getTime()));
         SingleOutputStreamOperator<StreamEdge> edges = stream.process(new Extractor());
         DataStream<StreamVertex> vertices = edges.getSideOutput(Extractor.VERTEX_OUTPUT_TAG);
