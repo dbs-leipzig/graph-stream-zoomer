@@ -78,7 +78,7 @@ under the License.
                 </exclusion>
             </exclusions>
             <!-- Set this to `provided` for cluster execution or `compile` for local IDE execution -->
-            <scope>runtime</scope>
+            <scope>${flink.scope}</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.flink</groupId>
