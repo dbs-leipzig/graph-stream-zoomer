@@ -14,6 +14,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '8'
+          distribution: 'oracle'
       - name: Build with Maven
         run: |
           mvn clean install -DskipTests
