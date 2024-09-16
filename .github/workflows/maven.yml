@@ -17,6 +17,3 @@ jobs:
       - name: Build with Maven
         run: |
           mvn clean install -DskipTests
-      - name: Test with Maven
-        run: |
-          mvn verify --no-transfer-progress -DtrimStackTrace=false

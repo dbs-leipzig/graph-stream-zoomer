@@ -1,4 +1,5 @@
 [![Apache License, Version 2.0, January 2004](https://img.shields.io/github/license/apache/maven.svg?label=License)](https://www.apache.org/licenses/LICENSE-2.0)
+![example workflow](https://github.com/github/docs/actions/workflows/maven.yml/badge.svg)
 [![Apache Flink](https://img.shields.io/badge/Apache%20Flink-E6526F?style=for-the-badge&logo=Apache%20Flink&logoColor=white)](https://flink.apache.org)
 # Graph Stream Zoomer
 ![GraphStreamZoomer_Logo](logo/GraphStreamZoomerLogo_small.png)
