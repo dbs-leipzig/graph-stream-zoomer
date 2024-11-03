@@ -15,6 +15,7 @@
  */
 package edu.dbsleipzig.stream.grouping.model.graph;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.gradoop.common.model.impl.properties.Properties;
 
@@ -68,6 +69,7 @@ public class StreamTriple extends Tuple6<String, Timestamp, String, Properties, 
         this.f1 = timestamp;
     }
 
+    @JsonIgnore
     public String getLabel() {
         return this.f2;
     }
@@ -115,6 +117,7 @@ public class StreamTriple extends Tuple6<String, Timestamp, String, Properties, 
      *
      * @return stream edge (timestamp, edge_id, tail_id, edge_label, edge_properties, head_id)
      */
+    @JsonIgnore
     public StreamEdge getEdge() {
         return new StreamEdge(this.f0, this.f1, this.f2, this.f3, this.f4.getVertexId(), this.f5.getVertexId());
     }

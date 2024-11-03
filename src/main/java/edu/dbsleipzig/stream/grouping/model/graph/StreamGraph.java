@@ -247,7 +247,7 @@ public class StreamGraph extends StreamGraphLayout {
      * @return a StreamGraph instance
      */
     public static StreamGraph fromFlinkStream(DataStream<StreamTriple> stream, StreamGraphConfig config) {
-        stream.assignTimestampsAndWatermarks(
+        stream = stream.assignTimestampsAndWatermarks(
           WatermarkStrategy
             .<StreamTriple>forMonotonousTimestamps()
             .withTimestampAssigner((event, timestamp) -> event.getTimestamp().getTime()));

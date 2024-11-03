@@ -52,6 +52,8 @@ under the License.
         <java.version>1.8</java.version>
         <scala.binary.version>2.12</scala.binary.version>
 		<slf4j.version>2.0.11</slf4j.version>
+        <jackson.databind.version>2.14.2</jackson.databind.version>
+        <jackson.version>2.14.1</jackson.version>
 
         <!-- Set this to `provided` for cluster execution or `compile` for local IDE execution -->
         <flink.scope>compile</flink.scope>
@@ -121,6 +123,29 @@ under the License.
             <version>${flink.version}</version>
             <!-- Set this to `provided` for cluster execution or `compile` for local IDE execution -->
             <scope>${flink.scope}</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-kafka_2.12</artifactId>
+            <version>${flink.version}</version>
+        </dependency>
+
+        <!-- Adding jackson dependencies. They must be in the default scope (compile). -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.databind.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <!-- jackson needs jackson-datatype-jsr310 for Java 8 java.time.Instant support -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
 
         <!-- Gradoop dependencies -->
@@ -220,6 +245,12 @@ under the License.
             <scope>runtime</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver</artifactId>
+            <version>4.4.18</version>
+        </dependency>
+
 		<!-- Test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -274,6 +305,7 @@ under the License.
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <outputFile>target/jar/${project.artifactId}-${project.version}-shaded.jar</outputFile>
                             <artifactSet>
                                 <excludes>
                                     <exclude>org.apache.flink:force-shading</exclude>
