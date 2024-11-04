@@ -6,6 +6,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
+import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 
 import java.util.HashMap;
@@ -13,11 +14,10 @@ import java.util.Map;
 
 
 public class Neo4jSink extends RichSinkFunction<StreamTriple> {
-
   Session session;
 
   // URI examples: "neo4j://localhost", "neo4j+s://xxx.databases.neo4j.io"
-  final String dbUri = "neo4j://localhost";
+  final String dbUri = "bolt://localhost";
   final String dbUser = "neo4j";
   final String dbPassword = "password";
 
@@ -25,15 +25,16 @@ public class Neo4jSink extends RichSinkFunction<StreamTriple> {
   public void open(Configuration parameters) throws Exception {
     super.open(parameters);
 
-    try (Driver driver = GraphDatabase.driver(dbUri, AuthTokens.basic(dbUser, dbPassword))) {
-      driver.verifyConnectivity();
-      System.out.println("Connection established.");
-      this.session = driver.session();
-    }
+    Driver driver = GraphDatabase.driver(dbUri, AuthTokens.basic(dbUser, dbPassword));
+    driver.verifyConnectivity();
+    System.out.println("Connection to Neo4j established.");
+    this.session = driver.session();
+
   }
 
   @Override
   public void close() throws Exception {
+    System.out.println("Connection to Neo4j closed.");
     super.close();
   }
 
@@ -41,16 +42,11 @@ public class Neo4jSink extends RichSinkFunction<StreamTriple> {
   public void invoke(StreamTriple streamTriple, Context context) throws Exception {
     super.invoke(streamTriple, context);
 
-    try {
-      writeTriple(streamTriple);
-      System.out.println("Triple added to database.");
-    } catch (Exception e) {
-      System.out.println(e.getMessage());
-    }
-
+    Result result = writeTriple(streamTriple);
+    System.out.println("Triple [" + streamTriple.getId() + "] added to database.");
   }
 
-  private void writeTriple(StreamTriple streamTriple) {
+  private Result writeTriple(StreamTriple streamTriple) {
 
     // Example Triple
     // (a5fe0f3163f3a33ce729b2ca5adea71fbb163934(t:2024-11-03 10:59:59.999)
@@ -67,17 +63,19 @@ public class Neo4jSink extends RichSinkFunction<StreamTriple> {
       "t.minDuration = $minDuration, " +
       "t.maxDuration = $maxDuration, " +
       "t.avgDuration = $avgDuration, " +
-      "t.count = $count";
+      "t.count = $count, " +
+      "t.createdAt = $time";
 
     Map<String, Object> params = new HashMap<>();
-    params.put("srcId", streamTriple.getSource().getVertexId());
-    params.put("trgId", streamTriple.getTarget().getVertexId());
-    params.put("count", streamTriple.getProperties().get("count"));
-    params.put("minDuration", streamTriple.getProperties().get("minDuration"));
-    params.put("maxDuration", streamTriple.getProperties().get("maxDuration"));
-    params.put("avgDuration", streamTriple.getProperties().get("avgDuration"));
-    params.put("operation", streamTriple.getProperties().get("operation"));
+    params.put("srcId", streamTriple.getSource().getVertexProperties().get("id").getString());
+    params.put("trgId", streamTriple.getTarget().getVertexProperties().get("id").getString());
+    params.put("count", streamTriple.getProperties().get("count").getLong());
+    params.put("minDuration", streamTriple.getProperties().get("minDuration").getInt());
+    params.put("maxDuration", streamTriple.getProperties().get("maxDuration").getInt());
+    params.put("avgDuration", streamTriple.getProperties().get("avgDuration").getDouble());
+    params.put("operation", streamTriple.getProperties().get("operation").getString());
+    params.put("time", streamTriple.getTimestamp().toLocalDateTime());
 
-    this.session.run(query, params);
+    return this.session.run(query, params);
   }
 }
