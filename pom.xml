@@ -56,7 +56,7 @@ under the License.
         <jackson.version>2.14.1</jackson.version>
 
         <!-- Set this to `provided` for cluster execution or `compile` for local IDE execution -->
-        <flink.scope>compile</flink.scope>
+        <flink.scope>provided</flink.scope>
 
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
