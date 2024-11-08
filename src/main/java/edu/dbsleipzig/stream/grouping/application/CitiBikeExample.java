@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 - 2023 Leipzig University (Database Research Group)
+ * Copyright © 2021 - 2024 Leipzig University (Database Research Group)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.net.URL;
+import java.util.Objects;
 
 /**
  * Demonstration of the graph stream grouping using public citibike bike-sharing data.
@@ -78,6 +79,12 @@ public class CitiBikeExample {
         env.execute();
     }
 
+    /**
+     * Creates a stream from the bikesharing csv file by reading it line by line as a {@link StreamTriple}.
+     *
+     * @param env the stream execution environment of type {@link StreamExecutionEnvironment}
+     * @return a {@link DataStream} of type {@link StreamTriple}
+     */
     public static DataStream<StreamTriple> createInputFromCsv(StreamExecutionEnvironment env) {
 
         TupleTypeInfo<CitibikeTuple15> citiBikeTupleTypeInfo = TupleTypeInfo.getBasicTupleTypeInfo(
@@ -88,11 +95,11 @@ public class CitiBikeExample {
         URL url = CitiBikeExample.class.getResource("/citibike-data/201306-citibike-tripdata.csv");
 
         CsvInputFormat<CitibikeTuple15> inputFormat = new TupleCsvInputFormat<>(
-                new Path(url.getPath()), citiBikeTupleTypeInfo);
+                new Path(Objects.requireNonNull(url).getPath()), citiBikeTupleTypeInfo);
         inputFormat.setSkipFirstLineAsHeader(true);
 
-        DataStreamSource<CitibikeTuple15> source = env.createInput(
-                inputFormat, TypeInformation.of(CitibikeTuple15.class));
+        DataStreamSource<CitibikeTuple15> source = env
+          .createInput(inputFormat, TypeInformation.of(CitibikeTuple15.class));
 
         return source.map(new CitibikeCSVLineToStreamTripleMap());
     }

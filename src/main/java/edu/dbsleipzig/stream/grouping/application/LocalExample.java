@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 - 2023 Leipzig University (Database Research Group)
+ * Copyright © 2021 - 2024 Leipzig University (Database Research Group)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,12 +43,16 @@ public class LocalExample {
      */
     public static void main(String[] args) throws Exception {
 
+        // Init the Stream Environment
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
+        // Init the artificial data stream
         DataStream<StreamTriple> graphStreamTriples = createStreamTriples(env);
 
+        // Map the stream to a stream graph
         StreamGraph streamGraph = StreamGraph.fromFlinkStream(graphStreamTriples, new StreamGraphConfig(env));
 
+        // Init the grouping operator
         GraphStreamGrouping groupingOperator = new TableGroupingBase.GroupingBuilder()
           // Use 10 seconds window
           .setWindowSize(10, WindowConfig.TimeUnit.SECONDS)
@@ -60,10 +64,17 @@ public class LocalExample {
           .addEdgeAggregateFunction(new Count())
           .build();
 
+        // Apply the grouping operator
         streamGraph = groupingOperator.execute(streamGraph);
 
+        // Print the resulting triples
         streamGraph.print();
 
+        // Or print vertices/edges separately
+        //streamGraph.printVertices();
+        //streamGraph.printEdges();
+
+        // Execute the Flink Workflow (mandatory)
         env.execute();
     }
 

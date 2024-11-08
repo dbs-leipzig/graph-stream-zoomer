@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 - 2023 Leipzig University (Database Research Group)
+ * Copyright © 2021 - 2024 Leipzig University (Database Research Group)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import edu.dbsleipzig.stream.grouping.model.graph.StreamGraphConfig;
 import edu.dbsleipzig.stream.grouping.model.table.TableSet;
 import org.apache.flink.table.api.ApiExpression;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.internal.BaseExpressions;
 import org.apache.flink.table.expressions.Expression;
 
 import java.util.*;
@@ -601,11 +602,12 @@ public abstract class TableGroupingBase {
         ApiExpression temporalExpression = $(PREPARED_VERTICES_EVENT_TIME).isLessOrEqual($(FIELD_SUPER_VERTEX_ROWTIME))
                 .and($(PREPARED_VERTICES_EVENT_TIME).isGreater($(FIELD_SUPER_VERTEX_ROWTIME).minus(windowConfig.getWindowExpression())));
 
-        ApiExpression[] apiExpressionArray = Arrays.stream(attributeJoinConditions.build()).toArray(ApiExpression[]::new);
+        ApiExpression[] apiExpressionArray = Arrays.stream(attributeJoinConditions.build())
+          .toArray(ApiExpression[]::new);
 
         if (apiExpressionArray.length > 0) {
-            ApiExpression apiExpression = Arrays.stream(apiExpressionArray).reduce(temporalExpression , (prev, cur) -> prev.and(cur));
-            return apiExpression;
+            return Arrays.stream(apiExpressionArray)
+              .reduce(temporalExpression, BaseExpressions::and);
         }
 
         return temporalExpression;

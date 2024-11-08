@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 - 2023 Leipzig University (Database Research Group)
+ * Copyright © 2021 - 2024 Leipzig University (Database Research Group)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -249,7 +249,7 @@ public class StreamGraph extends StreamGraphLayout {
     public static StreamGraph fromFlinkStream(DataStream<StreamTriple> stream, StreamGraphConfig config) {
         stream.assignTimestampsAndWatermarks(
           WatermarkStrategy
-            .<StreamTriple>forBoundedOutOfOrderness(config.getMaxOutOfOrdernessDuration())
+            .<StreamTriple>forMonotonousTimestamps()
             .withTimestampAssigner((event, timestamp) -> event.getTimestamp().getTime()));
         SingleOutputStreamOperator<StreamEdge> edges = stream.process(new Extractor());
         DataStream<StreamVertex> vertices = edges.getSideOutput(Extractor.VERTEX_OUTPUT_TAG);
